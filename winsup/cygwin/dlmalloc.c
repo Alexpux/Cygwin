@@ -28,6 +28,18 @@
  *  malloc_usable_size(P) is equivalent to realloc(P, malloc_usable_size(P))
  *
  * $Log$
+ * Revision 1.1  2001/04/24 15:25:30  duda
+ * * dlmalloc.c: New file. Port of Doug Lea's malloc
+ * * dlmalloc.h: Ditto.
+ * * Makefile.in: Add support for MALLOC_DEBUG
+ * * config.h.in: Ditto.
+ * * winsup.h: Ditto.
+ * * configure.in: Add --enable-malloc-debugging option.
+ * * configure: Regenerate.
+ * * debug.h: Include declarations for debugging malloc.
+ * * tty.cc (grantpt): Fix definition.
+ * (unlockpt): Ditto.
+ *
  * Revision 1.1  1997/12/24 18:34:47  nsd
  * Initial revision
  *
