@@ -28,6 +28,25 @@
  *  malloc_usable_size(P) is equivalent to realloc(P, malloc_usable_size(P))
  *
  * $Log$
+ * Revision 1.4  2001/09/07 21:32:04  cgf
+ * * cygheap.h (init_cygheap): Move heap pointers here.
+ * * include/sys/cygwin.h (perprocess): Remove heap pointers.
+ * * dcrt0.cc (__cygwin_user_data): Reflect obsolete perprocess stuff.
+ * (_dll_crt0): Don't initialize heap pointers.
+ * (cygwin_dll_init): Ditto.
+ * (release_upto): Use heap pointers from cygheap.
+ * * heap.h: Ditto.
+ * * fork.cc (fork_parent): Ditto.  Don't set heap pointers in ch.
+ * (fork_child): Remove obsolete sigproc_fixup_after_fork.
+ * * shared.cc (memory_init): Reorganize so that cygheap initialization is called
+ * prior to regular heap since regular heap uses cygheap now.
+ * * sigproc.cc (proc_subproc): Eliminate zombies allocation.
+ * (sigproc_init): Move zombies alloation here.  Don't free up array on fork, just
+ * reuse it.
+ * (sigproc_fixup_after_fork): Eliminate.
+ * * sigproc.h: Ditto.
+ * * include/cygwin/version.h: Reflect change to perprocess structure.
+ *
  * Revision 1.3  2001/06/26 14:47:48  cgf
  * * mmap.cc: Clean up *ResourceLock calls throughout.
  * * thread.cc (pthread_cond::TimedWait): Check for WAIT_TIMEOUT as well as
@@ -1824,7 +1843,6 @@ static void errprint(const char *file, int line, const char *err)
   write(2, err, strlen(err));
   write(2, "\n", 1);
   recurs--;
-  abort ();
 }
 
 static void malloc_err(const char *err, mchunkptr p)
