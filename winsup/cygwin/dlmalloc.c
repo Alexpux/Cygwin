@@ -28,6 +28,24 @@
  *  malloc_usable_size(P) is equivalent to realloc(P, malloc_usable_size(P))
  *
  * $Log$
+ * Revision 1.5.52.1  2003/09/02 02:31:08  cgf
+ * merge from trunk
+ *
+ * Revision 1.6  2003/08/31 18:26:58  cgf
+ * * Makefile.in (MALLOC_OFILES): Always fill in with correct malloc object.
+ * * configure.in: Fill in MALLOC_OFILES with either debugging or regular malloc.
+ * * configure: Regenerate.
+ * * dlmalloc.c: Make various fruitless changes to attempt to get to work.
+ * * dlmalloc.h: Ditto.
+ * * malloc.cc (free): Check malloc pool when debugging.
+ * * path.cc (win32_device_name): Eliminate compiler warning.
+ * * sigproc.cc (sig_dispatch_pending): Remove use of was_pending.  Let
+ * thisframe.call_signal_handler decide if handler should be called rather than
+ * using bogus was_pending check.
+ * * exceptions.cc (interrupt_setup): Remove accidentally checked in debugging
+ * code.
+ * * heap.cc (sbrk): Save rounded addess in user_heap_max.
+ *
  * Revision 1.5  2001/10/03 03:49:25  cgf
  * * cygheap.cc (cfree): Remove malloc debugging probe.
  * * dlmalloc.c (errprint): Remove abort() call which causes interesting error
