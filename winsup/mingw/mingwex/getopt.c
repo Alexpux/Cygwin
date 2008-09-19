@@ -283,12 +283,12 @@ struct option *opt, int index, int *retindex, const CHAR *optstring )
 
   /* when the caller has provided a return buffer ...
    */
-  if( retindex != NULL )
+  if( opt[index].flag != NULL )
   {
     /* ... then we place the proper return value there,
      * and return a status code of zero ...
      */
-    *retindex = opt[index].val;
+    *(opt[index].flag) = opt[index].val;
     return 0;
   }
   /* ... otherwise, the return value becomes the status code.
@@ -646,4 +646,4 @@ __weak_alias( getopt_long, _getopt_long )
 __weak_alias( getopt_long_only, _getopt_long_only )
 #endif
 
-/* $RCSfile$Revision$: end of file */
+/* $RCSfile$Revision: 1.5 $: end of file */
