@@ -45,6 +45,17 @@ extern char *optarg;		/* pointer to argument of current option  */
 
 extern int getopt( int, char * const [], const char * );
 
+#ifdef _BSD_SOURCE
+/*
+ * BSD adds the non-standard `optreset' feature, for reinitialisation
+ * of `getopt' parsing.  We support this feature, for applications which
+ * proclaim their BSD heritage, before including this header; however,
+ * to maintain portability, developers are advised to avoid it.
+ */
+# define optreset  __mingw_optreset
+
+extern int optreset;
+#endif
 #ifdef __cplusplus
 }
 #endif
@@ -97,4 +108,4 @@ extern int getopt_long_only( int, char * const [], const char *, const struct op
 #endif
 
 #endif /* !defined(__UNISTD_H_SOURCED__) && !defined(__GETOPT_LONG_H__) */
-/* $RCSfile$Revision$: end of file */
+/* $RCSfile$Revision: 1.3 $: end of file */
