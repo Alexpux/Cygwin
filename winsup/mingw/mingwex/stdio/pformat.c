@@ -1883,8 +1883,7 @@ int __pformat( int flags, void *dest, int max, const char *fmt, va_list argv )
 	       * `wchar_t' data, (which is promoted to an `int' argument)...
 	       */
 	      argval.__pformat_ullong_t = (wchar_t)(va_arg( argv, int ));
-        void *tmp = &argval;
-	      __pformat_wputchars( (wchar_t *)tmp, 1, &stream );
+	      __pformat_wputchars( (wchar_t *)argval.__pformat_ptr_t, 1, &stream );
 	    }
 
 	    else
@@ -2523,4 +2522,4 @@ int __pformat( int flags, void *dest, int max, const char *fmt, va_list argv )
   return stream.count;
 }
 
-/* $RCSfile$Revision: 1.4 $: end of file */
+/* $RCSfile$Revision: 1.5 $: end of file */
