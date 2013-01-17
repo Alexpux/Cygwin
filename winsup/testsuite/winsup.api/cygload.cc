@@ -7,17 +7,17 @@
    This software is a copyrighted work licensed under the terms of the
    Cygwin license.  Please consult the file "CYGWIN_LICENSE" for details.
   
-   Note that dynamically linking to cygwin1.dll automatically places your code
+   Note that dynamically linking to msys-2.0.dll automatically places your code
    under the GPL unless you purchase a Cygwin Contract with Red Hat, Inc.
    See http://www.redhat.com/software/cygwin/ for more information.
 
-   cygload demonstrates how to dynamically load cygwin1.dll.  The default
+   cygload demonstrates how to dynamically load msys-2.0.dll.  The default
    build uses MinGW to compile it; the Makefile also shows how to build
    it using the Microsoft compiler.
 
    By default, the program will silently test basic functionality:
      * Making space on the stack for cygtls
-     * Loading and initializing cygwin1.dll
+     * Loading and initializing msys-2.0.dll
      * Path translation
      * Error handling
      * Signal handling
@@ -27,7 +27,7 @@
 		     save for errors.
      -testinterrupts Pauses the program for 30 seconds so you can demonstrate
 		     that it handles ^C properly.
-     -cygwin         Name of DLL to load.  Defaults to "cygwin1.dll". */
+     -cygwin         Name of DLL to load.  Defaults to "msys-2.0.dll". */
 
 #include "cygload.h"
 #include <iostream>
@@ -212,7 +212,7 @@ cygwin::connector::~connector ()
 
     // This should call init.cc:dll_entry() with DLL_PROCESS_DETACH.
     if (!FreeLibrary (_library))
-      throw windows_error ("FreeLibrary", "cygwin1.dll");
+      throw windows_error ("FreeLibrary", "msys-2.0.dll");
   }
   catch (std::exception &x)
   {
@@ -478,7 +478,7 @@ main (int argc, char *argv[])
 
   std::ostringstream output;
   bool verbose = false, testinterrupts = false;
-  const char *dll = "cygwin1.dll";
+  const char *dll = "msys-2.0.dll";
 
   out = &output;
 

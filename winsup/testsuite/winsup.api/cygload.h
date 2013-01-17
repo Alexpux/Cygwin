@@ -7,7 +7,7 @@
 // This software is a copyrighted work licensed under the terms of the
 // Cygwin license.  Please consult the file "CYGWIN_LICENSE" for details.
 //
-// Note that dynamically linking to cygwin1.dll automatically places your code
+// Note that dynamically linking to msys-2.0.dll automatically places your code
 // under the GPL unless you purchase a Cygwin Contract with Red Hat, Inc.
 // See http://www.redhat.com/software/cygwin/ for more information.
 
@@ -72,12 +72,12 @@ namespace cygwin
     static DWORD _mainTID;
   };
 
-  // This hooks your application up to cygwin:  it loads cygwin1.dll,
+  // This hooks your application up to cygwin:  it loads msys-2.0.dll,
   // initializes it properly, grabs some important symbols, and
   // spawns a thread to let you receive signals from cygwin.
   class connector {
   public:
-    connector (const char *dll = "cygwin1.dll");
+    connector (const char *dll = "msys-2.0.dll");
     ~connector ();
 
     // A wrapper around GetProcAddress() for fetching symbols from the

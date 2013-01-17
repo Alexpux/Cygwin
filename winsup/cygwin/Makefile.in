@@ -110,10 +110,10 @@ RUNTESTFLAGS =
 # native rebuilding issues (we don't want the build tools to see a partially
 # built cygwin.dll and attempt to use it instead of the old one).
 
-DLL_NAME:=cygwin1.dll
+DLL_NAME:=msys-2.0.dll
 TEST_DLL_NAME:=cygwin0.dll
 TEST_LIB_NAME:=libcygwin0.a
-STATIC_LIB_NAME:=libcygwin_s.a
+STATIC_LIB_NAME:=libmsys2_s.a
 DEF_FILE:=cygwin.def
 DLL_ENTRY:=@DLL_ENTRY@
 
@@ -124,7 +124,7 @@ GMON_START:=gcrt0.o
 toolopts:=--ar=${AR} --as=${AS} --nm=${NM} --objcopy=${OBJCOPY} 
 speclib=\
     ${srcdir}/speclib ${toolopts} \
-	--exclude='cygwin' \
+	--exclude='msys-2.0' \
 	--exclude='(?i:dll)' \
 	--exclude='reloc' \
 	--exclude='^_main$$' \
@@ -248,7 +248,7 @@ NEW_FUNCTIONS:=$(addprefix --replace=,\
 
 API_VER:=$(srcdir)/include/cygwin/version.h
 
-LIB_NAME:=libcygwin.a
+LIB_NAME:=libmsys-2.0.dll.a
 SUBLIBS:=libpthread.a libutil.a ${CURDIR}/libm.a ${CURDIR}/libc.a libdl.a libresolv.a librt.a
 EXTRALIBS:=libautomode.a libbinmode.a libtextmode.a libtextreadmode.a
 INSTOBJS:=automode.o binmode.o textmode.o textreadmode.o
@@ -412,7 +412,7 @@ maintainer-clean realclean: clean
 	-rm -fr configure
 
 
-# Rule to build cygwin.dll
+# Rule to build msys-2.0.dll
 $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIBM) $(API_VER) Makefile winver_stamp
 	$(CXX) $(CXXFLAGS) -L${WINDOWS_LIBDIR} -Wl,--gc-sections $(nostdlib) -Wl,-T$(firstword $^) -static \
 	-Wl,--heap=0 -Wl,--out-implib,cygdll.a -shared -o $@ \
@@ -422,7 +422,7 @@ $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIB
 	@$(word 2,$^) $(OBJDUMP) $(OBJCOPY) $@ ${patsubst %0.dll,%1.dbg,$@}
 	@ln -f $@ new-$(DLL_NAME)
 
-# Rule to build libcygwin.a
+# Rule to build libmsys-2.0.dll.a
 $(LIB_NAME): $(LIBCOS) | $(TEST_DLL_NAME) 
 	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ cygdll.a $^
 
@@ -432,7 +432,7 @@ ${STATIC_LIB_NAME}: mkstatic ${TEST_DLL_NAME}
 # Rule to make stub library used by testsuite
 # dependency set to $(LIB_NAME) to accommodate make -j2.
 $(TEST_LIB_NAME): $(LIB_NAME)
-	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/cygwin1/cygwin0/g' < $? > $@
+	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/cygwin0/g' < $? > $@
 
 $(LIBSERVER): ${cygserver_blddir}/Makefile
 	$(MAKE) -C ${cygserver_blddir} libcygserver.a

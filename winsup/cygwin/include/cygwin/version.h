@@ -453,7 +453,7 @@ details. */
 	The full names include the CYGWIN_VERSION_SHARED_DATA version
 	as well as this identifier. */
 
-#define CYGWIN_VERSION_DLL_IDENTIFIER	"cygwin1"
+#define CYGWIN_VERSION_DLL_IDENTIFIER	"msys-2.0"
 
      /* The Cygwin mount table interface in the Win32 registry also
 	has a version number associated with it in case that is

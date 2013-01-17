@@ -1,4 +1,4 @@
-LIBRARY "cygwin1.dll" BASE=0x61000000
+LIBRARY "msys-2.0.dll" BASE=0x60800000
 
 EXPORTS
 __argc DATA

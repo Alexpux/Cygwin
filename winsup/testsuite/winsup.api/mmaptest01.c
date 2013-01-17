@@ -27,17 +27,17 @@
   The second file re-uses the file handle (which is OK),
   but then it re-uses the buffer as well!  Ouch!
 
-  This bug occurs on cygwin1.dll dated 2001-01-31.
+  This bug occurs on msys-2.0.dll dated 2001-01-31.
   It causes gnu cpp to screw up its include file buffers.
 
   Compile with "gcc -o y1 y1.c".
 
-  Output from a bad cygwin1.dll:
+  Output from a bad msys-2.0.dll:
 
     y1.txt: 3 0x4660000 y1 y1 y1 y1 y1 y1 y1
     y2.txt: 3 0x4660000 y1 y1 y1 y1 y1 y1 y1
 
-  Output from a good cygwin1.dll:
+  Output from a good msys-2.0.dll:
 
     y1.txt: 3 0x14060000 y1 y1 y1 y1 y1 y1 y1
     y2.txt: 3 0x14070000 y2 y2 y2 y2 y2 y2 y2

@@ -364,13 +364,13 @@ hook_or_detect_cygwin (const char *name, const void *fn, WORD& subsys, HANDLE h)
   for (PIMAGE_IMPORT_DESCRIPTOR pd = pdfirst; pd->FirstThunk; pd++)
     {
       if (!ascii_strcasematch (rva (PSTR, map ?: (char *) hm,
-				    pd->Name - delta - offset), "cygwin1.dll"))
+				    pd->Name - delta - offset), "msys-2.0.dll"))
 	continue;
       if (!fn)
 	{
 	  if (map)
 	    UnmapViewOfFile (map);
-	  return (void *) "found it";	// just checking if executable used cygwin1.dll
+	  return (void *) "found it";	// just checking if executable used msys-2.0.dll
 	}
       i = -1;
       while (!fh.origfn && (fh.name = makename (name, buf, i, 1)))

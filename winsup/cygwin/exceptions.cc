@@ -106,7 +106,7 @@ error_start_init (const char *buf)
 
   char pgm[NT_MAX_PATH];
   if (!GetModuleFileName (NULL, pgm, NT_MAX_PATH))
-    strcpy (pgm, "cygwin1.dll");
+    strcpy (pgm, "msys-2.0.dll");
   for (char *p = strchr (pgm, '\\'); p; p = strchr (p, '\\'))
     *p = '/';
 
