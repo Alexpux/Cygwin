@@ -22,6 +22,7 @@ details. */
 #include "shared_info_magic.h"
 #include "registry.h"
 #include "cygwin_version.h"
+#include "msys.h"
 #include "pwdgrp.h"
 #include "spinlock.h"
 #include <alloca.h>
