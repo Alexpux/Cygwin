@@ -37,7 +37,7 @@ typedef struct cygwin_version_info cygwin_version_info;
 extern cygwin_version_info cygwin_version;
 extern const char *cygwin_version_strings;
 #ifdef __cplusplus
- }
+}
 #endif
 
 #endif
