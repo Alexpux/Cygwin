@@ -286,7 +286,6 @@ cygwin32_conv_to_full_posix_path = cygwin_conv_to_full_posix_path SIGFE
 cygwin32_conv_to_full_win32_path = cygwin_conv_to_full_win32_path SIGFE
 cygwin32_conv_to_posix_path = cygwin_conv_to_posix_path SIGFE
 cygwin32_conv_to_win32_path = cygwin_conv_to_win32_path SIGFE
-cygwin32_detach_dll = cygwin_detach_dll SIGFE_MAYBE
 cygwin32_internal = cygwin_internal SIGFE
 cygwin32_posix_path_list_p = cygwin_posix_path_list_p NOSIGFE
 cygwin32_posix_to_win32_path_list = cygwin_posix_to_win32_path_list SIGFE
@@ -303,8 +302,8 @@ cygwin_conv_to_full_win32_path SIGFE
 cygwin_conv_to_posix_path SIGFE
 cygwin_conv_to_win32_path SIGFE
 cygwin_create_path SIGFE
-cygwin_detach_dll SIGFE_MAYBE
-cygwin_dll_init NOSIGFE
+msys_detach_dll SIGFE_MAYBE
+msys_dll_init NOSIGFE
 cygwin_internal NOSIGFE
 cygwin_logon_user SIGFE
 cygwin_posix_path_list_p NOSIGFE
@@ -332,7 +331,7 @@ _dll_crt0@0 NOSIGFE
 dll_crt0__FP11per_process NOSIGFE # dll_crt0(per_process *)
 dll_dllcrt0 NOSIGFE
 dll_entry@12 NOSIGFE
-dll_noncygwin_dllcrt0 NOSIGFE
+dll_nonmsys_dllcrt0 NOSIGFE
 dlopen SIGFE
 dlsym SIGFE
 dn_comp = __dn_comp SIGFE

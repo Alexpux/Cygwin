@@ -687,7 +687,7 @@ dll_dllcrt0_1 (VOID *x)
    using the same entry point. */
 
 extern "C" int
-dll_noncygwin_dllcrt0 (HMODULE h, per_process *p)
+dll_nonmsys_dllcrt0 (HMODULE h, per_process *p)
 {
   return dll_dllcrt0 (h, p);
 }

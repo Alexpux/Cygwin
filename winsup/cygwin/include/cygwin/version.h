@@ -109,7 +109,7 @@ details. */
      /* API_MAJOR 0.0: Initial version.  API_MINOR changes:
 	1: Export cygwin32_ calls as cygwin_ as well.
 	2: Export j1, jn, y1, yn.
-	3: Export dll_noncygwin_dllcrt0.
+	3: Export dll_nonmsys_dllcrt0.
 	4: New socket ioctls, revamped ifconf support.
 	5: Thread support/exports.
 	6: Change in termios handling.

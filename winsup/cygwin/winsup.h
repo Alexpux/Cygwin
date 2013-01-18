@@ -162,7 +162,7 @@ extern "C" int dll_dllcrt0 (HMODULE, per_process *);
 extern "C" void _pei386_runtime_relocator (per_process *);
 
 /* dynamically loaded dll initialization for non-cygwin apps */
-extern "C" int dll_noncygwin_dllcrt0 (HMODULE, per_process *);
+extern "C" int dll_nonmsys_dllcrt0 (HMODULE, per_process *);
 void __stdcall do_exit (int) __attribute__ ((regparm (1), noreturn));
 
 /* libstdc++ malloc operator wrapper support.  */
