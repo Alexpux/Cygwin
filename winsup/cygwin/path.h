@@ -8,6 +8,8 @@ This file is part of Cygwin.
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
+#ifndef PATH_H
+#define PATH_H 1
 
 #include "devices.h"
 #include "mount.h"
@@ -185,7 +187,7 @@ class path_conv
   int is_fs_special () const {return dev.is_fs_special ();}
   int is_lnk_special () const {return is_fs_device () || isfifo () || is_lnk_symlink ();}
   int issocket () const {return dev.is_device (FH_UNIX);}
-  int iscygexec () const {return path_flags & PATH_CYGWIN_EXEC;}
+  int iscygexec () const {return (IsMsys (path));}
   int isopen () const {return path_flags & PATH_OPEN;}
   int isctty_capable () const {return path_flags & PATH_CTTY;}
   void set_cygexec (bool isset)
@@ -454,3 +456,30 @@ class etc
   static bool test_file_change (int);
   friend class pwdgrp;
 };
+
+enum
+{
+  SCAN_BEG,
+  SCAN_LNK,
+  SCAN_HASLNK,
+  SCAN_JUSTCHECK,
+  SCAN_JUSTCHECKTHIS, /* Never try to append a suffix. */
+  SCAN_APPENDLNK,
+  SCAN_EXTRALNK,
+  SCAN_DONE,
+};
+
+class suffix_scan
+{
+  const suffix_info *suffixes, *suffixes_start;
+  int nextstate;
+  char *eopath;
+public:
+  const char *path;
+  char *has (const char *, const suffix_info *);
+  int next ();
+  int lnk_match () {return nextstate >= SCAN_APPENDLNK;}
+};
+
+extern "C" int msys_symlink(const char *, const char *);
+#endif /* PATH_H */
