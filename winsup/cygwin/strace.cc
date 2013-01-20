@@ -36,8 +36,8 @@ strace::activate (bool isfork)
 {
   if (!_active && being_debugged ())
     {
-      char buf[30];
-      __small_sprintf (buf, "cYg%8x %x %d", _STRACE_INTERFACE_ACTIVATE_ADDR, &_active, isfork);
+      char buf[31];
+      __small_sprintf (buf, "MsYs%8x %x %d", _STRACE_INTERFACE_ACTIVATE_ADDR, &_active, isfork);
       OutputDebugString (buf);
       if (_active)
 	{

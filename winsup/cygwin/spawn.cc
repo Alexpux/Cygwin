@@ -10,6 +10,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
 #include "winsup.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <process.h>
@@ -38,7 +39,6 @@ static suffix_info NO_COPY exe_suffixes[] =
 {
   suffix_info ("", 1),
   suffix_info (".exe", 1),
-  suffix_info (".com"),
   suffix_info (NULL)
 };
 
@@ -65,6 +65,7 @@ static suffix_info dll_suffixes[] =
 static const char *
 perhaps_suffix (const char *prog, path_conv& buf, int& err, unsigned opt)
 {
+  TRACE_IN;
   const char *ext;
 
   err = 0;
@@ -103,6 +104,7 @@ const char * __stdcall
 find_exec (const char *name, path_conv& buf, const char *mywinenv,
 	   unsigned opt, const char **known_suffix)
 {
+  TRACE_IN;
   const char *suffix = "";
   debug_printf ("find_exec (%s)", name);
   const char *retval;
@@ -222,6 +224,7 @@ find_exec (const char *name, path_conv& buf, const char *mywinenv,
 static HANDLE
 handle (int fd, bool writing)
 {
+  TRACE_IN;
   HANDLE h;
   cygheap_fdget cfd (fd);
 
@@ -240,6 +243,7 @@ handle (int fd, bool writing)
 int
 iscmd (const char *argv0, const char *what)
 {
+  TRACE_IN;
   int n;
   n = strlen (argv0) - strlen (what);
   if (n >= 2 && argv0[1] != ':')
@@ -276,6 +280,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 			  const char *const envp[], int mode,
 			  int in__stdin, int in__stdout)
 {
+  TRACE_IN;
   bool rc;
   pid_t cygpid;
   int res = -1;
@@ -903,6 +908,7 @@ out:
 extern "C" int
 cwait (int *result, int pid, int)
 {
+  TRACE_IN;
   return waitpid (pid, result, 0);
 }
 
@@ -915,6 +921,7 @@ extern "C" int
 spawnve (int mode, const char *path, const char *const *argv,
        const char *const *envp)
 {
+  TRACE_IN;
   static char *const empty_env[] = { NULL };
 
   int ret;
@@ -973,6 +980,7 @@ spawnve (int mode, const char *path, const char *const *argv,
 extern "C" int
 spawnl (int mode, const char *path, const char *arg0, ...)
 {
+  TRACE_IN;
   int i;
   va_list args;
   const char *argv[256];
@@ -993,6 +1001,7 @@ spawnl (int mode, const char *path, const char *arg0, ...)
 extern "C" int
 spawnle (int mode, const char *path, const char *arg0, ...)
 {
+  TRACE_IN;
   int i;
   va_list args;
   const char * const *envp;
@@ -1015,6 +1024,7 @@ spawnle (int mode, const char *path, const char *arg0, ...)
 extern "C" int
 spawnlp (int mode, const char *file, const char *arg0, ...)
 {
+  TRACE_IN;
   int i;
   va_list args;
   const char *argv[256];
@@ -1037,6 +1047,7 @@ spawnlp (int mode, const char *file, const char *arg0, ...)
 extern "C" int
 spawnlpe (int mode, const char *file, const char *arg0, ...)
 {
+  TRACE_IN;
   int i;
   va_list args;
   const char * const *envp;
@@ -1061,12 +1072,14 @@ spawnlpe (int mode, const char *file, const char *arg0, ...)
 extern "C" int
 spawnv (int mode, const char *path, const char * const *argv)
 {
+  TRACE_IN;
   return spawnve (mode, path, argv, cur_environ ());
 }
 
 extern "C" int
 spawnvp (int mode, const char *file, const char * const *argv)
 {
+  TRACE_IN;
   path_conv buf;
   return spawnve (mode | _P_PATH_TYPE_EXEC, find_exec (file, buf), argv,
 		  cur_environ ());
@@ -1076,6 +1089,7 @@ extern "C" int
 spawnvpe (int mode, const char *file, const char * const *argv,
 	  const char * const *envp)
 {
+  TRACE_IN;
   path_conv buf;
   return spawnve (mode | _P_PATH_TYPE_EXEC, find_exec (file, buf), argv, envp);
 }
@@ -1084,6 +1098,7 @@ int
 av::fixup (const char *prog_arg, path_conv& real_path, const char *ext,
 	   bool p_type_exec)
 {
+  TRACE_IN;
   const char *p;
   bool exeext = ascii_strcasematch (ext, ".exe");
   if ((exeext && real_path.iscygexec ()) || ascii_strcasematch (ext, ".bat"))

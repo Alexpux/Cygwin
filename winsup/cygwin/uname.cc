@@ -27,9 +27,12 @@ uname (struct utsname *name)
     return -1;
 
   char *snp = strstr  (cygwin_version.dll_build_date, "SNP");
+  char msystem[128];
 
   memset (name, 0, sizeof (*name));
-  __small_sprintf (name->sysname, "CYGWIN_%s", wincap.osname ());
+  if (! GetEnvironmentVariable("MSYSTEM", msystem, sizeof (msystem)))
+      strcpy (msystem, "MINGW32");
+  __small_sprintf (name->sysname, "%s_%s", msystem, wincap.osname ());
 
 #if 0
   /* Recognition of the real 64 bit CPU inside of a WOW64 system, irritates
