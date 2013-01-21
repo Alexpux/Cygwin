@@ -153,7 +153,7 @@ struct test_case_t {
     { "", &statbuf, "path is empty string", ENOENT, no_setup},
     { "nefile/file", &statbuf, "path contains a non-existent file",
 		ENOENT, no_setup },
-#ifndef __CYGWIN__
+#ifndef __MSYS__
     { "file/file", &statbuf, "path contains a regular file",
 		ENOTDIR, filepath_setup },
 #endif

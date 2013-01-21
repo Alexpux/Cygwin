@@ -899,7 +899,7 @@ lockf_t::~lockf_t ()
  * This variable controls the maximum number of processes that will
  * be checked in doing deadlock detection.
  */
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #define MAXDEPTH 50
 static int maxlockdepth = MAXDEPTH;
 #endif

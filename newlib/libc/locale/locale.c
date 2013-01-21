@@ -79,12 +79,12 @@ dashes, as in <<"UTF8">>, <<"iso88591">> or <<"koi8r">>.  <<"EUCJP">> and
 Full support for all of the above charsets requires that newlib has been
 build with multibyte support and support for all ISO and Windows Codepage.
 Otherwise all singlebyte charsets are simply mapped to ASCII.  Right now,
-only newlib for Cygwin is built with full charset support by default.
-Under Cygwin, this implementation additionally supports the charsets
-<<"GBK">>, <<"GB2312">>, <<"eucCN">>, <<"eucKR">>, and <<"Big5">>.  Cygwin
+only newlib for msys is built with full charset support by default.
+Under msys, this implementation additionally supports the charsets
+<<"GBK">>, <<"GB2312">>, <<"eucCN">>, <<"eucKR">>, and <<"Big5">>.  Msys
 does not support <<"JIS">>.
 
-Cygwin additionally supports locales from the file
+Msys additionally supports locales from the file
 /usr/share/locale/locale.alias.
 
 (<<"">> is also accepted; if given, the settings are read from the
@@ -188,7 +188,7 @@ No supporting OS subroutines are required.
 #define _LC_LAST      7
 #define ENCODING_LEN 31
 
-#ifdef __CYGWIN__ /* Cygwin starts with LC_CTYPE set to "C.UTF-8". */
+#ifdef __MSYS__ /* Msys starts with LC_CTYPE set to "C.UTF-8". */
 int __EXPORT __mb_cur_max = 6;
 #else
 int __EXPORT __mb_cur_max = 1;
@@ -240,7 +240,7 @@ char __default_locale[ENCODING_LEN + 1] = DEFAULT_LOCALE;
 static char current_categories[_LC_LAST][ENCODING_LEN + 1] = {
     "C",
     "C",
-#ifdef __CYGWIN__ /* Cygwin starts with LC_CTYPE set to "C.UTF-8". */
+#ifdef __MSYS__ /* Msys starts with LC_CTYPE set to "C.UTF-8". */
     "C.UTF-8",
 #else
     "C",
@@ -264,7 +264,7 @@ static const char *__get_locale_env(struct _reent *, int);
 
 #endif /* _MB_CAPABLE */
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 static char lc_ctype_charset[ENCODING_LEN + 1] = "UTF-8";
 #else
 static char lc_ctype_charset[ENCODING_LEN + 1] = "ASCII";
@@ -438,11 +438,11 @@ currentlocale()
 #endif /* _MB_CAPABLE */
 
 #ifdef _MB_CAPABLE
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 extern void __set_charset_from_locale (const char *locale, char *charset);
 extern char *__set_locale_from_locale_alias (const char *, char *);
 extern int __collate_load_locale (const char *, void *, const char *);
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 extern void __set_ctype (const char *charset);
 
@@ -471,10 +471,10 @@ loadlocale(struct _reent *p, int category)
   if (!strcmp (new_categories[category], current_categories[category]))
     return current_categories[category];
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
   /* This additional code handles the case that the incoming locale string
      is not valid.  If so, it calls the function __set_locale_from_locale_alias,
-     which is only available on Cygwin right now.  The function reads the
+     which is only available on msys right now.  The function reads the
      file /usr/share/locale/locale.alias.  The file contains locale aliases
      and their replacement locale.  For instance, the alias "french" is
      translated to "fr_FR.ISO-8859-1", the alias "thai" is translated to
@@ -557,8 +557,8 @@ restart:
 	}
       else if (c[0] == '\0' || c[0] == '@')
 	/* End of string or just a modifier */
-#ifdef __CYGWIN__
-	/* The Cygwin-only function __set_charset_from_locale checks
+#ifdef __MSYS__
+	/* The msys-only function __set_charset_from_locale checks
 	   for the default charset which is connected to the given locale.
 	   The function uses Windows functions in turn so it can't be easily
 	   adapted to other targets.  However, if any other target provides
@@ -593,8 +593,8 @@ restart:
       l_wctomb = __utf8_wctomb;
       l_mbtowc = __utf8_mbtowc;
     break;
-#ifndef __CYGWIN__
-    /* Cygwin does not support JIS at all. */
+#ifndef __MSYS__
+    /* Msys does not support JIS at all. */
     case 'J':
     case 'j':
       if (strcasecmp (charset, "JIS"))
@@ -604,7 +604,7 @@ restart:
       l_wctomb = __jis_wctomb;
       l_mbtowc = __jis_mbtowc;
     break;
-#endif /* !__CYGWIN__ */
+#endif /* !__MSYS__ */
     case 'E':
     case 'e':
       if (strncasecmp (charset, "EUC", 3))
@@ -619,8 +619,8 @@ restart:
 	  l_wctomb = __eucjp_wctomb;
 	  l_mbtowc = __eucjp_mbtowc;
 	}
-#ifdef __CYGWIN__
-      /* Newlib does neither provide EUC-KR nor EUC-CN, and Cygwin's
+#ifdef __MSYS__
+      /* Newlib does neither provide EUC-KR nor EUC-CN, and Msys's
       	 implementation requires Windows support. */
       else if (!strcasecmp (c, "KR"))
 	{
@@ -636,7 +636,7 @@ restart:
 	  l_wctomb = __gbk_wctomb;
 	  l_mbtowc = __gbk_mbtowc;
 	}
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
       else
 	FAIL;
     break;
@@ -765,8 +765,8 @@ restart:
       break;
     case 'G':
     case 'g':
-#ifdef __CYGWIN__
-      /* Newlib does not provide GBK/GB2312 and Cygwin's implementation
+#ifdef __MSYS__
+      /* Newlib does not provide GBK/GB2312 and Msys's implementation
 	 requires Windows support. */
       if (!strcasecmp (charset, "GBK")
 	  || !strcasecmp (charset, "GB2312"))
@@ -777,7 +777,7 @@ restart:
 	  l_mbtowc = __gbk_mbtowc;
 	}
       else
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
       /* GEORGIAN-PS and the alias without dash */
       if (!strncasecmp (charset, "GEORGIAN", 8))
 	{
@@ -833,8 +833,8 @@ restart:
       l_mbtowc = __ascii_mbtowc;
 #endif /* _MB_EXTENDED_CHARSETS_WINDOWS */
       break;
-#ifdef __CYGWIN__
-    /* Newlib does not provide Big5 and Cygwin's implementation
+#ifdef __MSYS__
+    /* Newlib does not provide Big5 and Msys's implementation
        requires Windows support. */
     case 'B':
     case 'b':
@@ -845,7 +845,7 @@ restart:
       l_wctomb = __big5_wctomb;
       l_mbtowc = __big5_mbtowc;
       break;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
     default:
       FAIL;
     }
@@ -881,8 +881,8 @@ restart:
 #endif /* __HAVE_LOCALE_INFO__ */
       break;
 #ifdef __HAVE_LOCALE_INFO__
-#ifdef __CYGWIN__
-  /* Right now only Cygwin supports a __collate_load_locale function at all. */
+#ifdef __MSYS__
+  /* Right now only Msys supports a __collate_load_locale function at all. */
     case LC_COLLATE:
       ret = __collate_load_locale (locale, (void *) l_mbtowc, charset);
       break;
@@ -1022,8 +1022,8 @@ _DEFUN(_localeconv_r, (data),
 
 #ifndef _REENT_ONLY
 
-#ifndef __CYGWIN__
-/* Cygwin provides its own version of setlocale to perform some more
+#ifndef __MSYS__
+/* Msys provides its own version of setlocale to perform some more
    initialization work.  It calls _setlocale_r, though. */
 char *
 _DEFUN(setlocale, (category, locale),
@@ -1032,7 +1032,7 @@ _DEFUN(setlocale, (category, locale),
 {
   return _setlocale_r (_REENT, category, locale);
 }
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 struct lconv *
 _DEFUN_VOID(localeconv)

@@ -231,7 +231,7 @@ func_normal_abspath ()
     ;;
     //*)
       # Not necessarily an ordinary path; POSIX reserves leading '//'
-      # and for example Cygwin uses it to access remote file shares
+      # and for example Msys uses it to access remote file shares
       # over CIFS/SMB, so we conserve a leading double slash if found.
       func_normal_abspath_altnamespace=/
     ;;
@@ -976,7 +976,7 @@ func_enable_tag ()
 
 
   case $host in
-    *cygwin* | *mingw* | *pw32* | *cegcc*)
+    *msys* | *mingw* | *pw32* | *cegcc*)
       # don't eliminate duplications in $postdeps and $predeps
       opt_duplicate_compiler_generated_deps=:
       ;;
@@ -1158,10 +1158,10 @@ func_execute_cmds ()
 
 # func_source file
 # Source FILE, adding directory component if necessary.
-# Note that it is not necessary on cygwin/mingw to append a dot to
+# Note that it is not necessary on msys/mingw to append a dot to
 # FILE even if both FILE and FILE.exe exist: automatic-append-.exe
 # behavior happens only for exec(3), not for open(2)!  Also, sourcing
-# `FILE.' does not work on cygwin managed mounts.
+# `FILE.' does not work on msys managed mounts.
 func_source ()
 {
     $opt_debug
@@ -1451,9 +1451,9 @@ func_mode_compile ()
       removelist="$lobj $libobj ${libobj}T"
     fi
 
-    # On Cygwin there's no "real" PIC flag so we must build both object types
+    # On Msys there's no "real" PIC flag so we must build both object types
     case $host_os in
-    cygwin* | mingw* | pw32* | os2* | cegcc*)
+    msys* | mingw* | pw32* | os2* | cegcc*)
       pic_mode=default
       ;;
     esac
@@ -2279,7 +2279,7 @@ func_mode_install ()
 	      'exit $?'
 	  tstripme="$stripme"
 	  case $host_os in
-	  cygwin* | mingw* | pw32* | cegcc*)
+	  msys* | mingw* | pw32* | cegcc*)
 	    case $realname in
 	    *.dll.a)
 	      tstripme=""
@@ -2385,7 +2385,7 @@ func_mode_install ()
 
 	# Do a test to see if this is really a libtool program.
 	case $host in
-	*cygwin* | *mingw*)
+	*msys* | *mingw*)
 	    if func_ltwrapper_executable_p "$file"; then
 	      func_ltwrapper_scriptname "$file"
 	      wrapper=$func_ltwrapper_scriptname_result
@@ -2457,10 +2457,10 @@ func_mode_install ()
 	  fi
 	fi
 
-	# remove .exe since cygwin /usr/bin/install will append another
+	# remove .exe since msys /usr/bin/install will append another
 	# one anyway
 	case $install_prog,$host in
-	*/usr/bin/install*,*cygwin*)
+	*/usr/bin/install*,*msys*)
 	  case $file:$destfile in
 	  *.exe:*.exe)
 	    # this is ok
@@ -2595,7 +2595,7 @@ extern \"C\" {
 	      $RM $export_symbols
 	      ${SED} -n -e '/^: @PROGRAM@ $/d' -e 's/^.* \(.*\)$/\1/p' < "$nlist" > "$export_symbols"
 	      case $host in
-	      *cygwin* | *mingw* | *cegcc* )
+	      *msys* | *mingw* | *cegcc* )
                 echo EXPORTS > "$output_objdir/$outputname.def"
                 cat "$export_symbols" >> "$output_objdir/$outputname.def"
 	        ;;
@@ -2607,7 +2607,7 @@ extern \"C\" {
 	      $GREP -f "$output_objdir/$outputname.exp" < "$nlist" > "$nlist"T
 	      $MV "$nlist"T "$nlist"
 	      case $host in
-	        *cygwin* | *mingw* | *cegcc* )
+	        *msys* | *mingw* | *cegcc* )
 	          echo EXPORTS > "$output_objdir/$outputname.def"
 	          cat "$nlist" >> "$output_objdir/$outputname.def"
 	          ;;
@@ -2663,7 +2663,7 @@ typedef struct {
 } lt_dlsymlist;
 "
 	  case $host in
-	  *cygwin* | *mingw* | *cegcc* )
+	  *msys* | *mingw* | *cegcc* )
 	    echo >> "$output_objdir/$my_dlsyms" "\
 /* DATA imports from DLLs on WIN32 con't be const, because
    runtime relocations are performed -- see ld's documentation
@@ -2749,7 +2749,7 @@ static const void *lt_preloaded_setup() {
 	# Transform the symbol file into the correct name.
 	symfileobj="$output_objdir/${my_outputname}S.$objext"
 	case $host in
-	*cygwin* | *mingw* | *cegcc* )
+	*msys* | *mingw* | *cegcc* )
 	  if test -f "$output_objdir/$my_outputname.def"; then
 	    compile_command=`$ECHO "$compile_command" | $SED "s%@SYMFILE@%$output_objdir/$my_outputname.def $symfileobj%"`
 	    finalize_command=`$ECHO "$finalize_command" | $SED "s%@SYMFILE@%$output_objdir/$my_outputname.def $symfileobj%"`
@@ -2943,7 +2943,7 @@ func_extract_archives ()
 #
 # Emit a libtool wrapper script on stdout.
 # Don't directly open a file because we may want to
-# incorporate the script contents within a cygwin/mingw
+# incorporate the script contents within a msys/mingw
 # wrapper executable.  Must ONLY be called from within
 # func_mode_link because it depends on a number of variables
 # set therein.
@@ -2951,7 +2951,7 @@ func_extract_archives ()
 # ARG is the value that the WRAPPER_SCRIPT_BELONGS_IN_OBJDIR
 # variable will take.  If 'yes', then the emitted script
 # will assume that the directory in which it is stored is
-# the $objdir directory.  This is a cygwin/mingw-specific
+# the $objdir directory.  This is a msys/mingw-specific
 # behavior.
 func_emit_wrapper ()
 {
@@ -3037,7 +3037,7 @@ _LTECHO_EOF'
     file=\`ls -ld \"\$thisdir/\$file\" | $SED -n 's/.*-> //p'\`
   done
 
-  # Usually 'no', except on cygwin/mingw when embedded into
+  # Usually 'no', except on msys/mingw when embedded into
   # the cwrapper.
   WRAPPER_SCRIPT_BELONGS_IN_OBJDIR=$func_emit_wrapper_arg1
   if test \"\$WRAPPER_SCRIPT_BELONGS_IN_OBJDIR\" = \"yes\"; then
@@ -3166,14 +3166,14 @@ fi\
 # build environments:
 #    $build          $host
 #    mingw (msys)    mingw  [e.g. native]
-#    cygwin          mingw
+#    msys          mingw
 #    *nix + wine     mingw
 # where wine is equipped with the `winepath' executable.
 # In the native mingw case, the (msys) shell automatically
 # converts paths for any non-msys applications it launches,
 # but that facility isn't available from inside the cwrapper.
 # Similar accommodations are necessary for $host mingw and
-# $build cygwin.  Calling this function does no harm for other
+# $build msys.  Calling this function does no harm for other
 # $host/$build combinations not listed above.
 #
 # ARG is the path (on $build) that should be converted to
@@ -3192,7 +3192,7 @@ func_to_host_path ()
             func_to_host_path_result=`( cmd //c echo "$1" ) 2>/dev/null |
               $SED -e 's/[ ]*$//' -e "$lt_sed_naive_backslashify"`
             ;;
-          *cygwin* )
+          *msys* )
             func_to_host_path_result=`cygpath -w "$1" |
 	      $SED -e "$lt_sed_naive_backslashify"`
             ;;
@@ -3235,7 +3235,7 @@ func_to_host_path ()
 # combinations not listed here):
 #    $build          $host
 #    mingw (msys)    mingw  [e.g. native]
-#    cygwin          mingw
+#    msys          mingw
 #    *nix + wine     mingw
 #
 # Path separators are also converted from $build format to
@@ -3265,7 +3265,7 @@ func_to_host_pathlist ()
 	      ( cmd //c echo "$func_to_host_pathlist_tmp1" ) 2>/dev/null |
 	      $SED -e 's/[ ]*$//' -e "$lt_sed_naive_backslashify"`
             ;;
-          *cygwin* )
+          *msys* )
             func_to_host_pathlist_result=`cygpath -w -p "$func_to_host_pathlist_tmp1" |
               $SED -e "$lt_sed_naive_backslashify"`
             ;;
@@ -3353,7 +3353,7 @@ EOF
 #else
 # include <unistd.h>
 # include <stdint.h>
-# ifdef __CYGWIN__
+# ifdef __MSYS__
 #  include <io.h>
 # endif
 #endif
@@ -3371,7 +3371,7 @@ EOF
 # ifdef __STRICT_ANSI__
 int _putenv (const char *);
 # endif
-#elif defined(__CYGWIN__)
+#elif defined(__MSYS__)
 # ifdef __STRICT_ANSI__
 char *realpath (const char *, char *);
 int putenv (char *);
@@ -3398,7 +3398,7 @@ int setenv (const char *, const char *, int);
 # define chmod   _chmod
 # define getcwd  _getcwd
 # define putenv  _putenv
-#elif defined(__CYGWIN__)
+#elif defined(__MSYS__)
 # define HAVE_SETENV
 # define FOPEN_WB "wb"
 /* #elif defined (other platforms) ... */
@@ -3571,7 +3571,7 @@ main (int argc, char *argv[])
 	{
 EOF
 	    case "$host" in
-	      *mingw* | *cygwin* )
+	      *mingw* | *msys* )
 		# make stdout use "unix" line endings
 		echo "          setmode(1,_O_BINARY);"
 		;;
@@ -4233,7 +4233,7 @@ func_mode_link ()
 {
     $opt_debug
     case $host in
-    *-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-cegcc*)
+    *-*-msys* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-cegcc*)
       # It is impossible to link a dll without this setting, and
       # we shouldn't force the makefile maintainer to figure out
       # which system we are compiling for in order to pass an extra
@@ -4713,7 +4713,7 @@ func_mode_link ()
 	  ;;
 	esac
 	case $host in
-	*-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-cegcc*)
+	*-*-msys* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-cegcc*)
 	  testbindir=`$ECHO "$dir" | $SED 's*/lib$*/bin*'`
 	  case :$dllsearchpath: in
 	  *":$dir:"*) ;;
@@ -4733,7 +4733,7 @@ func_mode_link ()
       -l*)
 	if test "X$arg" = "X-lc" || test "X$arg" = "X-lm"; then
 	  case $host in
-	  *-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-beos* | *-cegcc* | *-*-haiku*)
+	  *-*-msys* | *-*-mingw* | *-*-pw32* | *-*-beos* | *-cegcc* | *-*-haiku*)
 	    # These systems don't actually have a C or math library (as such)
 	    continue
 	    ;;
@@ -4813,7 +4813,7 @@ func_mode_link ()
 
       -no-install)
 	case $host in
-	*-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-*-darwin* | *-cegcc*)
+	*-*-msys* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-*-darwin* | *-cegcc*)
 	  # The PATH hackery in wrapper scripts is required on Windows
 	  # and Darwin in order for the loader to find any dlls it needs.
 	  func_warning "\`-no-install' is ignored for $host"
@@ -5772,7 +5772,7 @@ func_mode_link ()
 	if test -n "$library_names" &&
 	   { test "$use_static_libs" = no || test -z "$old_library"; }; then
 	  case $host in
-	  *cygwin* | *mingw* | *cegcc*)
+	  *msys* | *mingw* | *cegcc*)
 	      # No point in relinking DLLs because paths are not encoded
 	      notinst_deplibs="$notinst_deplibs $lib"
 	      need_relink=no
@@ -5842,7 +5842,7 @@ func_mode_link ()
 	    elif test -n "$soname_spec"; then
 	      # bleh windows
 	      case $host in
-	      *cygwin* | mingw* | *cegcc*)
+	      *msys* | mingw* | *cegcc*)
 	        func_arith $current - $age
 		major=$func_arith_result
 		versuffix="-$major"
@@ -6693,7 +6693,7 @@ func_mode_link ()
       if test "$build_libtool_libs" = yes; then
 	if test -n "$rpath"; then
 	  case $host in
-	  *-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-*-beos* | *-cegcc* | *-*-haiku*)
+	  *-*-msys* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-*-beos* | *-cegcc* | *-*-haiku*)
 	    # these systems don't actually have a c library (as such)!
 	    ;;
 	  *-*-rhapsody* | *-*-darwin1.[012])
@@ -7194,7 +7194,7 @@ EOF
 
 	orig_export_symbols=
 	case $host_os in
-	cygwin* | mingw* | cegcc*)
+	msys* | mingw* | cegcc*)
 	  if test -n "$export_symbols" && test -z "$export_symbols_regex"; then
 	    # exporting using user supplied symfile
 	    if test "x`$SED 1q $export_symbols`" != xEXPORTS; then
@@ -7710,7 +7710,7 @@ EOF
 
     prog)
       case $host in
-	*cygwin*) func_stripname '' '.exe' "$output"
+	*msys*) func_stripname '' '.exe' "$output"
 	          output=$func_stripname_result.exe;;
       esac
       test -n "$vinfo" && \
@@ -7823,7 +7823,7 @@ EOF
 	  esac
 	fi
 	case $host in
-	*-*-cygwin* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-cegcc*)
+	*-*-msys* | *-*-mingw* | *-*-pw32* | *-*-os2* | *-cegcc*)
 	  testbindir=`${ECHO} "$libdir" | ${SED} -e 's*/lib$*/bin*'`
 	  case :$dllsearchpath: in
 	  *":$libdir:"*) ;;
@@ -7901,7 +7901,7 @@ EOF
         # Disable wrappers for cegcc and mingw32ce hosts, we are cross compiling anyway.
         wrappers_required=no
         ;;
-      *cygwin* | *mingw* )
+      *msys* | *mingw* )
         if test "$build_libtool_libs" != yes; then
           wrappers_required=no
         fi
@@ -8027,16 +8027,16 @@ EOF
 	  *.exe) func_stripname '' '.exe' "$output"
 	         output=$func_stripname_result ;;
 	esac
-	# test for cygwin because mv fails w/o .exe extensions
+	# test for msys because mv fails w/o .exe extensions
 	case $host in
-	  *cygwin*)
+	  *msys*)
 	    exeext=.exe
 	    func_stripname '' '.exe' "$outputname"
 	    outputname=$func_stripname_result ;;
 	  *) exeext= ;;
 	esac
 	case $host in
-	  *cygwin* | *mingw* )
+	  *msys* | *mingw* )
 	    func_dirname_and_basename "$output" "" "."
 	    output_name=$func_basename_result
 	    output_path=$func_dirname_result
@@ -8332,7 +8332,7 @@ EOF
 	    dlprefiles="$newdlprefiles"
 	  fi
 	  $RM $output
-	  # place dlname in correct position for cygwin
+	  # place dlname in correct position for msys
 	  # In fact, it would be nice if we could use this code for all target
 	  # systems that can't hard-code library paths into their executables
 	  # and that have no shared library path variable independent of PATH,
@@ -8343,7 +8343,7 @@ EOF
 	  # tests/bindir.at for full details.
 	  tdlname=$dlname
 	  case $host,$output,$installed,$module,$dlname in
-	    *cygwin*,*lai,yes,no,*.dll | *mingw*,*lai,yes,no,*.dll | *cegcc*,*lai,yes,no,*.dll)
+	    *msys*,*lai,yes,no,*.dll | *mingw*,*lai,yes,no,*.dll | *cegcc*,*lai,yes,no,*.dll)
 	      # If a -bindir argument was supplied, place the dll there.
 	      if test "x$bindir" != x ;
 	      then

@@ -20,7 +20,7 @@ struct timeval {
 };
 
 /* BSD time macros used by RTEMS code */
-#if defined (__rtems__) || defined (__CYGWIN__)
+#if defined (__rtems__) || defined (__MSYS__)
 
 /* Convenience macros for operations on timevals.
    NOTE: `timercmp' does not work for >= or <=.  */
@@ -49,7 +49,7 @@ struct timeval {
       (result)->tv_usec += 1000000;					      \
     }									      \
   } while (0)
-#endif /* defined (__rtems__) || defined (__CYGWIN__) */
+#endif /* defined (__rtems__) || defined (__MSYS__) */
 #endif /* !_TIMEVAL_DEFINED */
 
 struct timezone {
@@ -57,9 +57,9 @@ struct timezone {
   int tz_dsttime;
 };
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include <cygwin/sys_time.h>
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 #define ITIMER_REAL     0
 #define ITIMER_VIRTUAL  1

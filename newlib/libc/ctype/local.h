@@ -23,8 +23,8 @@
 extern char *__locale_charset(_NOARGS);
 
 /* internal function to translate JP to Unicode */
-#ifdef __CYGWIN__
-/* Under Cygwin, the incoming wide character is already given in UTF due
+#ifdef __MSYS__
+/* Under msys, the incoming wide character is already given in UTF due
    to the requirements of the underlying OS. */
 #define _jp2uc(c) (c)
 #else

@@ -55,7 +55,7 @@
 #define	_SIGNED		signed
 #define	_DOTS		, ...
 #define _VOID void
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #define	_EXFUN_NOTHROW(name, proto)	__cdecl name proto _NOTHROW
 #define	_EXFUN(name, proto)		__cdecl name proto
 #define	_EXPARM(name, proto)		(* __cdecl name) proto

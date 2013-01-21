@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/glob.c,v 1.28 2010/05/12 17:44:00 gordon Ex
  * 3. State-dependent encodings are not currently supported.
  */
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include "winsup.h"
 #endif
 
@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/glob.c,v 1.28 2010/05/12 17:44:00 gordon Ex
 
 #include "collate.h"
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include <wctype.h>
 #include "path.h"
 #include "fhandler.h"

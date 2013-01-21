@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)regcomp.c	8.5 (Berkeley) 3/20/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/regex/regcomp.c,v 1.36 2007/06/11 03:05:54 delphij Exp $");
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include "winsup.h"
 #endif
 #include <sys/types.h>
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD: src/lib/libc/regex/regcomp.c,v 1.36 2007/06/11 03:05:54 delp
 #include <limits.h>
 #include <stdlib.h>
 #include <regex.h>
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #include <runetype.h>
 #endif
 #include <wchar.h>
@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD: src/lib/libc/regex/regcomp.c,v 1.36 2007/06/11 03:05:54 delp
 
 #include "cname.h"
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 /* Don't pull in windows headers just for LCID. */
 typedef unsigned long LCID;
 /* These are defined in nlsfuncs.cc. */
@@ -94,14 +94,14 @@ extern "C" {
 #endif
 
 /* === regcomp.c === */
-#ifdef __CYGWIN__ /* Defined below `int stop'.  Our gcc chokes on that. */
+#ifdef __MSYS__ /* Defined below `int stop'.  Our gcc chokes on that. */
 static void p_ere(struct parse *p, int stop);
 #else
 static void p_ere(struct parse *p, wint_t stop);
 #endif
 static void p_ere_exp(struct parse *p);
 static void p_str(struct parse *p);
-#ifdef __CYGWIN__ /* Defined below `int end1/end2'.  Our gcc chokes on that. */
+#ifdef __MSYS__ /* Defined below `int end1/end2'.  Our gcc chokes on that. */
 static void p_bre(struct parse *p, int end1, int end2);
 #else
 static void p_bre(struct parse *p, wint_t end1, wint_t end2);
@@ -324,7 +324,7 @@ p_ere(struct parse *p,
 		conc = HERE();
 		while (MORE() && (c = PEEK()) != '|' && c != stop)
 			p_ere_exp(p);
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 		/* undefined behaviour according to POSIX; allowed by glibc */
 		(void)REQUIRE(HERE() != conc, REG_EMPTY);	/* require nonempty */
 #endif
@@ -432,7 +432,7 @@ p_ere_exp(struct parse *p)
 	case '\\':
 		(void)REQUIRE(MORE(), REG_EESCAPE);
 		wc = WGETNEXT();
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 		/* \< and \> are the GNU equivalents to [[:<:]] and [[:>:]] */
 		switch (wc)
 		  {
@@ -605,7 +605,7 @@ p_simp_re(struct parse *p,
 	case '[':
 		p_bracket(p);
 		break;
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	case BACKSL|'<':
 		/* \< is the GNU equivalents to [[:<:]] */
 		EMIT(OBOW, 0);
@@ -833,7 +833,7 @@ p_b_term(struct parse *p, cset *cs)
 		if (start == finish)
 			CHadd(p, cs, start);
 		else {
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 			if (!collate_lcid) {
 #else
 			if (__collate_load_error) {
@@ -1497,7 +1497,7 @@ findmust(struct parse *p, struct re_guts *g)
 	 * UTF-8 (see RFC 3629).
 	 */
 	if (MB_CUR_MAX > 1 &&
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	    strcmp(__locale_charset (), "UTF-8") != 0)
 #else
 	    strcmp(_CurrentRuneLocale->__encoding, "UTF-8") != 0)

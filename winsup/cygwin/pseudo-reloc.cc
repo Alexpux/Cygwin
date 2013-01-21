@@ -15,7 +15,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 # include "windows.h"
 # define NO_COPY
 #else
@@ -75,7 +75,7 @@ typedef struct {
 static void ATTRIBUTE_NORETURN
 __report_error (const char *msg, ...)
 {
-#ifdef __CYGWIN__
+#ifdef __MSYS__
   /* This function is used to print short error messages
    * to stderr, which may occur during DLL initialization
    * while fixing up 'pseudo' relocations. This early, we
@@ -357,7 +357,7 @@ do_pseudo_reloc (void * start, void * end, void * base)
   auto_protect_for (NULL);
 }
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 extern "C" void
 _pei386_runtime_relocator (per_process *u)
 {

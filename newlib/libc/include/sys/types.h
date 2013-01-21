@@ -129,14 +129,14 @@ struct itimerspec {
 typedef	long	daddr_t;
 typedef	char *	caddr_t;
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #if defined(__MS_types__) || defined(__rtems__) || \
     defined(__sparc__) || defined(__SPU__)
 typedef	unsigned long	ino_t;
 #else
 typedef	unsigned short	ino_t;
 #endif
-#endif /*__CYGWIN__*/
+#endif /*__MSYS__*/
 
 #ifdef __MS_types__
 typedef unsigned long vm_offset_t;
@@ -162,7 +162,7 @@ typedef int32_t register_t;
  * how the file was compiled (e.g. -mint16 vs -mint32, etc.).
  */
 
-#ifndef __CYGWIN__	/* which defines these types in it's own types.h. */
+#ifndef __MSYS__	/* which defines these types in it's own types.h. */
 typedef _off_t	off_t;
 typedef __dev_t dev_t;
 typedef __uid_t uid_t;
@@ -179,12 +179,12 @@ typedef int pid_t;
 typedef _mode_t mode_t;
 #endif
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 typedef	long key_t;
 #endif
 typedef _ssize_t ssize_t;
 
-#if !defined(__CYGWIN__) && !defined(__rtems__)
+#if !defined(__MSYS__) && !defined(__rtems__)
 #ifdef __MS_types__
 typedef	char *	addr_t;
 typedef int mode_t;
@@ -199,7 +199,7 @@ typedef unsigned short mode_t;
 typedef unsigned int mode_t _ST_INT32;
 #endif
 #endif /* ! __MS_types__ */
-#endif /*__CYGWIN__*/
+#endif /*__MSYS__*/
 
 typedef unsigned short nlink_t;
 
@@ -269,14 +269,14 @@ typedef long suseconds_t;
 #include <sys/features.h>
 
 
-/* Cygwin will probably never have full posix compliance due to little things
- * like an inability to set the stackaddress. Cygwin is also using void *  
+/* Msys will probably never have full posix compliance due to little things
+ * like an inability to set the stackaddress. Msys is also using void *  
  * pointers rather than structs to ensure maximum binary compatability with
  * previous releases.
  * This means that we don't use the types defined here, but rather in
  * <cygwin/types.h>
  */
-#if defined(_POSIX_THREADS) && !defined(__CYGWIN__)
+#if defined(_POSIX_THREADS) && !defined(__MSYS__)
 
 #include <sys/sched.h>
 
@@ -451,7 +451,7 @@ typedef struct {
   int   init_executed;   /* has the initialization routine been run? */
 } pthread_once_t;       /* dynamic package initialization */
 #else
-#if defined (__CYGWIN__)
+#if defined (__MSYS__)
 #include <cygwin/types.h>
 #endif
 #endif /* defined(_POSIX_THREADS) */
@@ -470,7 +470,7 @@ typedef struct {
 
 /* POSIX Spin Lock Types */
 
-#if !defined (__CYGWIN__)
+#if !defined (__MSYS__)
 #if defined(_POSIX_SPIN_LOCKS)
 typedef __uint32_t pthread_spinlock_t;        /* POSIX Spin Lock Object */
 #endif /* defined(_POSIX_SPIN_LOCKS) */
@@ -486,7 +486,7 @@ typedef struct {
 #endif
 } pthread_rwlockattr_t;
 #endif /* defined(_POSIX_READER_WRITER_LOCKS) */
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 #endif  /* !__need_inttypes */
 

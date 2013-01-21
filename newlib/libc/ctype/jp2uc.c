@@ -32,9 +32,9 @@
 #include <newlib.h>
 
 #ifdef _MB_CAPABLE
-/* Under Cygwin, the incoming wide character is already given in UTF due
+/* Under msys, the incoming wide character is already given in UTF due
    to the requirements of the underlying OS. */
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 
 #include <_ansi.h>
 #include <wctype.h>
@@ -162,5 +162,5 @@ _DEFUN (_jp2uc, (c), wint_t c)
   return c;
 }
 
-#endif /* !__CYGWIN__ */
+#endif /* !__MSYS__ */
 #endif /* _MB_CAPABLE */

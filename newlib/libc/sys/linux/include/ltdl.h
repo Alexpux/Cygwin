@@ -93,10 +93,10 @@ LT_BEGIN_C_DECLS
 /* --- WINDOWS SUPPORT --- */
 
 
-/* Canonicalise Windows and Cygwin recognition macros.  */
-#ifdef __CYGWIN32__
-#  ifndef __CYGWIN__
-#    define __CYGWIN__ __CYGWIN32__
+/* Canonicalise Windows and Msys recognition macros.  */
+#ifdef __MSYS32__
+#  ifndef __MSYS__
+#    define __MSYS__ __MSYS32__
 #  endif
 #endif
 #if defined(_WIN32) || defined(WIN32)
@@ -112,7 +112,7 @@ LT_BEGIN_C_DECLS
 #endif
 
 #ifdef __WINDOWS__
-#  ifndef __CYGWIN__
+#  ifndef __MSYS__
 /* LT_DIRSEP_CHAR is accepted *in addition* to '/' as a directory
    separator when it is set. */
 #    define LT_DIRSEP_CHAR	'\\'

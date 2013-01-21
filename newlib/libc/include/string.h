@@ -99,7 +99,7 @@ char	*_EXFUN(strupr,(char *));
 #ifndef DEFS_H	/* Kludge to work around problem compiling in gdb */
 char  *_EXFUN(strsignal, (int __signo));
 #endif
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 int     _EXFUN(strtosigno, (const char *__name));
 #endif
 

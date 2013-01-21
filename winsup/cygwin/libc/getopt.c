@@ -53,7 +53,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#define __INSIDE_CYGWIN__
+#define __INSIDE_MSYS__
 #include <getopt.h>
 
 #define	REPLACE_GETOPT		/* use this getopt as the system getopt(3) */
@@ -77,7 +77,7 @@ char    *optarg;		/* argument associated with option */
 #define	BADARG		((*options == ':') ? (int)':' : (int)'?')
 #define	INORDER 	(int)1
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 static char EMSG[] = "";
 #else
 #define	EMSG		""

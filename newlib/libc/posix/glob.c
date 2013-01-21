@@ -30,8 +30,8 @@
  * SUCH DAMAGE.
  */
 
-#ifdef __CYGWIN__
-#define _NO_GLOB	/* Cygwin provides its own glob. */
+#ifdef __MSYS__
+#define _NO_GLOB	/* Msys provides its own glob. */
 #endif
 
 #ifndef _NO_GLOB

@@ -21,7 +21,7 @@ extern const struct __sFILE_fake __sf_fake_stderr _ATTRIBUTE ((weak));
 #endif
 
 static struct _reent __ATTRIBUTE_IMPURE_DATA__ impure_data = _REENT_INIT (impure_data);
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 extern struct _reent reent_data __attribute__ ((alias("impure_data")));
 #endif
 struct _reent *__ATTRIBUTE_IMPURE_PTR__ _impure_ptr = &impure_data;

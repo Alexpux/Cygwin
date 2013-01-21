@@ -31,7 +31,7 @@
 static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 __FBSDID("$FreeBSD$");
 #else
 #define  __INSIDE_CYGWIN_NET__
@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #undef  __INSIDE_CYGWIN_NET__
 #endif
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #include "namespace.h"
 #endif
 #include <sys/param.h>
@@ -59,19 +59,19 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #include <rpc/rpc.h>
 #endif
 #ifdef YP
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #include <arpa/nameser.h>
 #include "un-namespace.h"
 #endif
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 extern int innetgr( const char *, const char *, const char *, const char * );
 
 #define max(a, b)	((a > b) ? a : b)
@@ -107,7 +107,7 @@ extern "C" {
 }
 #endif
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 static int __ivaliduser(FILE *, u_int32_t, const char *, const char *);
 static int __ivaliduser_af(FILE *,const void *, const char *, const char *,
 			   int, int);
@@ -132,7 +132,7 @@ cygwin_rcmd_af(char **ahost, in_port_t rport, const char *locuser,
 	int refused, nres;
 	char num[8];
 	static char canonnamebuf[INTERNET_MAX_HOST_NAME_LENGTH + 1];	/* is it proper here? */
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 	/* call rcmdsh() with specified remote shell if appropriate. */
 	if (!issetugid() && (p = getenv("RSH"))) {
 		struct servent *sp = cygwin_getservbyname("shell", "tcp");
@@ -537,7 +537,7 @@ ruserok(const char *rhost, int superuser, const char *ruser, const char *luser)
 	return (-1);
 }
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 /*
  * XXX
  * Don't make static, used by lpd(8).

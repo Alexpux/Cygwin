@@ -9,8 +9,8 @@
 
 int (*__mbtowc) (struct _reent *, wchar_t *, const char *, size_t,
 		 const char *, mbstate_t *)
-#ifdef __CYGWIN__
-   /* Cygwin starts up in UTF-8 mode. */
+#ifdef __MSYS__
+   /* Msys starts up in UTF-8 mode. */
    = __utf8_mbtowc;
 #else
    = __ascii_mbtowc;
@@ -48,7 +48,7 @@ _DEFUN (__ascii_mbtowc, (r, pwc, s, n, charset, state),
   if (n == 0)
     return -2;
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
   if ((wchar_t)*t >= 0x80)
     {
       r->_errno = EILSEQ;
@@ -78,7 +78,7 @@ typedef enum { COPY_A, COPY_J1, COPY_J2, MAKE_A, NOOP, EMPTY, ERROR } JIS_ACTION
  * is 2 (switch to JIS) + 2 (JIS characters) + 2 (switch back to ASCII) = 6.
  *************************************************************************************/
 
-#ifndef  __CYGWIN__
+#ifndef  __MSYS__
 static JIS_STATE JIS_state_table[JIS_S_NUM][JIS_C_NUM] = {
 /*              ESCAPE   DOLLAR    BRACKET   AT       B       J        NUL      JIS_CHAR  OTHER */
 /* ASCII */   { A_ESC,   ASCII,    ASCII,    ASCII,   ASCII,  ASCII,   ASCII,   ASCII,    ASCII },
@@ -100,7 +100,7 @@ static JIS_ACTION JIS_action_table[JIS_S_NUM][JIS_C_NUM] = {
 /* J_ESC */   { ERROR,   ERROR,    NOOP,     ERROR,   ERROR,   ERROR,   ERROR,   ERROR,   ERROR },
 /* J_ESC_BR */{ ERROR,   ERROR,    ERROR,    ERROR,   MAKE_A,  MAKE_A,  ERROR,   ERROR,   ERROR },
 };
-#endif /* !__CYGWIN__ */
+#endif /* !__MSYS__ */
 
 /* we override the mbstate_t __count field for more complex encodings and use it store a state value */
 #define __state __count
@@ -397,9 +397,9 @@ _DEFUN (__utf8_mbtowc, (r, pwc, s, n, charset, state),
   return -1;
 }
 
-/* Cygwin defines its own doublebyte charset conversion functions 
+/* Msys defines its own doublebyte charset conversion functions 
    because the underlying OS requires wchar_t == UTF-16. */
-#ifndef  __CYGWIN__
+#ifndef  __MSYS__
 int
 _DEFUN (__sjis_mbtowc, (r, pwc, s, n, charset, state),
         struct _reent *r       _AND
@@ -644,5 +644,5 @@ _DEFUN (__jis_mbtowc, (r, pwc, s, n, charset, state),
   state->__state = curr_state;
   return -2;  /* n < bytes needed */
 }
-#endif /* !__CYGWIN__*/
+#endif /* !__MSYS__*/
 #endif /* _MB_CAPABLE */

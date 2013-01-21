@@ -31,13 +31,13 @@
 static const char sccsid[] = "@(#)inet_network.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 __FBSDID("$FreeBSD$");
 #else
 #include "winsup.h"
 #endif
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #include "port_before.h"
 #endif
 
@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <ctype.h>
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 #include "port_after.h"
 #endif
 
@@ -109,7 +109,7 @@ again:
 	return (val);
 }
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 /*
  * Weak aliases for applications that use certain private entry points,
  * and fail to include <arpa/inet.h>.

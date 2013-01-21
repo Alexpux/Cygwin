@@ -33,7 +33,7 @@ struct mntent *getmntent_r (FILE *, struct mntent *, char *, int);
 int endmntent (FILE *__filep);
 #endif
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 /* Only include paths.h if building for Cygwin.  This avoids including
    newlib headers when building the native tools in winsup/utils. */
 
@@ -52,7 +52,7 @@ int endmntent (FILE *__filep);
 #define MOUNTED _PATH_MOUNTED
 #endif
 
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 #ifdef __cplusplus
 };

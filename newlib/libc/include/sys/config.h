@@ -207,7 +207,7 @@
 #define __RAND_MAX 0x7fffffff
 #endif
 
-#if defined(__CYGWIN__)
+#if defined(__MSYS__)
 #include <cygwin/config.h>
 #if !defined (__STRICT_ANSI__) || (__STDC_VERSION__ >= 199901L)
 #define __USE_XOPEN2K 1

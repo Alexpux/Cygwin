@@ -83,7 +83,7 @@ static char *regatoi(const regex_t *preg, char *localbuf);
  */
 static struct rerr {
 	int code;
-#ifdef __CYGWIN__ /* Avoid whining compiler */
+#ifdef __MSYS__ /* Avoid whining compiler */
 	const char *name;
 	const char *explain;
 #else
@@ -125,7 +125,7 @@ regerror(int errcode,
 	struct rerr *r;
 	size_t len;
 	int target = errcode &~ REG_ITOA;
-#ifdef __CYGWIN__ /* Avoid whining compiler */
+#ifdef __MSYS__ /* Avoid whining compiler */
 	const char *s;
 #else
 	char *s;
@@ -176,7 +176,7 @@ regatoi(const regex_t *preg, char *localbuf)
 		if (strcmp(r->name, preg->re_endp) == 0)
 			break;
 	if (r->code == 0)
-#ifdef __CYGWIN__ /* Avoid whining compiler */
+#ifdef __MSYS__ /* Avoid whining compiler */
 	    {
 		static char null[] = "0";
 		return null;

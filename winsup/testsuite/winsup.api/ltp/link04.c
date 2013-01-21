@@ -163,7 +163,7 @@ struct test_case_t {
     { "neefile/file", "path contains a non-existent file",  "nefile", "nefile",
         ENOENT, no_setup, no_setup },
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
     { "regfile/file", "path contains a regular file",  "nefile", "nefile",
         ENOTDIR, filepath_setup, no_setup },
 #endif

@@ -75,7 +75,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include <getopt.h>
 #endif
 

@@ -55,7 +55,7 @@ __numeric_load_locale(const char *name , void *f_wctomb, const char *charset)
 {
 	int ret;
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	extern int __set_lc_numeric_from_win (const char *,
 					      const struct lc_numeric_T *,
 					      struct lc_numeric_T *, char **,

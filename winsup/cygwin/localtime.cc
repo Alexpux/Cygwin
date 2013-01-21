@@ -1406,7 +1406,7 @@ tzsetwall P((void))
 		}
 	}
 #endif /* defined ALL_STATE */
-#if defined (__CYGWIN__)
+#if defined (__MSYS__)
 	{
 	    TIME_ZONE_INFORMATION tz;
 	    char buf[BUFSIZ];

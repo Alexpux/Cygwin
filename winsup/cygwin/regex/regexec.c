@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD: src/lib/libc/regex/regexec.c,v 1.8 2007/06/11 03:05:54 delph
  * macros that code uses.  This lets the same code operate on two different
  * representations for state sets and characters.
  */
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include "winsup.h"
 #endif
 #include <sys/types.h>
@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD: src/lib/libc/regex/regexec.c,v 1.8 2007/06/11 03:05:54 delph
 #include "utils.h"
 #include "regex2.h"
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #define __unused	__attribute__ ((unused))
 #endif
 

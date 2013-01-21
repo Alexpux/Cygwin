@@ -163,7 +163,7 @@ main(int argc, char **argv)
 	  if ( TEST_RETURN == -1 ) {
 #if defined(sgi)
 	    if (TEST_ERRNO == EINVAL) {
-#elif defined(linux) || defined (__CYGWIN__)
+#elif defined(linux) || defined (__MSYS__)
 	    if (TEST_ERRNO & (EBUSY | ENOTEMPTY)) {
 #endif
 
@@ -178,7 +178,7 @@ main(int argc, char **argv)
 	    } else {
 #if defined(sgi)
 	      tst_resm(TFAIL,"rmdir(\".\") failed with errno %d : %s but expected %d (EINVAL)",TEST_ERRNO,strerror(TEST_ERRNO),EINVAL);
-#elif defined(linux) || defined (__CYGWIN__)
+#elif defined(linux) || defined (__MSYS__)
 	      tst_resm(TFAIL,"rmdir(\".\") failed with errno %d : %s but expected %d (EBUSY)",TEST_ERRNO,strerror(TEST_ERRNO),EBUSY);
 #endif
 	    }
@@ -192,7 +192,7 @@ main(int argc, char **argv)
 	 * TEST CASE: 2
 	 * path points to the "." (dot) entry of a directory 
 	 */
-#if defined(linux) || defined (__CYGWIN__)
+#if defined(linux) || defined (__MSYS__)
         tst_resm(TCONF, "rmdir on \"dir/.\" supported on Linux");
 #elif defined(sgi) 
 	/* Call rmdir(2) */

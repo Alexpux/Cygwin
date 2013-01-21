@@ -79,7 +79,7 @@ static struct lc_monetary_T _monetary_locale;
 static int	_monetary_using_locale;
 static char	*_monetary_locale_buf;
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 static char
 cnv(const char *str) {
 	int i = strtol(str, NULL, 10);
@@ -94,7 +94,7 @@ __monetary_load_locale(const char *name , void *f_wctomb, const char *charset)
 {
 	int ret;
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	extern int __set_lc_monetary_from_win (const char *,
 					       const struct lc_monetary_T *,
 					       struct lc_monetary_T *, char **,

@@ -44,7 +44,7 @@
 #define	_GRP_H_
 
 #include <sys/types.h>
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include <cygwin/grp.h>
 #endif
 
@@ -63,7 +63,7 @@ struct group {
 extern "C" {
 #endif
 
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
 struct group	*getgrgid (gid_t);
 struct group	*getgrnam (const char *);
 int		 getgrnam_r (const char *, struct group *,
@@ -74,18 +74,18 @@ int		 getgrgid_r (gid_t, struct group *,
 struct group	*getgrent (void);
 void		 setgrent (void);
 void		 endgrent (void);
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 void		 setgrfile (const char *);
-#endif /* !__CYGWIN__ */
+#endif /* !__MSYS__ */
 #ifndef _XOPEN_SOURCE
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 char		*group_from_gid (gid_t, int);
 int		 setgroupent (int);
-#endif /* !__CYGWIN__ */
+#endif /* !__MSYS__ */
 int		 initgroups (const char *, gid_t);
 #endif /* !_XOPEN_SOURCE */
 #endif /* !_POSIX_SOURCE */
-#endif /* !__INSIDE_CYGWIN__ */
+#endif /* !__INSIDE_MSYS__ */
 
 #ifdef __cplusplus
 }

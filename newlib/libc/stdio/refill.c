@@ -49,7 +49,7 @@ _DEFUN(__srefill_r, (ptr, fp),
 
   fp->_r = 0;			/* largely a convenience for callers */
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
   /* SysV does not make this test; take it out for compatibility */
   if (fp->_flags & __SEOF)
     return EOF;
@@ -117,7 +117,7 @@ _DEFUN(__srefill_r, (ptr, fp),
 
   fp->_p = fp->_bf._base;
   fp->_r = fp->_read (ptr, fp->_cookie, (char *) fp->_p, fp->_bf._size);
-#ifndef __CYGWIN__
+#ifndef __MSYS__
   if (fp->_r <= 0)
 #else
   if (fp->_r > 0)

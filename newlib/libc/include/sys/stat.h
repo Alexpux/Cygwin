@@ -16,7 +16,7 @@ extern "C" {
    sizes of any of the basic types change (short, int, long) [via a compile
    time option].  */
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include <cygwin/stat.h>
 #ifdef _COMPILING_NEWLIB
 #define stat64 __stat64
@@ -136,7 +136,7 @@ struct	stat
 #define	S_ISLNK(m)	(((m)&_IFMT) == _IFLNK)
 #define	S_ISSOCK(m)	(((m)&_IFMT) == _IFSOCK)
 
-#if defined(__CYGWIN__)
+#if defined(__MSYS__)
 /* Special tv_nsec values for futimens(2) and utimensat(2). */
 #define UTIME_NOW	-2L
 #define UTIME_OMIT	-1L
@@ -150,12 +150,12 @@ int	_EXFUN(mkfifo,( const char *__path, mode_t __mode ));
 int	_EXFUN(stat,( const char *__path, struct stat *__sbuf ));
 mode_t	_EXFUN(umask,( mode_t __mask ));
 
-#if defined (__SPU__) || defined(__rtems__) || defined(__CYGWIN__) && !defined(__INSIDE_CYGWIN__)
+#if defined (__SPU__) || defined(__rtems__) || defined(__MSYS__) && !defined(__INSIDE_MSYS__)
 int	_EXFUN(lstat,( const char *__path, struct stat *__buf ));
 int	_EXFUN(mknod,( const char *__path, mode_t __mode, dev_t __dev ));
 #endif
 
-#if defined (__CYGWIN__) && !defined(__INSIDE_CYGWIN__)
+#if defined (__MSYS__) && !defined(__INSIDE_MSYS__)
 int	_EXFUN(fchmodat, (int, const char *, mode_t, int));
 int	_EXFUN(fstatat, (int, const char *, struct stat *, int));
 int	_EXFUN(mkdirat, (int, const char *, mode_t));

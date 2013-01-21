@@ -34,7 +34,7 @@
 __RCSID("$NetBSD: strptime.c,v 1.28 2008/04/28 20:23:01 martin Exp $");
 #endif
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #include "winsup.h"
 #else
 #include "namespace.h"

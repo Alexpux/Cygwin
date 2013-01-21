@@ -63,7 +63,7 @@
 #define B_MULT	BBSIZE		/* block size */
 #elif linux
 #define B_MULT	DEV_BSIZE	/* block size */
-#elif __CYGWIN__
+#elif __MSYS__
 #include <sys/stat.h>
 #define B_MULT S_BLKSIZE	/* block size */
 #endif

@@ -57,7 +57,7 @@
 #define	_RESOLV_H_
 
 #include <sys/param.h>
-#if !defined(__CYGWIN__) && ((!defined(BSD)) || (BSD < 199306))
+#if !defined(__MSYS__) && ((!defined(BSD)) || (BSD < 199306))
 # include <sys/bitypes.h>
 #else
 # include <sys/types.h>
@@ -266,7 +266,7 @@ union res_sockaddr_union {
 /*			0x00008000	*/
 
 /* Things involving an internal (static) resolver context. */
-#if defined(_REENTRANT) || defined(__CYGWIN__)
+#if defined(_REENTRANT) || defined(__MSYS__)
 __BEGIN_DECLS
 extern struct __res_state *__res_state(void);
 __END_DECLS

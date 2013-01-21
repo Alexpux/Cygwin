@@ -42,24 +42,24 @@
 #include <sys/_types.h>
 
 /* types */
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 typedef	_off_t		regoff_t;
 
 #define __need_size_t
 #include <stddef.h>
-#else /* !__CYGWIN__ */
+#else /* !__MSYS__ */
 typedef	__off_t		regoff_t;
 
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
-#endif /* !__CYGWIN__ */
+#endif /* !__MSYS__ */
 
 typedef struct {
 	int re_magic;
 	size_t re_nsub;		/* number of parenthesized subexpressions */
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	const char *re_endp;	/* end pointer for REG_PEND */
 #else
 	__const char *re_endp;	/* end pointer for REG_PEND */
@@ -84,7 +84,7 @@ typedef struct {
 
 /* regerror() flags */
 #define	REG_ENOSYS	(-1)
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #define	REG_NOERROR	 0	/* GNU extension */
 #endif
 #define	REG_NOMATCH	 1
