@@ -693,7 +693,7 @@ dll_nonmsys_dllcrt0 (HMODULE h, per_process *p)
 }
 
 extern "C" void
-cygwin_detach_dll (dll *)
+msys_detach_dll (dll *)
 {
   HANDLE retaddr;
   if (_my_tls.isinitialized ())

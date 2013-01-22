@@ -16,8 +16,8 @@ extern void __stdcall _dll_crt0 ()
 
 /* for main module */
 void
-cygwin_crt0 (MainFunc f)
+msys_crt0 (MainFunc f)
 {
-  _cygwin_crt0_common (f, NULL);
+  _msys_crt0_common (f, NULL);
   _dll_crt0 ();	/* Jump into the dll, never to return */
 }

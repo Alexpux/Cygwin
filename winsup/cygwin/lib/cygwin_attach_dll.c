@@ -17,10 +17,10 @@ details. */
 
 /* for a loaded dll */
 int
-cygwin_attach_dll (HMODULE h, MainFunc f)
+msys_attach_dll (HMODULE h, MainFunc f)
 {
   static struct per_process u;
-  (void) _cygwin_crt0_common (f, &u);
+  (void) _msys_crt0_common (f, &u);
 
   /* jump into the dll. */
   return dll_dllcrt0 (h, &u);

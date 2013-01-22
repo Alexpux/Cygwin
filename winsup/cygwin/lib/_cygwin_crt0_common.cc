@@ -1,4 +1,4 @@
-/* _cygwin_crt0_common.cc: common crt0 function for cygwin crt0's.
+/* _msys_crt0_common.cc: common crt0 function for msys crt0's.
 
    Copyright 2000, 2001, 2002, 2003, 2004, 2009 Red Hat, Inc.
 
@@ -40,7 +40,7 @@ extern WEAK void operator delete[](void *p, const std::nothrow_t &nt) throw()
 /* Avoid an info message from linker when linking applications.  */
 extern __declspec(dllimport) struct _reent *_impure_ptr;
 
-/* Initialised in _cygwin_dll_entry. */
+/* Initialised in _msys_dll_entry. */
 extern int __dynamically_loaded;
 
 #undef environ
@@ -66,7 +66,7 @@ struct per_process_cxx_malloc __cygwin_cxx_malloc =
    and then jump to the dll.  */
 
 int __stdcall
-_cygwin_crt0_common (MainFunc f, per_process *u)
+_msys_crt0_common (MainFunc f, per_process *u)
 {
   per_process *newu = (per_process *) cygwin_internal (CW_USER_DATA);
   bool uwasnull;
