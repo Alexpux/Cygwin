@@ -50,7 +50,7 @@ EXEEXT_FOR_BUILD:=@EXEEXT_FOR_BUILD@
 
 LDLIBS := -lnetapi32 -ladvapi32 -lkernel32 -luser32
 CYGWIN_LDFLAGS := -static-libgcc -static-libstdc++ -Wl,--enable-auto-import -L${WINDOWS_LIBDIR} $(LDLIBS)
-DEP_LDLIBS := $(cygwin_build)/libcygwin.a
+DEP_LDLIBS := $(cygwin_build)/libmsys-2.0.dll.a
 
 MINGW_CXX      := @MINGW_CXX@
 
@@ -170,7 +170,7 @@ install: all
 	  $(INSTALL_PROGRAM) $$i $(DESTDIR)$(bindir)/$$n; \
 	done
 
-$(cygwin_build)/libcygwin.a: $(cygwin_build)/Makefile
+$(cygwin_build)/libmsys-2.0.dll.a: $(cygwin_build)/Makefile
 	@$(MAKE) -C $(@D) $(@F)
 
 .PHONY: warn_dumper
