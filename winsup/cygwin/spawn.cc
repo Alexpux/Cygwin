@@ -590,7 +590,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
      and before copying the datastructures to the child.  So we have to start
      the child in suspend state, unfortunately, to avoid a race condition. */
   if (!newargv.win16_exe
-      && (!iscygwin () || mode != _P_OVERLAY
+      && (!ismsys () || mode != _P_OVERLAY
 	  || ::cygheap->fdtab.need_fixup_before ()))
     c_flags |= CREATE_SUSPENDED;
   /* If a native application should be spawned, we test here if the spawning
@@ -601,7 +601,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
      in a console will break native processes running in the background,
      because the Ctrl-C event is sent to all processes in the console, unless
      they ignore it explicitely.  CREATE_NEW_PROCESS_GROUP does that for us. */
-  if (!iscygwin () && fhandler_console::exists ()
+  if (!ismsys () && fhandler_console::exists ()
       && fhandler_console::tc_getpgid () != myself->pgid)
     c_flags |= CREATE_NEW_PROCESS_GROUP;
   refresh_cygheap ();
@@ -613,14 +613,14 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
   else
     wr_proc_pipe = my_wr_proc_pipe;
 
-  /* Don't allow child to inherit these handles if it's not a Cygwin program.
+  /* Don't allow child to inherit these handles if it's not a Msys program.
      wr_proc_pipe will be injected later.  parent won't be used by the child
      so there is no reason for the child to have it open as it can confuse
      ps into thinking that children of windows processes are all part of
      the same "execed" process.
      FIXME: Someday, make it so that parent is never created when starting
-     non-Cygwin processes. */
-  if (!iscygwin ())
+     non-Msys processes. */
+  if (!ismsys ())
     {
       SetHandleInformation (wr_proc_pipe, HANDLE_FLAG_INHERIT, 0);
       SetHandleInformation (parent, HANDLE_FLAG_INHERIT, 0);
@@ -752,7 +752,7 @@ loop:
 	 process fails.  Only need to do this for _P_OVERLAY since the handle will
 	 be closed otherwise.  Don't need to do this for 'parent' since it will
 	 be closed in every case.  See FIXME above. */
-      if (!iscygwin () && mode == _P_OVERLAY)
+      if (!ismsys() && mode == _P_OVERLAY)
 	SetHandleInformation (wr_proc_pipe, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
       if (wr_proc_pipe == my_wr_proc_pipe)
 	wr_proc_pipe = NULL;	/* We still own it: don't nuke in destructor */
@@ -761,7 +761,7 @@ loop:
     }
 
   /* The CREATE_SUSPENDED case is handled below */
-  if (iscygwin () && !(c_flags & CREATE_SUSPENDED))
+  if (ismsys () && !(c_flags & CREATE_SUSPENDED))
     strace.write_childpid (pi.dwProcessId);
 
   /* Fixup the parent data structures if needed and resume the child's
@@ -790,7 +790,7 @@ loop:
       real_path.get_wide_win32_path (myself->progname); // FIXME: race?
       sigproc_printf ("new process name %W", myself->progname);
       pid = myself->pid;
-      if (!iscygwin ())
+      if (!ismsys ())
 	close_all_files ();
     }
   else
@@ -838,11 +838,11 @@ loop:
       /* Inject a non-inheritable wr_proc_pipe handle into child so that we
 	 can accurately track when the child exits without keeping this
 	 process waiting around for it to exit.  */
-      if (!iscygwin ())
+      if (!ismsys ())
 	DuplicateHandle (GetCurrentProcess (), wr_proc_pipe, pi.hProcess, NULL,
 			 0, false, DUPLICATE_SAME_ACCESS);
       ResumeThread (pi.hThread);
-      if (iscygwin ())
+      if (ismsys ())
 	strace.write_childpid (pi.dwProcessId);
     }
   ForceCloseHandle (pi.hThread);
@@ -850,12 +850,12 @@ loop:
   sigproc_printf ("spawned windows pid %d", pi.dwProcessId);
 
   bool synced;
-  if ((mode == _P_DETACH || mode == _P_NOWAIT) && !iscygwin ())
+  if ((mode == _P_DETACH || mode == _P_NOWAIT) && !ismsys ())
     synced = false;
   else
     /* Just mark a non-cygwin process as 'synced'.  We will still eventually
        wait for it to exit in maybe_set_exit_code_from_windows(). */
-    synced = iscygwin () ? sync (pi.dwProcessId, pi.hProcess, INFINITE) : true;
+    synced = ismsys () ? sync (pi.dwProcessId, pi.hProcess, INFINITE) : true;
 
   switch (mode)
     {
@@ -872,7 +872,7 @@ loop:
 	}
       else
 	{
-	  if (iscygwin ())
+	  if (ismsys ())
 	    close_all_files (true);
 	  if (!my_wr_proc_pipe
 	      && WaitForSingleObject (pi.hProcess, 0) == WAIT_TIMEOUT)

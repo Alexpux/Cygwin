@@ -802,7 +802,7 @@ child_info::child_info (unsigned in_cb, child_info_types chtype,
   if (need_subproc_ready)
     {
       subproc_ready = CreateEvent (&sec_all, FALSE, FALSE, NULL);
-      flag |= _CI_ISCYGWIN;
+      flag |= _CI_ISMSYS;
     }
   sigproc_printf ("subproc_ready %p", subproc_ready);
   /* Create an inheritable handle to pass to the child process.  This will
@@ -905,7 +905,7 @@ child_info_spawn::cleanup ()
     }
   if (type == _CH_EXEC)
     {
-      if (iscygwin () && hExeced)
+      if (ismsys () && hExeced)
 	proc_subproc (PROC_EXEC_CLEANUP, 0);
       sync_proc_subproc.release ();
     }
@@ -929,7 +929,7 @@ cygheap_exec_info::record_children ()
 void
 child_info_spawn::record_children ()
 {
-  if (type == _CH_EXEC && iscygwin ())
+  if (type == _CH_EXEC && ismsys ())
     moreinfo->record_children ();
 }
 
@@ -1062,7 +1062,7 @@ child_info::proc_retry (HANDLE h)
     /* Count down non-recognized exit codes more quickly since they aren't
        due to known conditions.  */
     default:
-      if (!iscygwin () && (exit_code & 0xffff0000) != 0xc0000000)
+      if (!ismsys () && (exit_code & 0xffff0000) != 0xc0000000)
 	break;
       if ((retry -= 2) < 0)
 	retry = 0;
