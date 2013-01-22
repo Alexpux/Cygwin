@@ -8,7 +8,7 @@ This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
-#undef __INSIDE_CYGWIN__
+#undef __INSIDE_MSYS__
 #include "winlean.h"
 #include <time.h>	/* Needed since call to sys/time.h via sys/cygwin.h
 			   complains otherwise */

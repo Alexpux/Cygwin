@@ -110,7 +110,7 @@ typedef unsigned long long uintmax_t;
 /* C99 requires that in C++ the following macros should be defined only
    if requested. */
 #if !defined (__cplusplus) || defined (__STDC_LIMIT_MACROS) \
-    || defined (__INSIDE_CYGWIN__)
+    || defined (__INSIDE_MSYS__)
 
 #if __x86_64__
 # define __I64(n) n ## L
@@ -246,12 +246,12 @@ typedef unsigned long long uintmax_t;
 #define WINT_MAX (4294967295U)
 #endif
 
-#endif /* !__cplusplus || __STDC_LIMIT_MACROS || __INSIDE_CYGWIN__ */
+#endif /* !__cplusplus || __STDC_LIMIT_MACROS || __INSIDE_MSYS__ */
 
 /* C99 requires that in C++ the following macros should be defined only
    if requested. */
 #if !defined (__cplusplus) || defined (__STDC_CONSTANT_MACROS) \
-    || defined (__INSIDE_CYGWIN__)
+    || defined (__INSIDE_MSYS__)
 
 /* Macros for minimum-width integer constant expressions */
 
@@ -283,6 +283,6 @@ typedef unsigned long long uintmax_t;
 #define UINTMAX_C(x) x ## ULL
 #endif
 
-#endif /* !__cplusplus || __STDC_CONSTANT_MACROS || __INSIDE_CYGWIN__ */
+#endif /* !__cplusplus || __STDC_CONSTANT_MACROS || __INSIDE_MSYS__ */
 
 #endif /* _STDINT_H */

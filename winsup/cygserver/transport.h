@@ -18,7 +18,7 @@ class transport_layer_base *create_server_transport ();
 class transport_layer_base
 {
 public:
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
   virtual int listen () = 0;
   virtual class transport_layer_base *accept (bool *recoverable) = 0;
 #endif
@@ -28,7 +28,7 @@ public:
   virtual ssize_t write (void *buf, size_t len) = 0;
   virtual int connect () = 0;
 
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
   virtual bool impersonate_client ();
   virtual bool revert_to_self ();
 #endif

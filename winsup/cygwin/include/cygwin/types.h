@@ -93,7 +93,7 @@ typedef __ino64_t ino_t;
 typedef unsigned long id_t;
 #endif /* __id_t_defined */
 
-#if defined (__INSIDE_CYGWIN__)
+#if defined (__INSIDE_MSYS__)
 struct __flock32 {
 	short	 l_type;	/* F_RDLCK, F_WRLCK, or F_UNLCK */
 	short	 l_whence;	/* flag to choose starting offset */
@@ -176,7 +176,7 @@ typedef unsigned mode_t;
 #endif
 #endif /*__BIT_TYPES_DEFINED*/
 
-#if !defined(__INSIDE_CYGWIN__) || !defined(__cplusplus)
+#if !defined(__INSIDE_MSYS__) || !defined(__cplusplus)
 
 typedef struct __pthread_t {char __dummy;} *pthread_t;
 typedef struct __pthread_mutex_t {char __dummy;} *pthread_mutex_t;
@@ -216,7 +216,7 @@ typedef class pthread_rwlockattr *pthread_rwlockattr_t;
 
 /* semaphores types */
 typedef class semaphore *sem_t;
-#endif /* __INSIDE_CYGWIN__ */
+#endif /* __INSIDE_MSYS__ */
 
 /* this header needs the dev_t typedef */
 #include <sys/sysmacros.h>

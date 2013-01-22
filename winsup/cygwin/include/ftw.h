@@ -55,7 +55,7 @@ struct FTW {
 };
 
 __BEGIN_DECLS
-#ifdef __INSIDE_CYGWIN__
+#ifdef __INSIDE_MSYS__
 int	ftw(const char *, int (*)(const char *, const struct __stat64 *, int), int);
 int	nftw(const char *, int (*)(const char *, const struct __stat64 *, int,
 	    struct FTW *), int, int);

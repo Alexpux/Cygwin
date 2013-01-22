@@ -19,7 +19,7 @@ details. */
 extern "C" {
 #endif
 
-#ifdef __INSIDE_CYGWIN__
+#ifdef __INSIDE_MSYS__
 
 typedef int *__wait_status_ptr_t;
 
@@ -28,7 +28,7 @@ typedef int *__wait_status_ptr_t;
 /* Attribute __transparent_union__ is only supported for C.  */
 typedef void *__wait_status_ptr_t;
 
-#else /* !__INSIDE_CYGWIN__ && !__cplusplus */
+#else /* !__INSIDE_MSYS__ && !__cplusplus */
 
 /* Allow `int' and `union wait' for the status.  */
 typedef union
@@ -37,7 +37,7 @@ typedef union
     union wait *__union_wait_ptr;
   } __wait_status_ptr_t  __attribute__ ((__transparent_union__));
 
-#endif /* __INSIDE_CYGWIN__ */
+#endif /* __INSIDE_MSYS__ */
 
 pid_t wait (__wait_status_ptr_t __status);
 pid_t waitpid (pid_t __pid, __wait_status_ptr_t __status, int __options);

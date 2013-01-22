@@ -278,7 +278,7 @@ _sig_func_ptr sigset (int, _sig_func_ptr);
 
 int sigqueue(pid_t, int, const union sigval);
 int siginterrupt (int, int);
-#ifdef __INSIDE_CYGWIN__
+#ifdef __INSIDE_MSYS__
 extern const char *sys_sigabbrev[];
 extern const char *sys_siglist[];
 #else

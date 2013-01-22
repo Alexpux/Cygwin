@@ -7,7 +7,7 @@ This file is part of Cygwin.
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
-#ifdef __OUTSIDE_CYGWIN__
+#ifdef __OUTSIDE_MSYS__
 #include "woutsup.h"
 #include <errno.h>
 #define _KERNEL 1
@@ -37,7 +37,7 @@ details. */
  */
 int
 win_copyin (struct thread *td, const void *client_src,
-	    void *server_tgt, size_t len)
+            void *server_tgt, size_t len)
 {
   if (!ReadProcessMemory (td->client->handle (), client_src, server_tgt,
 			  len, NULL))
@@ -52,7 +52,7 @@ win_copyin (struct thread *td, const void *client_src,
  */
 int
 win_copyout (struct thread *td, const void *server_src,
-	     void *client_tgt, size_t len)
+            void *client_tgt, size_t len)
 {
   if (!WriteProcessMemory (td->client->handle (), client_tgt, server_src,
 			   len, NULL))
@@ -688,4 +688,4 @@ tunable_bool_fetch (const char *name, tun_bool_t *tunable_target)
   *tunable_target = s->value.bval;
   debug ("\nSet %s to %s\n", name, tun_bool_val_string[*tunable_target]);
 }
-#endif /* __OUTSIDE_CYGWIN__ */
+#endif /* __OUTSIDE_MSYS__ */

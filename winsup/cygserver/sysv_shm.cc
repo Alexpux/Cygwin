@@ -33,7 +33,7 @@
  * This file is heavily changed to become part of Cygwin's cygserver.
  */
 
-#ifdef __OUTSIDE_CYGWIN__
+#ifdef __OUTSIDE_MSYS__
 #include "woutsup.h"
 #include <sys/cdefs.h>
 #ifndef __FBSDID
@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD: /repoman/r/ncvs/src/sys/kern/sysv_shm.c,v 1.89 2003/11/07 04
 #include "process.h"
 #include "cygserver_ipc.h"
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #ifndef PAGE_SIZE
 #define PAGE_SIZE (getpagesize ())
 #endif
@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD: /repoman/r/ncvs/src/sys/kern/sysv_shm.c,v 1.89 2003/11/07 04
 #endif
 #define btoc(b)	(((b) + PAGE_MASK) / PAGE_SIZE)
 #define round_page(p) ((((unsigned long)(p)) + PAGE_MASK) & ~(PAGE_MASK))
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #define GIANT_REQUIRED
 #else
 #define GIANT_REQUIRED mtx_assert(&Giant, MA_OWNED)
@@ -86,28 +86,28 @@ __FBSDID("$FreeBSD: /repoman/r/ncvs/src/sys/kern/sysv_shm.c,v 1.89 2003/11/07 04
 #define VM_OBJECT_UNLOCK(a)
 #define vm_map_remove(a,b,c) KERN_SUCCESS
 typedef int vm_prot_t;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
 struct oshmctl_args;
 static int oshmctl(struct thread *td, struct oshmctl_args *uap);
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 static int shmget_allocate_segment(struct thread *td,
     struct shmget_args *uap, int mode);
 static int shmget_existing(struct thread *td, struct shmget_args *uap,
     int mode, int segnum);
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *shmcalls[] = {
 	(sy_call_t *)shmat, (sy_call_t *)oshmctl,
 	(sy_call_t *)shmdt, (sy_call_t *)shmget,
 	(sy_call_t *)shmctl
 };
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 #define	SHMSEG_FREE     	0x0200
 #define	SHMSEG_REMOVED  	0x0400
@@ -164,18 +164,18 @@ struct	shminfo shminfo = {
 	SHMALL
 };
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 static int shm_use_phys;
 #else
 static long shm_use_phys;
 static long shm_allow_removed;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 struct shm_info shm_info;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0, "");
@@ -188,7 +188,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW,
     &shm_allow_removed, 0, "");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLFLAG_RD,
     NULL, 0, sysctl_shmsegs, "", "");
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 static int
 shm_find_segment_by_key(key_t key)
@@ -338,13 +338,13 @@ kern_shmat(struct thread *td, int shmid, const void *shmaddr, int shmflg)
 	int i, flags;
 	struct shmid_ds *shmseg;
 	struct shmmap_state *shmmap_s = NULL;
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 	struct shm_handle *shm_handle;
 #endif
 	vm_offset_t attach_va;
 	vm_prot_t prot;
 	vm_size_t size;
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 	int rv;
 #endif
 	int error = 0;
@@ -388,7 +388,7 @@ kern_shmat(struct thread *td, int shmid, const void *shmaddr, int shmflg)
 		prot |= VM_PROT_WRITE;
 	flags = MAP_ANON | MAP_SHARED;
 	debug_printf ("shmaddr: %x, shmflg: %x", shmaddr, shmflg);
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	/* The alignment checks have already been made in the Cygwin DLL
 	   and shmat's only job is to keep record of the attached mem.
 	   These checks break shm on 9x since MapViewOfFileEx apparently
@@ -444,7 +444,7 @@ shmat(struct thread *td, struct shmat_args *uap)
 	return kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg);
 }
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 struct oshmid_ds {
 	struct	ipc_perm shm_perm;	/* operation perms */
 	int	shm_segsz;		/* size of segment (bytes) */
@@ -512,7 +512,7 @@ done2:
 	return (EINVAL);
 #endif
 }
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 #ifndef _SYS_SYSPROTO_H_
 struct shmctl_args {
@@ -546,14 +546,14 @@ kern_shmctl(struct thread *td, int shmid, int cmd, void *buf, size_t *bufsz)
 		struct shm_info shm_info;
 		shm_info.used_ids = shm_nused;
 		shm_info.shm_tot = shm_committed * PAGE_SIZE;
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 		shm_info.shm_atts = shm_nattch;
 #else
 		shm_info.shm_rss = 0;	/*XXX where to get from ? */
 		shm_info.shm_swp = 0;	/*XXX where to get from ? */
 		shm_info.swap_attempts = 0;	/*XXX where to get from ? */
 		shm_info.swap_successes = 0;	/*XXX where to get from ? */
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 		memcpy(buf, &shm_info, sizeof(shm_info));
 		if (bufsz)
 			*bufsz = sizeof(shm_info);
@@ -632,7 +632,7 @@ shmctl(struct thread *td, struct shmctl_args *uap)
 		if ((error = copyin(uap->buf, &buf, sizeof(struct shmid_ds))))
 			goto done;
 	}
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	if (uap->cmd == IPC_INFO && uap->shmid > 0) {
 		/* Can't use the default kern_shmctl interface. */
 		int shmid = uap->shmid;
@@ -643,7 +643,7 @@ shmctl(struct thread *td, struct shmctl_args *uap)
 		td->td_retval[0] = error ? -1 : 0;
 		return (error);
 	}
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	
 	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&buf, &bufsz);
 	if (error)
@@ -703,10 +703,10 @@ shmget_existing(struct thread *td, struct shmget_args *uap, int mode, int segnum
 	if (uap->size && uap->size > shmseg->shm_segsz)
 		return (EINVAL);
 	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	td->td_retval[1] =
 		vm_object_duplicate(td, shmseg->shm_internal->shm_object);
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	return (0);
 }
 
@@ -714,9 +714,9 @@ static int
 shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 {
 	int i, segnum, shmid, size;
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 	struct ucred *cred = td->td_ucred;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	struct shmid_ds *shmseg;
 	struct shm_handle *shm_handle;
 
@@ -771,13 +771,13 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 	VM_OBJECT_UNLOCK(shm_handle->shm_object);
 
 	shmseg->shm_internal = shm_handle;
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = td->ipcblk->uid;
 	shmseg->shm_perm.cgid = shmseg->shm_perm.gid = td->ipcblk->gid;
 #else
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;
 	shmseg->shm_perm.cgid = shmseg->shm_perm.gid = cred->cr_gid;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	shmseg->shm_perm.mode = (shmseg->shm_perm.mode & SHMSEG_WANTED) |
 	    (mode & ACCESSPERMS) | SHMSEG_ALLOCATED;
 	shmseg->shm_segsz = uap->size;
@@ -796,10 +796,10 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 		wakeup(shmseg);
 	}
 	td->td_retval[0] = shmid;
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	td->td_retval[1] =
 		vm_object_duplicate(td, shmseg->shm_internal->shm_object);
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	return (0);
 }
 
@@ -818,7 +818,7 @@ shmget(struct thread *td, struct shmget_args *uap)
 	mode = uap->shmflg & ACCESSPERMS;
 	if (uap->key != IPC_PRIVATE) {
 	again:
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 		if (uap->shmflg & IPC_KEY_IS_SHMID)
 		  segnum = shm_find_segment_by_shmid ((int) uap->key) ?
 			   IPCID_TO_IX((int) uap->key) : -1;
@@ -838,7 +838,7 @@ shmget(struct thread *td, struct shmget_args *uap)
 	}
 	error = shmget_allocate_segment(td, uap, mode);
 done2:
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	if (!error)
 		ipcexit_creat_hookthread (td);
 	else
@@ -848,7 +848,7 @@ done2:
 	return (error);
 }
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 /*
  * MPSAFE
  */
@@ -875,7 +875,7 @@ shmsys(td, uap)
 	mtx_unlock(&Giant);
 	return (error);
 }
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 static void
 shmfork_myhook(struct proc *p1, struct proc *p2)
@@ -895,7 +895,7 @@ shmfork_myhook(struct proc *p1, struct proc *p2)
 		}
 }
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 int cygwin_shmfork_myhook (struct thread *td, struct proc *parent)
 {
   ipcexit_creat_hookthread (td);
@@ -976,10 +976,10 @@ shminit(void)
 	shm_last_free = 0;
 	shm_nused = 0;
 	shm_committed = 0;
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 	shmexit_hook = &shmexit_myhook;
 	shmfork_hook = &shmfork_myhook;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 }
 
 int
@@ -990,14 +990,14 @@ shmunload(void)
 		return (EBUSY);
 
 	sys_free(shmsegs, M_SHM);
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 	shmexit_hook = NULL;
 	shmfork_hook = NULL;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	return (0);
 }
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 static int
 sysctl_shmsegs(SYSCTL_HANDLER_ARGS)
 {
@@ -1041,5 +1041,5 @@ SYSCALL_MODULE_HELPER(shmget);
 DECLARE_MODULE(sysvshm, sysvshm_mod,
 	SI_SUB_SYSV_SHM, SI_ORDER_FIRST);
 MODULE_VERSION(sysvshm, 1);
-#endif /* __CYGWIN__ */
-#endif /* __OUTSIDE_CYGWIN__ */
+#endif /* __MSYS__ */
+#endif /* __OUTSIDE_MSYS__ */

@@ -303,7 +303,7 @@ struct per_process
   void *pseudo_reloc_end;
   void *image_base;
 
-#if defined (__INSIDE_CYGWIN__) && defined (__cplusplus)
+#if defined (__INSIDE_MSYS__) && defined (__cplusplus)
   MTinterface *threadinterface;
 #else
   void *threadinterface;

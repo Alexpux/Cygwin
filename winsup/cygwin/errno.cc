@@ -13,7 +13,7 @@ details. */
 #define sys_nerr FOOsys_nerr
 #define _sys_errlist FOO_sys_errlist
 #define strerror_r FOO_strerror_r
-#define __INSIDE_CYGWIN__
+#define __INSIDE_MSYS__
 #include <errno.h>
 #include <error.h>
 #include <stdarg.h>

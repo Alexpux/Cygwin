@@ -48,7 +48,7 @@ extern char *__locale_charset ();
 }
 #endif
 
-#ifdef __INSIDE_CYGWIN__
+#ifdef __INSIDE_MSYS__
 #ifdef __cplusplus
 size_t __stdcall sys_cp_wcstombs (wctomb_p, const char *, char *, size_t,
 				  const wchar_t *, size_t = (size_t) -1)
@@ -70,6 +70,6 @@ size_t __stdcall sys_mbstowcs_alloc (wchar_t **, int, const char *,
 				     size_t = (size_t) -1)
        __attribute__ ((regparm(3)));
 #endif /* __cplusplus */
-#endif /* __INSIDE_CYGWIN__ */
+#endif /* __INSIDE_MSYS__ */
 
 #endif /* _CYGWIN_WCHAR_H */

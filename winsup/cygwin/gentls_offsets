@@ -43,7 +43,7 @@ foreach ($tls =~ /^.*\n/mg) {
 close TLS;
 open(TMP, '>', "/tmp/$$.cc") or die "$0: couldn't open temporary index file \"/tmp/$$.c\" - $!\n";
 print TMP <<EOF;
-#define __INSIDE_CYGWIN__
+#define __INSIDE_MSYS__
 #define __attribute__(X)
 #include <stdio.h>
 #include <stdlib.h>

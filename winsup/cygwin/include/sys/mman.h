@@ -76,7 +76,7 @@ extern "C" {
 #define MADV_UNMERGEABLE 11
 #endif
 
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
 extern void *mmap (void *__addr, size_t __len, int __prot, int __flags, int __fd, off_t __off);
 #endif
 extern int munmap (void *__addr, size_t __len);

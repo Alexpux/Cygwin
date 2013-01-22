@@ -285,7 +285,7 @@ extern "C" {
 
 #include <sys/types.h>
 #include "cygmalloc.h"
-#define __INSIDE_CYGWIN__
+#define __INSIDE_MSYS__
 #include <stdio.h>    /* needed for malloc_stats */
 #include <string.h>
 

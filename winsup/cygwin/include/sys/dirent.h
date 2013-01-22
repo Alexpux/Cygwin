@@ -59,7 +59,7 @@ int closedir (DIR *);
 int dirfd (DIR *);
 
 #ifndef _POSIX_SOURCE
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
 long telldir (DIR *);
 void seekdir (DIR *, long loc);
 #endif

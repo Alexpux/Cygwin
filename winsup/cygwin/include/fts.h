@@ -123,7 +123,7 @@ typedef struct _ftsent {
 #define	FTS_SKIP	 4		/* discard node */
 	u_short fts_instr;		/* fts_set() instructions */
 
-#ifdef __INSIDE_CYGWIN__
+#ifdef __INSIDE_MSYS__
 	struct __stat64 *fts_statp;	/* stat(2) information */
 #else
 	struct stat *fts_statp;		/* stat(2) information */

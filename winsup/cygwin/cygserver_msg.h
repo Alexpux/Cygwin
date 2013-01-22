@@ -21,7 +21,7 @@ details. */
 #include "cygserver.h"
 #include "cygserver_ipc.h"
 
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
 class transport_layer_base;
 class process_cache;
 #endif
@@ -61,14 +61,14 @@ private:
     } out;
   } _parameters;
 
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
   client_request_msg ();
   virtual void serve (transport_layer_base *, process_cache *);
 #endif
 
 public:
 
-#ifdef __INSIDE_CYGWIN__
+#ifdef __INSIDE_MSYS__
   client_request_msg (int, int, struct msqid_ds *);	// msgctl
   client_request_msg (key_t, int);			// msgget
   client_request_msg (int, void *, size_t, long, int);	// msgrcv
@@ -79,7 +79,7 @@ public:
   ssize_t rcvval () const { return _parameters.out.rcv; }
 };
 
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
 int msginit ();
 int msgunload ();
 int msgctl (struct thread *, struct msgctl_args *);

@@ -21,7 +21,7 @@
  * This file is heavily changed to become part of Cygwin's cygserver.
  */
 
-#ifdef __OUTSIDE_CYGWIN__
+#ifdef __OUTSIDE_MSYS__
 #include "woutsup.h"
 #include <sys/cdefs.h>
 #ifndef __FBSDID
@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD: /usr/local/www/cvsroot/FreeBSD/src/sys/kern/sysv_msg.c,v 1.5
 #include "process.h"
 #include "cygserver_ipc.h"
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 #define MSG_DEBUG
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 #ifdef MSG_DEBUG
 #define DPRINTF(a)	debug_printf a
@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD: /usr/local/www/cvsroot/FreeBSD/src/sys/kern/sysv_msg.c,v 1.5
 
 static void msg_freehdr(struct msg *msghdr);
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 int msgctl(struct thread *, struct msgctl_args *);
 int msgget(struct thread *, struct msgget_args *);
 int msgsnd(struct thread *, struct msgsnd_args *);
@@ -66,7 +66,7 @@ static sy_call_t *msgcalls[] = {
 	(sy_call_t *)msgctl, (sy_call_t *)msgget,
 	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
 };
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 
 struct msg {
@@ -145,9 +145,9 @@ static struct msg *msghdrs;	/* MSGTQL msg headers */
 static struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 static struct mtx msq_mtx;	/* global mutex for message queues. */
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 static struct msg_info msg_info;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 void
 msginit()
@@ -245,10 +245,10 @@ msgunload()
 		    (msqptr->msg_perm.mode & MSG_LOCKED) != 0)
 			break;
 	}
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 	if (msqid != msginfo.msgmni)
 		return (EBUSY);
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 	sys_free(msgpool, M_MSG);
 	sys_free(msgmaps, M_MSG);
@@ -259,7 +259,7 @@ msgunload()
 }
 
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 static int
 sysvmsg_modload(struct module *module, int cmd, void *arg)
 {
@@ -366,7 +366,7 @@ msgctl(struct thread *td, struct msgctl_args *uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	if (cmd == IPC_INFO) {
 		if (!msqid) {
 			error = copyout(&msginfo, user_msqptr,
@@ -388,7 +388,7 @@ msgctl(struct thread *td, struct msgctl_args *uap)
 		mtx_unlock(&msq_mtx);
 		return (error);
 	}
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	msqid = IPCID_TO_IX(msqid);
 
 	if (msqid < 0 || msqid >= msginfo.msgmni) {
@@ -443,9 +443,9 @@ msgctl(struct thread *td, struct msgctl_args *uap)
 			panic("msg_qnum is screwed up");
 
 		msqptr->msg_qbytes = 0;	/* Mark it as free */
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 		msg_info.msg_ids--;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 		wakeup(msqptr);
 	}
@@ -568,7 +568,7 @@ msgget(struct thread *td, struct msgget_args *uap)
 		}
 		DPRINTF(("msqid %d is available\n", msqid));
 		msqptr->msg_perm.key = key;
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 		msqptr->msg_perm.cuid = td->ipcblk->uid;
 		msqptr->msg_perm.uid = td->ipcblk->uid;
 		msqptr->msg_perm.cgid = td->ipcblk->gid;
@@ -578,7 +578,7 @@ msgget(struct thread *td, struct msgget_args *uap)
 		msqptr->msg_perm.uid = cred->cr_uid;
 		msqptr->msg_perm.cgid = cred->cr_gid;
 		msqptr->msg_perm.gid = cred->cr_gid;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 		msqptr->msg_perm.mode = (msgflg & 0777);
 		/* Make sure that the returned msqid is unique */
 		msqptr->msg_perm.seq = (msqptr->msg_perm.seq + 1) & 0x7fff;
@@ -592,9 +592,9 @@ msgget(struct thread *td, struct msgget_args *uap)
 		msqptr->msg_stime = 0;
 		msqptr->msg_rtime = 0;
 		msqptr->msg_ctime = time (NULL);
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 		msg_info.msg_ids++;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 	} else {
 		DPRINTF(("didn't find it and wasn't asked to create it\n"));
 		error = ENOENT;
@@ -732,9 +732,9 @@ msgsnd(struct thread *td, struct msgsnd_args *uap)
 			}
 			if (error != 0) {
 				DPRINTF(("msgsnd:  interrupted system call\n"));
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 			  if (error != EIDRM)
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 				error = EINTR;
 				goto done2;
 			}
@@ -908,10 +908,10 @@ msgsnd(struct thread *td, struct msgsnd_args *uap)
 	msqptr->msg_lspid = td->td_proc->p_pid;
 	msqptr->msg_stime = time (NULL);
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	msg_info.msg_num++;
 	msg_info.msg_tot += uap->msgsz;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 	wakeup(msqptr);
 	td->td_retval[0] = 0;
@@ -1088,9 +1088,9 @@ msgrcv(struct thread *td, struct msgrcv_args *uap)
 
 		if (error != 0) {
 			DPRINTF(("msgrcv:  interrupted system call\n"));
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 		    if (error != EIDRM)
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 			error = EINTR;
 			goto done2;
 		}
@@ -1180,10 +1180,10 @@ msgrcv(struct thread *td, struct msgrcv_args *uap)
 	 * Done, return the actual number of bytes copied out.
 	 */
 
-#ifdef __CYGWIN__
+#ifdef __MSYS__
 	msg_info.msg_num--;
 	msg_info.msg_tot -= msgsz;
-#endif /* __CYGWIN__ */
+#endif /* __MSYS__ */
 
 	msg_freehdr(msghdr);
 	wakeup(msqptr);
@@ -1193,7 +1193,7 @@ done2:
 	return (error);
 }
 
-#ifndef __CYGWIN__
+#ifndef __MSYS__
 static int
 sysctl_msqids(SYSCTL_HANDLER_ARGS)
 {
@@ -1211,5 +1211,5 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, msgssz, CTLFLAG_RDTUN, &msginfo.msgssz, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgseg, CTLFLAG_RDTUN, &msginfo.msgseg, 0, "");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLFLAG_RD,
     NULL, 0, sysctl_msqids, "", "Message queue IDs");
-#endif /* __CYGWIN__ */
-#endif /* __OUTSIDE_CYGWIN__ */
+#endif /* __MSYS__ */
+#endif /* __OUTSIDE_MSYS__ */

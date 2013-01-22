@@ -31,7 +31,7 @@ struct proc {
   HANDLE signal_arrived;
 };
 
-#ifdef __INSIDE_CYGWIN__
+#ifdef __INSIDE_MSYS__
 #include "sigproc.h"
 extern inline void
 ipc_set_proc_info (proc &blk)
@@ -45,9 +45,9 @@ ipc_set_proc_info (proc &blk)
   blk.is_admin = false;
   _my_tls.set_signal_arrived (true, blk.signal_arrived);
 }
-#endif /* __INSIDE_CYGWIN__ */
+#endif /* __INSIDE_MSYS__ */
 
-#ifndef __INSIDE_CYGWIN__
+#ifndef __INSIDE_MSYS__
 class ipc_retval {
 private:
   union {
