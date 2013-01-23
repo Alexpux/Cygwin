@@ -45,9 +45,8 @@ details. */
 #define isproc(path) \
   (path_prefix_p (proc, (path), proc_len, false))
 
-bool NO_COPY mount_info::got_usr_bin;
-bool NO_COPY mount_info::got_usr_lib;
 int NO_COPY mount_info::root_idx = -1;
+bool NO_COPY mount_info::root_mnt;
 
 /* is_unc_share: Return non-zero if PATH begins with //server/share
 		 or with one of the native prefixes //./ or //?/
@@ -484,24 +483,18 @@ mount_info::init ()
   from_fstab (false, path, pathend);
   from_fstab (true, path, pathend);
 
-  if (!got_usr_bin || !got_usr_lib)
+  /* map root to /usr on msys */
+  if (!root_mnt)
     {
       char native[PATH_MAX];
       if (root_idx < 0)
-	api_fatal ("root_idx %d, user_shared magic %p, nmounts %d", root_idx, user_shared->version, nmounts);
+      api_fatal ("root_idx %d, user_shared magic %p, nmounts %d", root_idx, user_shared->version, nmounts);
       char *p = stpcpy (native, mount[root_idx].native_path);
-      if (!got_usr_bin)
-      {
-	stpcpy (p, "\\bin");
-	add_item (native, "/usr/bin",
-		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
-      }
-      if (!got_usr_lib)
-      {
-	stpcpy (p, "\\lib");
-	add_item (native, "/usr/lib",
-		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
-      }
+      if (!root_mnt)
+        {
+          stpcpy (p, "\\");
+          add_item (native, "/usr", MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
+        }
     }
 }
 
@@ -1412,14 +1405,19 @@ sort_by_native_name (const void *a, const void *b)
   res = strcmp (ap->native_path, bp->native_path);
 
   if (res == 0)
-   {
-     /* need to select between user and system mount to same POSIX path */
-     if (!(bp->flags & MOUNT_SYSTEM))	/* user mount */
-      return 1;
-     else
-      return -1;
-   }
-
+    {
+      if (ap->flags & MOUNT_SYSTEM != bp->flags & MOUNT_SYSTEM)
+        {
+          /* need to select between user and system mount to same native path */
+          if (!(bp->flags & MOUNT_SYSTEM))	/* user mount */
+            return 1;
+          else
+            return -1;
+        }
+      else
+        /* All things being equal, sort by POSIX path */
+        return sort_by_posix_name (a, b);
+    }
   return res;
 }
 
@@ -1525,11 +1523,9 @@ mount_info::add_item (const char *native, const char *posix,
   if (i == nmounts)
     nmounts++;
 
-  if (strcmp (posixtmp, "/usr/bin") == 0)
-    got_usr_bin = true;
-
-  if (strcmp (posixtmp, "/usr/lib") == 0)
-    got_usr_lib = true;
+  /* only /usr thanks */
+  if (strcmp (posixtmp, "/usr") == 0)
+    root_mnt = true;
 
   if (posixtmp[0] == '/' && posixtmp[1] == '\0' && !(mountflags & MOUNT_CYGDRIVE))
     root_idx = i;
