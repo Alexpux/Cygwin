@@ -11,7 +11,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
 /* to allow this to link into cygwin and the .dll, a little magic is needed. */
-#ifdef __OUTSIDE_MSYS__
+#ifdef __OUTSIDE_CYGWIN__
 #include "woutsup.h"
 #include <ntdef.h>
 #else
@@ -31,14 +31,14 @@ details. */
 #include "transport.h"
 #include "transport_pipes.h"
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 #include "cygserver.h"
 #include "cygserver_ipc.h"
 #else
 #include "security.h"
 #endif
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 #define SET_ERRNO(err)	set_errno (err)
 #else
 #define SET_ERRNO(err)	errno = (err)
@@ -50,7 +50,7 @@ enum
     WAIT_NAMED_PIPE_TIMEOUT = 10 // milliseconds
   };
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 
 transport_layer_pipes::transport_layer_pipes (const HANDLE hPipe)
   : _hPipe (hPipe),
@@ -62,7 +62,7 @@ transport_layer_pipes::transport_layer_pipes (const HANDLE hPipe)
   _pipe_name[0] = L'\0';
 }
 
-#endif /* !__INSIDE_MSYS__ */
+#endif /* !__INSIDE_CYGWIN__ */
 
 transport_layer_pipes::transport_layer_pipes ()
   : _hPipe (NULL),
@@ -81,7 +81,7 @@ transport_layer_pipes::~transport_layer_pipes ()
   close ();
 }
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 
 int
 transport_layer_pipes::listen ()
@@ -154,7 +154,7 @@ transport_layer_pipes::accept (bool *const recoverable)
   return new transport_layer_pipes (accept_pipe);
 }
 
-#endif /* !__INSIDE_MSYS__ */
+#endif /* !__INSIDE_CYGWIN__ */
 
 void
 transport_layer_pipes::close ()
@@ -165,7 +165,7 @@ transport_layer_pipes::close ()
     {
       assert (_hPipe != INVALID_HANDLE_VALUE);
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 
       if (_is_accepted_endpoint)
 	{
@@ -176,12 +176,12 @@ transport_layer_pipes::close ()
       else
 	(void) CloseHandle (_hPipe);
 
-#else /* __INSIDE_MSYS__ */
+#else /* __INSIDE_CYGWIN__ */
 
       assert (!_is_accepted_endpoint);
       (void) ForceCloseHandle (_hPipe);
 
-#endif /* __INSIDE_MSYS__ */
+#endif /* __INSIDE_CYGWIN__ */
 
       _hPipe = NULL;
     }
@@ -262,7 +262,7 @@ transport_layer_pipes::connect ()
       if (_hPipe != INVALID_HANDLE_VALUE)
 	{
 	  assert (_hPipe);
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 	  ProtectHandle (_hPipe);
 #endif
 	  assume_cygserver = true;
@@ -302,7 +302,7 @@ transport_layer_pipes::connect ()
   return -1;
 }
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 
 bool
 transport_layer_pipes::impersonate_client ()
@@ -333,4 +333,4 @@ transport_layer_pipes::revert_to_self ()
   return true;
 }
 
-#endif /* !__INSIDE_MSYS__ */
+#endif /* !__INSIDE_CYGWIN__ */

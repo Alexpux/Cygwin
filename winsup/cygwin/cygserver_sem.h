@@ -21,7 +21,7 @@ details. */
 #include "cygserver.h"
 #include "cygserver_ipc.h"
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 class transport_layer_base;
 class process_cache;
 #endif
@@ -58,14 +58,14 @@ private:
     } out;
   } _parameters;
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   client_request_sem ();
   virtual void serve (transport_layer_base *, process_cache *);
 #endif
 
 public:
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
   client_request_sem (int, int, int, union semun *);	// semctl
   client_request_sem (key_t, int, int);			// semget
   client_request_sem (int, struct sembuf *, size_t);	// semop
@@ -74,7 +74,7 @@ public:
   int retval () const { return msglen () ? _parameters.out.ret : -1; }
 };
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 int seminit ();
 int semunload ();
 void semexit_myhook(void *arg, struct proc *p);

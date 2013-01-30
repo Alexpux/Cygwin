@@ -97,7 +97,7 @@ struct in6_pktinfo
   uint32_t        ipi6_ifindex;
 };
 
-#if defined (__INSIDE_MSYS__) && !defined (_CYGWIN_IN_H)
+#if defined (__INSIDE_CYGWIN__) && !defined (_CYGWIN_IN_H)
 typedef uint16_t in_port_t;
 #endif
 

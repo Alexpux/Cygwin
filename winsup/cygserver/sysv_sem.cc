@@ -10,7 +10,7 @@
  * This file is heavily changed to become part of Cygwin's cygserver.
  */
 
-#ifdef __OUTSIDE_MSYS__
+#ifdef __OUTSIDE_CYGWIN__
 #include "woutsup.h"
 #include <stdio.h>
 #include <sys/cygwin.h>
@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD: /repoman/r/ncvs/src/sys/kern/sysv_sem.c,v 1.70 2004/05/30 20
 #include "cygserver_ipc.h"
 #include <sys/smallprint.h>
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define __semctl semctl
 #define __semctl_args semctl_args
 #define SEM_DEBUG
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 #ifdef SEM_DEBUG
 #define DPRINTF(a)	debug_printf a
@@ -67,7 +67,7 @@ struct semop_args;
 int semop(struct thread *td, struct semop_args *uap);
 #endif
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {
 	(sy_call_t *)__semctl, (sy_call_t *)semget,
@@ -83,9 +83,9 @@ static struct mtx *sema_mtx;	/* semaphore id pool mutexes*/
 static struct sem *sem;		/* semaphore pool */
 static SLIST_HEAD(, sem_undo) semu_list;	/* list of active undo structures */
 static int	*semu;		/* undo structure pool */
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 static eventhandler_tag semexit_tag;
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 #define SEMUNDO_MTX		sem_mtx
 #define SEMUNDO_LOCK()		mtx_lock(&SEMUNDO_MTX);
@@ -111,7 +111,7 @@ struct undo {
 
 struct sem_undo {
 	SLIST_ENTRY(sem_undo) un_next;	/* ptr to next active undo structure */
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	DWORD	un_proc;		/* owner of this structure */
 #else
 	struct	proc *un_proc;		/* owner of this structure */
@@ -154,7 +154,7 @@ struct sem_undo {
 #define SEMAEM	16384		/* adjust on exit max value */
 #endif
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 /* gcc 3.4 defines a new offsetof which is different for C++.  Since this
    file is just a derived plain-C file, we need to revert to the plain-C
    definition of offsetof. */
@@ -162,7 +162,7 @@ struct sem_undo {
 #undef offsetof
 #endif
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 /*
  * Due to the way semaphore memory is allocated, we have to ensure that
  * SEMUSZ is properly aligned.
@@ -195,7 +195,7 @@ struct seminfo seminfo = {
                 SEMUSZ          /* size in bytes of undo structure */
 };
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmap, CTLFLAG_RW, &seminfo.semmap, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semmni, CTLFLAG_RDTUN, &seminfo.semmni, 0, "");
@@ -209,7 +209,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RW, &seminfo.semvmx, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semaem, CTLFLAG_RW, &seminfo.semaem, 0, "");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sema, CTLFLAG_RD,
     NULL, 0, sysctl_sema, "", "");
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 void
 seminit(void)
@@ -227,12 +227,12 @@ seminit(void)
 	TUNABLE_INT_FETCH("kern.ipc.semvmx", &seminfo.semvmx);
 	TUNABLE_INT_FETCH("kern.ipc.semaem", &seminfo.semaem);
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	/* It's too dangerous a setting to leave it alone. 
 	   Keep that clean here. */
 	seminfo.semusz = SEM_ALIGN(offsetof(struct sem_undo,
 					    un_ent[seminfo.semume]));
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 	sem = (struct sem *) sys_malloc(sizeof(struct sem) * seminfo.semmns, M_SEM, M_WAITOK);
 	sema = (struct semid_ds *) sys_malloc(sizeof(struct semid_ds) * seminfo.semmni, M_SEM,
@@ -254,7 +254,7 @@ seminit(void)
 	}
 	for (i = 0; i < seminfo.semmnu; i++) {
 		struct sem_undo *suptr = SEMU(i);
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		suptr->un_proc = 0;
 #else
 		suptr->un_proc = NULL;
@@ -262,22 +262,22 @@ seminit(void)
 	}
 	SLIST_INIT(&semu_list);
 	mtx_init(&sem_mtx, "sem", NULL, MTX_DEF);
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	semexit_tag = EVENTHANDLER_REGISTER(process_exit, semexit_myhook, NULL,
 	    EVENTHANDLER_PRI_ANY);
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 }
 
 int
 semunload(void)
 {
-#ifndef __MSYS__	/* Would result in being unable to shutdown the
+#ifndef __CYGWIN__	/* Would result in being unable to shutdown the
 			   server gracefully. */
 	if (semtot != 0)
 		return (EBUSY);
 
 	EVENTHANDLER_DEREGISTER(process_exit, semexit_tag);
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 	sys_free(sem, M_SEM);
 	sys_free(sema, M_SEM);
 	sys_free(semu, M_SEM);
@@ -289,7 +289,7 @@ semunload(void)
 	return (0);
 }
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 static int
 sysvsem_modload(struct module *module, int cmd, void *arg)
 {
@@ -353,7 +353,7 @@ semsys(td, uap)
 	error = (*semcalls[uap->which])(td, &uap->a2);
 	return (error);
 }
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 /*
  * Allocate a new sem_undo structure for a process
@@ -383,7 +383,7 @@ semu_alloc(struct thread *td)
 
 		for (i = 0; i < seminfo.semmnu; i++) {
 			suptr = SEMU(i);
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 			if (suptr->un_proc == 0) {
 #else
 			if (suptr->un_proc == NULL) {
@@ -407,7 +407,7 @@ semu_alloc(struct thread *td)
 			SLIST_FOREACH_PREVPTR(suptr, supptr, &semu_list,
 			    un_next) {
 				if (suptr->un_cnt == 0) {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 					suptr->un_proc = 0;
 #else
 					suptr->un_proc = NULL;
@@ -453,7 +453,7 @@ semundo_adjust(struct thread *td, struct sem_undo **supptr, int semid,
 	suptr = *supptr;
 	if (suptr == NULL) {
 		SLIST_FOREACH(suptr, &semu_list, un_next) {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 			if (suptr->un_proc == p->winpid) {
 #else
 			if (suptr->un_proc == p) {
@@ -570,7 +570,7 @@ __semctl(struct thread *td, struct __semctl_args *uap)
 	u_short *array;
 	union semun *arg = uap->arg;
 	union semun real_arg;
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	struct ucred *cred = td->td_ucred;
 #endif
 	int i, rval, error;
@@ -587,7 +587,7 @@ __semctl(struct thread *td, struct __semctl_args *uap)
 	array = NULL;
 
 	switch(cmd) {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	case IPC_INFO:
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			return (error);
@@ -614,7 +614,7 @@ __semctl(struct thread *td, struct __semctl_args *uap)
 		td->td_retval[0] = error ? -1 : 0;
 		return (error);
 
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 	case SEM_STAT:
 		if (semid < 0 || semid >= seminfo.semmni)
 			return (EINVAL);
@@ -654,7 +654,7 @@ __semctl(struct thread *td, struct __semctl_args *uap)
 			goto done2;
 		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_M)))
 			goto done2;
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		semaptr->sem_perm.cuid = td->ipcblk->uid;
 		semaptr->sem_perm.uid = td->ipcblk->uid;
 #else
@@ -871,7 +871,7 @@ semget(struct thread *td, struct semget_args *uap)
 	key_t key = uap->key;
 	int nsems = uap->nsems;
 	int semflg = uap->semflg;
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	struct ucred *cred = td->td_ucred;
 #endif
 
@@ -932,7 +932,7 @@ semget(struct thread *td, struct semget_args *uap)
 		}
 		DPRINTF(("semid %d is available\n", semid));
 		sema[semid].sem_perm.key = key;
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		sema[semid].sem_perm.cuid = td->ipcblk->uid;
 		sema[semid].sem_perm.uid = td->ipcblk->uid;
 		sema[semid].sem_perm.cgid = td->ipcblk->gid;
@@ -965,7 +965,7 @@ semget(struct thread *td, struct semget_args *uap)
 found:
 	td->td_retval[0] = IXSEQ_TO_IPCID(semid, sema[semid].sem_perm);
 done2:
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	if (!error)
 		ipcexit_creat_hookthread (td);
 #endif
@@ -1176,9 +1176,9 @@ semop(struct thread *td, struct semop_args *uap)
 		 * need to decrement sem[nz]cnt either way.)
 		 */
 		if (error != 0) {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		    if (error != EIDRM)
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 			error = EINTR;
 			goto done2;
 		}
@@ -1283,14 +1283,14 @@ semexit_myhook(void *arg, struct proc *p)
 	 */
 	SEMUNDO_HOOKLOCK();
 	SLIST_FOREACH_PREVPTR(suptr, supptr, &semu_list, un_next) {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		if (suptr->un_proc == p->winpid)
 #else
 		if (suptr->un_proc == p)
 #endif
 			break;
 	}
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	SEMUNDO_UNLOCK();
 #endif
 
@@ -1299,7 +1299,7 @@ semexit_myhook(void *arg, struct proc *p)
 		return;
 	}
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	DPRINTF(("proc @%u(%u) has undo structure with %d entries\n",
 	    p->cygpid, p->winpid, suptr->un_cnt));
 #else
@@ -1322,7 +1322,7 @@ semexit_myhook(void *arg, struct proc *p)
 
 			semaptr = &sema[semid];
 			sema_mtxp = &sema_mtx[semid];
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 			_mtx_lock(sema_mtxp, p->winpid, __FILE__, __LINE__);
 #else
 			mtx_lock(sema_mtxp);
@@ -1334,7 +1334,7 @@ semexit_myhook(void *arg, struct proc *p)
 				panic("semexit - semnum out of range");
 
 			DPRINTF((
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 			    "semexit:  %u id=%d num=%d(adj=%d) ; sem=%d\n",
 #else
 			    "semexit:  %08x id=%d num=%d(adj=%d) ; sem=%d\n",
@@ -1356,7 +1356,7 @@ semexit_myhook(void *arg, struct proc *p)
 			wakeup(semaptr);
 			DPRINTF(("semexit:  back from wakeup\n"));
 			_mtx_unlock(sema_mtxp, __FILE__, __LINE__);
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 			SEMUNDO_UNLOCK();
 #endif
 		}
@@ -1366,18 +1366,18 @@ semexit_myhook(void *arg, struct proc *p)
 	 * Deallocate the undo vector.
 	 */
 	DPRINTF(("removing vector (%u)\n", suptr->un_proc));
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	suptr->un_proc = 0;
 #else
 	suptr->un_proc = NULL;
 #endif
 	*supptr = SLIST_NEXT(suptr, un_next);
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	SEMUNDO_UNLOCK();
 #endif
 }
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 static int
 sysctl_sema(SYSCTL_HANDLER_ARGS)
 {
@@ -1385,5 +1385,5 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, sema,
 	    sizeof(struct semid_ds) * seminfo.semmni));
 }
-#endif /* __MSYS__ */
-#endif /* __OUTSIDE_MSYS__ */
+#endif /* __CYGWIN__ */
+#endif /* __OUTSIDE_CYGWIN__ */

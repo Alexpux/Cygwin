@@ -110,7 +110,7 @@ struct cmsghdr
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 /* Definition of struct msghdr up to release 1.5.18 */
 struct OLD_msghdr
 {
@@ -135,7 +135,7 @@ struct OLD_msghdr
    socket(2) to mark socket as nonblocking and/or close-on-exec. */
 #define SOCK_NONBLOCK	0x01000000
 #define SOCK_CLOEXEC	0x02000000
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 #define _SOCK_FLAG_MASK	0xff000000	/* Bits left for more extensions */
 #endif
 
@@ -280,7 +280,7 @@ struct OLD_msghdr
 #endif
 
 /* Old WinSock1 values, needed internally */
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 #define _WS1_IP_OPTIONS          1
 #define _WS1_IP_MULTICAST_IF     2
 #define _WS1_IP_MULTICAST_TTL    3

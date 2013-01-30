@@ -20,7 +20,7 @@ details. */
 class transport_layer_pipes : public transport_layer_base
 {
 public:
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   virtual int listen ();
   virtual class transport_layer_pipes *accept (bool *recoverable);
 #endif
@@ -30,7 +30,7 @@ public:
   virtual ssize_t write (void *buf, size_t len);
   virtual int connect ();
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   virtual bool impersonate_client ();
   virtual bool revert_to_self ();
 #endif

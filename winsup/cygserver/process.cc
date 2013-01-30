@@ -10,7 +10,7 @@ This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
-#ifdef __OUTSIDE_MSYS__
+#ifdef __OUTSIDE_CYGWIN__
 #include "woutsup.h"
 
 #include <sys/types.h>
@@ -497,4 +497,4 @@ process_cache::find (const DWORD winpid, class process **previous)
 }
 
 /*****************************************************************************/
-#endif /* __OUTSIDE_MSYS__ */
+#endif /* __OUTSIDE_CYGWIN__ */

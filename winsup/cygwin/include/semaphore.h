@@ -20,7 +20,7 @@ extern "C"
 {
 #endif
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   typedef struct __sem_t {char __dummy;} *sem_t;
 #endif
 

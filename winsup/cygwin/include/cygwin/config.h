@@ -57,7 +57,7 @@ extern char *_tlsbase __asm__ ("%fs:4");
 #define __HAVE_LOCALE_INFO_EXTENDED__ 1
 #define _WANT_C99_TIME_FORMATS 1
 #define _GLIBC_EXTENSION 1
-#if defined(__INSIDE_MSYS__) || defined(_COMPILING_NEWLIB)
+#if defined(__INSIDE_CYGWIN__) || defined(_COMPILING_NEWLIB)
 #define __EXPORT __declspec(dllexport)
 #define __IMPORT
 #else

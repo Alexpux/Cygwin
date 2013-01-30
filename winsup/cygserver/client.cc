@@ -11,7 +11,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
 /* to allow this to link into cygwin and the .dll, a little magic is needed. */
-#ifdef __OUTSIDE_MSYS__
+#ifdef __OUTSIDE_CYGWIN__
 #include "woutsup.h"
 #else
 #include "winsup.h"
@@ -48,7 +48,7 @@ client_request_get_version::client_request_get_version ()
  * the first numbers match, that is).
  */
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 
 bool
 client_request_get_version::check_version () const
@@ -87,7 +87,7 @@ client_request_attach_tty::client_request_attach_tty (DWORD nmaster_pid,
 		   "from_master = %lu, to_master = %lu"),
 		  req.pid, req.master_pid, req.from_master, req.to_master);
 }
-#endif /* __INSIDE_MSYS__ */
+#endif /* __INSIDE_CYGWIN__ */
 
 /*
  * client_request_attach_tty::send ()
@@ -221,7 +221,7 @@ client_request::send (transport_layer_base * const conn)
   //			      sizeof (_header), msglen ());
 }
 
-#ifdef __OUTSIDE_MSYS__
+#ifdef __OUTSIDE_CYGWIN__
 
 client_request_attach_tty::client_request_attach_tty ()
   : client_request (CYGSERVER_REQUEST_ATTACH_TTY, &req, sizeof (req))
@@ -429,7 +429,7 @@ client_request::make_request ()
   delete transport;
   return 0;
 }
-#endif /* __OUTSIDE_MSYS__ */
+#endif /* __OUTSIDE_CYGWIN__ */
 
 client_request::client_request (request_code_t const id,
 				void * const buf,
@@ -444,7 +444,7 @@ client_request::client_request (request_code_t const id,
 client_request::~client_request ()
 {}
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 int
 client_request::make_request ()
 {
@@ -533,4 +533,4 @@ cygserver_init ()
   if (!check_cygserver_available ())
     cygserver_running = CYGSERVER_UNAVAIL;
 }
-#endif /* __INSIDE_MSYS__ */
+#endif /* __INSIDE_CYGWIN__ */

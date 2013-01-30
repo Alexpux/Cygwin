@@ -22,7 +22,7 @@ int dlmalloc_trim (size_t) __attribute__ ((regparm (1)));
 int dlmallopt (int p, int v) __attribute__ ((regparm (2)));
 void dlmalloc_stats ();
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 extern "C" void __set_ENOMEM ();
 # define MALLOC_FAILURE_ACTION	__set_ENOMEM ()
 # define USE_DL_PREFIX 1

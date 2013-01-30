@@ -10,7 +10,7 @@ details. */
 
 #define _MT_SAFE 1
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 #error "woutsup.h is not for code being compiled inside the dll"
 #endif
 

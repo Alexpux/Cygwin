@@ -61,7 +61,7 @@ typedef struct {
 	void (*gl_closedir)(void *);
 	struct dirent *(*gl_readdir)(void *);
 	void *(*gl_opendir)(const char *);
-#if defined (__INSIDE_MSYS__)
+#if defined (__INSIDE_CYGWIN__)
 	int (*gl_lstat) __P((const char *, struct __stat64 *));
 	int (*gl_stat) __P((const char *, struct __stat64 *));
 #else
@@ -103,7 +103,7 @@ typedef struct {
 __BEGIN_DECLS
 
 #undef DLLEXPORT
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 # define DLLEXPORT
 #else
 # define DLLEXPORT __declspec(dllimport)

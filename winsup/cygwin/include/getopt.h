@@ -41,7 +41,7 @@
 extern "C" {
 #endif
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 extern int __declspec(dllimport) opterr;	/* if error message should be printed */
 extern int __declspec(dllimport) optind;	/* index into parent argv vector */
 extern int __declspec(dllimport) optopt;	/* character checked for validity */

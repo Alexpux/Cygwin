@@ -36,7 +36,7 @@ typedef enum {
 
 class transport_layer_base;
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 class process_cache;
 #endif
 
@@ -69,7 +69,7 @@ protected:
   } CYGSERVER_PACKED;
 
 public:
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   static void handle_request (transport_layer_base *, process_cache *);
 #endif
 
@@ -96,7 +96,7 @@ private:
   void * const _buf;
   const size_t _buflen;
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   void handle (transport_layer_base *, process_cache *);
   virtual void serve (transport_layer_base *, process_cache *) = 0;
 #endif
@@ -121,7 +121,7 @@ public:
 private:
   struct request_get_version version;
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   virtual void serve (transport_layer_base *, process_cache *);
 #endif
 };
@@ -129,11 +129,11 @@ private:
 /*---------------------------------------------------------------------------*
  * class client_request_shutdown
  *
- * Nb. This whole class is only !__INSIDE_MSYS__ since it is used
+ * Nb. This whole class is only !__INSIDE_CYGWIN__ since it is used
  * solely by cygserver itself.
  *---------------------------------------------------------------------------*/
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 
 class client_request_shutdown : public client_request
 {
@@ -144,7 +144,7 @@ private:
   virtual void serve (transport_layer_base *, process_cache *);
 };
 
-#endif /* !__INSIDE_MSYS__ */
+#endif /* !__INSIDE_CYGWIN__ */
 
 /*---------------------------------------------------------------------------*
  * class client_request_attach_tty
@@ -160,7 +160,7 @@ private:
   } CYGSERVER_PACKED;
 
 public:
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
   client_request_attach_tty (DWORD nmaster_pid,
 			     HANDLE nfrom_master, HANDLE nto_master);
 #else
@@ -176,12 +176,12 @@ protected:
 private:
   struct request_attach_tty req;
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   virtual void serve (transport_layer_base *, process_cache *);
 #endif
 };
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 extern PSID admininstrator_group_sid;
 #endif
 

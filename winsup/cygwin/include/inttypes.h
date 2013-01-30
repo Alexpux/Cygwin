@@ -18,7 +18,7 @@ details. */
 /* C99 requires that in C++ the following macros should be defined only
    if requested. */
 #if !defined (__cplusplus) || defined (__STDC_FORMAT_MACROS) \
-    || defined (__INSIDE_MSYS__)
+    || defined (__INSIDE_CYGWIN__)
 
 #ifdef __x86_64__
 #define __PRI64 "l"
@@ -246,7 +246,7 @@ details. */
 #define SCNxMAX __SCN64 "x"
 #define SCNxPTR __SCNPTR "x"
 
-#endif /* !__cplusplus || __STDC_FORMAT_MACROS || __INSIDE_MSYS__ */
+#endif /* !__cplusplus || __STDC_FORMAT_MACROS || __INSIDE_CYGWIN__ */
 
 #ifdef __cplusplus
 extern "C" {

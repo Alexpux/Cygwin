@@ -16,7 +16,7 @@ details. */
 
 #define CYGWIN_LSA_KEY_PREFIX	L"L$CYGWIN_"
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 class transport_layer_base;
 class process_cache;
 #endif
@@ -34,19 +34,19 @@ private:
     } in;
   } _parameters;
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
   client_request_setpwd ();
   virtual void serve (transport_layer_base *, process_cache *);
 #endif
 
 public:
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
   client_request_setpwd (PUNICODE_STRING);
 #endif
 };
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 unsigned long setlsapwd (const char *passwd, const char *username);
 #endif
 

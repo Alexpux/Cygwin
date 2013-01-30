@@ -58,7 +58,7 @@ extern "C" {
 #define MASK            CLASS_OBJ
 #define OTHER           OTHER_OBJ
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 typedef struct __acl16 {
     int          a_type;
     __uid16_t    a_id;
@@ -78,7 +78,7 @@ typedef struct acl {
 } aclent_t;
 #endif
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 int _EXFUN(acl,(const char *path, int cmd, int nentries, aclent_t *aclbufp));
 int _EXFUN(facl,(int fd, int cmd, int nentries, aclent_t *aclbufp));
 int _EXFUN(aclcheck,(aclent_t *aclbufp, int nentries, int *which));

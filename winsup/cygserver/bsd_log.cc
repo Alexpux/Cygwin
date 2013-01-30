@@ -7,7 +7,7 @@ This file is part of Cygwin.
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
-#ifdef __OUTSIDE_MSYS__
+#ifdef __OUTSIDE_CYGWIN__
 #include "woutsup.h"
 #define _KERNEL 1
 #define __BSD_VISIBLE 1
@@ -92,4 +92,4 @@ _panic (const char *file, int line, const char *fmt, ...)
   va_start (ap, fmt);
   _vpanic (file, line, fmt, ap);
 }
-#endif /* __OUTSIDE_MSYS__ */
+#endif /* __OUTSIDE_CYGWIN__ */

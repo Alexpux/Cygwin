@@ -27,7 +27,7 @@ strchrnul (const char *s, int c)
   return (char *) s;
 }
 
-#ifdef __INSIDE_MSYS__
+#ifdef __INSIDE_CYGWIN__
 
 extern const char isalpha_array[];
 
@@ -87,7 +87,7 @@ char * __stdcall cygwin_strlwr (char *);
 #define strupr cygwin_strupr
 char * __stdcall cygwin_strupr (char *);
 
-#endif /* __INSIDE_MSYS__ */
+#endif /* __INSIDE_CYGWIN__ */
 
 char *__stdcall strccpy (char *s1, const char **s2, char c);
 
