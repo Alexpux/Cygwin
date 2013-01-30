@@ -17,7 +17,7 @@ export CXX:=@CXX@
 
 CFLAGS:=@CFLAGS@
 override CXXFLAGS=@CXXFLAGS@
-override CXXFLAGS+=-MMD -D__OUTSIDE_CYGWIN__ -DSYSCONFDIR="\"$(sysconfdir)\""
+override CXXFLAGS+=-MMD -D__OUTSIDE_CYGWIN__ -D__OUTSIDE_MSYS__ -DSYSCONFDIR="\"$(sysconfdir)\""
 
 include ${srcdir}/../Makefile.common
 
@@ -56,7 +56,7 @@ CYGWIN_LIB:=$(cygwin_build)/libcygwin.a
 all: cygserver.exe
 
 install: all cygserver.conf cygserver-config README
-	/bin/mkdir -p $(DESTDIR)$(sbindir) $(DESTDIR)$(bindir) $(DESTDIR)$(sysconfdir)/defaults/etc $(DESTDIR)$(prefix)/share/doc/Cygwin
+	/bin/mkdir -p $(DESTDIR)$(sbindir) $(DESTDIR)$(bindir) $(DESTDIR)$(sysconfdir)/defaults/etc $(DESTDIR)$(prefix)/share/doc/Msys
 	$(INSTALL_PROGRAM) cygserver.exe $(DESTDIR)$(sbindir)/cygserver.exe
 	$(INSTALL_PROGRAM) $(srcdir)/cygserver-config $(DESTDIR)$(bindir)/cygserver-config
 	$(INSTALL_DATA) $(srcdir)/cygserver.conf $(DESTDIR)$(sysconfdir)/defaults/etc/cygserver.conf
