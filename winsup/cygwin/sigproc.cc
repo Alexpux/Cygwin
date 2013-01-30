@@ -31,8 +31,6 @@ details. */
 #define WSSC		  60000	// Wait for signal completion
 #define WPSP		  40000	// Wait for proc_subproc mutex
 
-#define no_signals_available() ((myself->exitcode & EXITCODE_SET) || (&_my_tls == _sig_tls))
-
 /*
  * Global variables
  */
@@ -63,7 +61,7 @@ Static HANDLE my_sendsig;
 Static HANDLE my_readsig;
 
 /* Function declarations */
-static int __stdcall checkstate (waitq *) __attribute__ ((regparm (1)));
+static int __reg1 checkstate (waitq *);
 static __inline__ bool get_proc_lock (DWORD, DWORD);
 static bool __stdcall remove_proc (int);
 static bool __stdcall stopped_or_terminated (waitq *, _pinfo *);
@@ -86,7 +84,7 @@ public:
   sigpacket *next ();
   sigpacket *save () const {return curr;}
   void restore (sigpacket *saved) {curr = saved;}
-  friend void __stdcall sig_dispatch_pending (bool);
+  friend void __reg1 sig_dispatch_pending (bool);;
   friend void WINAPI wait_sig (VOID *arg);
 };
 
@@ -158,7 +156,7 @@ proc_can_be_signalled (_pinfo *p)
   return false;
 }
 
-bool __stdcall
+bool __reg1
 pid_exists (pid_t pid)
 {
   return pinfo (pid)->exists ();
@@ -176,7 +174,7 @@ mychild (int pid)
 
 /* Handle all subprocess requests
  */
-int __stdcall
+int __reg2
 proc_subproc (DWORD what, DWORD val)
 {
   int rc = 1;
@@ -392,7 +390,7 @@ proc_terminate ()
 }
 
 /* Clear pending signal */
-void __stdcall
+void __reg1
 sig_clear (int target_sig)
 {
   if (&_my_tls != _sig_tls)
@@ -423,7 +421,7 @@ sigpending (sigset_t *mask)
 }
 
 /* Force the wait_sig thread to wake up and scan for pending signals */
-void __stdcall
+void __reg1
 sig_dispatch_pending (bool fast)
 {
   if (&_my_tls == _sig_tls)
@@ -473,6 +471,7 @@ sigproc_init ()
 void
 exit_thread (DWORD res)
 {
+# undef ExitThread
   sigfillset (&_my_tls.sigmask);	/* No signals wanted */
   lock_process for_now;			/* May block indefinitely when exiting. */
   if (exit_state)
@@ -489,6 +488,7 @@ exit_thread (DWORD res)
 #ifdef DEBUGGING
       system_printf ("couldn't duplicate the current thread, %E");
 #endif
+      for_now.release ();
       ExitThread (res);
     }
   ProtectHandle1 (h, exit_thread);
@@ -497,11 +497,10 @@ exit_thread (DWORD res)
   siginfo_t si = {__SIGTHREADEXIT, SI_KERNEL};
   si.si_cyg = h;
   sig_send (myself_nowait, si, &_my_tls);
-# undef ExitThread
   ExitThread (0);
 }
 
-int __stdcall
+int __reg3
 sig_send (_pinfo *p, int sig, _cygtls *tid)
 {
   if (sig == __SIGHOLD)
@@ -532,7 +531,7 @@ sig_send (_pinfo *p, int sig, _cygtls *tid)
    If pinfo *p == NULL, send to the current process.
    If sending to this process, wait for notification that a signal has
    completed before returning.  */
-int __stdcall
+int __reg3
 sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
 {
   int rc = 1;
@@ -543,7 +542,7 @@ sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
 
   pack.wakeup = NULL;
   bool wait_for_completion;
-  if (!(its_me = (!have_execed && (p == NULL || p == myself || p == myself_nowait))))
+  if (!(its_me = p == NULL || p == myself || p == myself_nowait))
     {
       /* It is possible that the process is not yet ready to receive messages
        * or that it has exited.  Detect this.
@@ -558,11 +557,6 @@ sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
     }
   else
     {
-      if (no_signals_available ())
-	{
-	  set_errno (EAGAIN);
-	  goto out;		// Either exiting or not yet initializing
-	}
       wait_for_completion = p != myself_nowait;
       p = myself;
     }
@@ -688,9 +682,7 @@ sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
 	}
       else
 	{
-	  if (no_signals_available ())
-	    sigproc_printf ("I'm going away now");
-	  else if (!p->exec_sendsig)
+	  if (!p->exec_sendsig)
 	    system_printf ("error sending signal %d to pid %d, pipe handle %p, %E",
 			   si.si_signo, p->pid, sendsig);
 	}
@@ -728,9 +720,6 @@ sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
     rc = 0;		// Successful exit
   else
     {
-      if (!no_signals_available ())
-	system_printf ("wait for sig_complete event failed, signal %d, rc %d, %E",
-		       si.si_signo, rc);
       set_errno (ENOSYS);
       rc = -1;
     }
@@ -1092,7 +1081,7 @@ child_info_fork::abort (const char *fmt, ...)
 /* Check the state of all of our children to see if any are stopped or
  * terminated.
  */
-static int __stdcall
+static int __reg1
 checkstate (waitq *parent_w)
 {
   int potential_match = 0;

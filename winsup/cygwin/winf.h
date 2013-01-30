@@ -1,6 +1,6 @@
 /* winf.h
 
-   Copyright 2006, 2007, 2011 Red Hat, Inc.
+   Copyright 2006, 2007, 2009, 2011, 2013 Red Hat, Inc.
 
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
@@ -90,11 +90,11 @@ class linebuf
   char *buf;
   linebuf () : bufidx (0), alloced (0), buf (NULL) {}
   ~linebuf () {if (buf) free (buf);}
-  void add (const char *, int) __attribute__ ((regparm (3)));
+  void __reg3 add (const char *, int);
   void add (const char *what) {add (what, strlen (what));}
   void prepend (const char *, int);
-  void finish (bool) __attribute__ ((regparm (2)));
-  bool fromargv(av&, const char *, bool) __attribute__ ((regparm (3)));;
+  void __reg2 finish (bool);
+  bool __reg3 fromargv(av&, const char *, bool);;
   operator char *() {return buf;}
   size_t idx() {return bufidx;}
 };

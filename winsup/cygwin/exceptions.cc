@@ -41,7 +41,7 @@ static BOOL WINAPI ctrl_c_handler (DWORD);
 
 NO_COPY static struct
 {
-  unsigned int code;
+  NTSTATUS code;
   const char *name;
 } status_info[] =
 {
@@ -170,7 +170,7 @@ cygwin_exception::dump_exception ()
     {
       for (int i = 0; status_info[i].name; i++)
 	{
-	  if (status_info[i].code == e->ExceptionCode)
+	  if (status_info[i].code == (NTSTATUS) e->ExceptionCode)
 	    {
 	      exception_name = status_info[i].name;
 	      break;
@@ -441,7 +441,7 @@ try_to_debug (bool waitloop)
 }
 
 extern "C" void WINAPI RtlUnwind (void *, void *, PEXCEPTION_RECORD, void *);
-static void __stdcall rtl_unwind (exception_list *, PEXCEPTION_RECORD) __attribute__ ((noinline, regparm (3)));
+static void __reg3 rtl_unwind (exception_list *, PEXCEPTION_RECORD) __attribute__ ((noinline, ));
 void __stdcall
 rtl_unwind (exception_list *frame, PEXCEPTION_RECORD e)
 {
@@ -617,7 +617,7 @@ exception::handle (EXCEPTION_RECORD *e, exception_list *frame, CONTEXT *in, void
   /* Another exception could happen while tracing or while exiting.
      Only do this once.  */
   if (recursed++)
-    system_printf ("Error while dumping state (probably corrupted stack)");
+    api_fatal ("Error while dumping state (probably corrupted stack)");
   else if (!try_to_debug (0))
     rtl_unwind (frame, e);
   else
@@ -789,6 +789,10 @@ sigpacket::setup_handler (void *handler, struct sigaction& siga, _cygtls *tls)
       goto out;
     }
 
+  while (in_forkee)
+    yield ();		/* Won't be able to send signals until we're finished
+			   processing fork().  */
+
   for (int n = 0; n < CALL_HANDLER_RETRY_OUTER; n++)
     {
       for (int i = 0; i < CALL_HANDLER_RETRY_INNER; i++)
@@ -874,14 +878,6 @@ static BOOL WINAPI
 ctrl_c_handler (DWORD type)
 {
   static bool saw_close;
-
-  if (!cygwin_finished_initializing)
-    {
-      if (myself->cygstarted)	/* Was this process created by a cygwin process? */
-	return TRUE;		/* Yes.  Let the parent eventually handle CTRL-C issues. */
-      debug_printf ("exiting with status %p", STATUS_CONTROL_C_EXIT);
-      ExitProcess (STATUS_CONTROL_C_EXIT);
-    }
 
   /* Remove early or we could overthrow the threadlist in cygheap.
      Deleting this line causes ash to SEGV if CTRL-C is hit repeatedly.

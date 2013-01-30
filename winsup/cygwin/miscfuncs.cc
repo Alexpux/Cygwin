@@ -1,7 +1,7 @@
 /* miscfuncs.cc: misc funcs that don't belong anywhere else
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012 Red Hat, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
+   2007, 2008, 2009, 2010, 2011, 2012, 2013 Red Hat, Inc.
 
 This file is part of Cygwin.
 
@@ -433,6 +433,20 @@ slashify (const char *src, char *dst, bool trailing_slash_p)
   *dst++ = 0;
 }
 
+/* Return an address from the import jmp table of main program.  */
+void * __reg1
+__import_address (void *imp)
+{
+  if (*((uint16_t *) imp) != 0x25ff)
+    return NULL;
+  myfault efault;
+  if (efault.faulted ())
+    return NULL;
+  const char *ptr = (const char *) imp;
+  const uintptr_t *jmpto = (uintptr_t *) *((uintptr_t *) (ptr + 2));
+  return (void *) *jmpto;
+}
+
 /* CygwinCreateThread.
 
    Replacement function for CreateThread.  What we do here is to remove
@@ -448,7 +462,7 @@ struct thread_wrapper_arg
   PBYTE stacklimit;
 };
 
-DWORD WINAPI
+static DWORD WINAPI
 thread_wrapper (VOID *arg)
 {
   /* Just plain paranoia. */
