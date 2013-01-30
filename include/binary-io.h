@@ -36,7 +36,7 @@
 # undef O_TEXT
 #endif
 #if O_BINARY
-# if defined __EMX__ || defined __DJGPP__ || defined __MSYS__
+# if defined __EMX__ || defined __DJGPP__ || defined __CYGWIN__
 #  include <io.h> /* declares setmode() */
 # else
 #  define setmode _setmode

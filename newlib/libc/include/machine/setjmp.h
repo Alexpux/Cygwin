@@ -68,7 +68,7 @@ _BEGIN_STD_C
 #define	_JBLEN	9
 #endif
 
-#if defined(__MSYS__) && !defined (_JBLEN)
+#if defined(__CYGWIN__) && !defined (_JBLEN)
 #define _JBLEN (13 * 4)
 #elif defined (__i386__)
 #if defined(__unix__) || defined(__rtems__)
@@ -296,7 +296,7 @@ typedef	int jmp_buf[_JBLEN];
 
 _END_STD_C
 
-#if defined(__MSYS__) || defined(__rtems__)
+#if defined(__CYGWIN__) || defined(__rtems__)
 #include <signal.h>
 
 #ifdef __cplusplus
@@ -313,7 +313,7 @@ typedef int sigjmp_buf[_JBLEN+1+(sizeof (sigset_t)/sizeof (int))];
 #define _SAVEMASK	_JBLEN
 #define _SIGMASK	(_JBLEN+1)
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 # define _CYGWIN_WORKING_SIGSETJMP
 #endif
 
@@ -359,7 +359,7 @@ typedef int sigjmp_buf[_JBLEN+1+(sizeof (sigset_t)/sizeof (int))];
 /* POSIX _setjmp/_longjmp, maintained for XSI compatibility.  These
    are equivalent to sigsetjmp/siglongjmp when not saving the signal mask.
    New applications should use sigsetjmp/siglongjmp instead. */
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 extern void _longjmp(jmp_buf, int);
 extern int _setjmp(jmp_buf);
 #else
@@ -370,4 +370,4 @@ extern int _setjmp(jmp_buf);
 #ifdef __cplusplus
 }
 #endif
-#endif /* __MSYS__ or __rtems__ */
+#endif /* __CYGWIN__ or __rtems__ */

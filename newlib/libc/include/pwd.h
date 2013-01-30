@@ -58,7 +58,7 @@ struct passwd {
 	char	*pw_shell;		/* default shell */
 };
 
-#ifndef __INSIDE_MSYS__
+#ifndef __INSIDE_CYGWIN__
 struct passwd	*getpwuid (uid_t);
 struct passwd	*getpwnam (const char *);
 int 		 getpwnam_r (const char *, struct passwd *,

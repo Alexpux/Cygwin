@@ -21,7 +21,7 @@
 #include <alloca.h>
 #endif
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #include <cygwin/stdlib.h>
 #endif
 
@@ -198,7 +198,7 @@ unsigned long long _EXFUN(strtoull,(const char *__n, char **__end_PTR, int __bas
 #ifndef __STRICT_ANSI__
 unsigned long long _EXFUN(_strtoull_r,(struct _reent *, const char *__n, char **__end_PTR, int __base));
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 _VOID	_EXFUN(cfree,(_PTR));
 int	_EXFUN(unsetenv,(const char *__string));
 int	_EXFUN(_unsetenv_r,(struct _reent *, const char *__string));
@@ -211,7 +211,7 @@ int _EXFUN(posix_memalign,(void **, size_t, size_t));
 #endif /* ! __STRICT_ANSI__ */
 
 char *	_EXFUN(_dtoa_r,(struct _reent *, double, int, int, int *, int*, char**));
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 _PTR	_EXFUN_NOTHROW(_malloc_r,(struct _reent *, size_t));
 _PTR	_EXFUN_NOTHROW(_calloc_r,(struct _reent *, size_t, size_t));
 _VOID	_EXFUN_NOTHROW(_free_r,(struct _reent *, _PTR));

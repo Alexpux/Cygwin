@@ -325,7 +325,7 @@ extern void cygwin_premain1 (int, char **, struct per_process *);
 extern void cygwin_premain2 (int, char **, struct per_process *);
 extern void cygwin_premain3 (int, char **, struct per_process *);
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #include <sys/resource.h>
 
 #define TTY_CONSOLE	0x40000000
@@ -373,7 +373,7 @@ struct external_pinfo
   /* Only available if version >= EXTERNAL_PINFO_VERSION_32_LP */
   char *progname_long;
 };
-#endif /*__MSYS__*/
+#endif /*__CYGWIN__*/
 #endif /*WINVER*/
 
 #ifdef __cplusplus

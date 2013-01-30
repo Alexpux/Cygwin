@@ -20,7 +20,7 @@ details. */
 #undef h_errno
 #include "minires.h"
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 /***********************************************************************
  *
  Windows interface code

@@ -77,7 +77,7 @@
 #ifdef linux
 #define BSIZE DEV_BSIZE
 #else
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define BSIZE S_BLKSIZE
 #else
 #define BSIZE BBSIZE

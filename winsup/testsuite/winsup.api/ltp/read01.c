@@ -124,7 +124,7 @@
 #ifdef linux
 #define READ_BLOCK_SIZE DEV_BSIZE
 #else
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define READ_BLOCK_SIZE S_BLKSIZE
 #else
 #define READ_BLOCK_SIZE BSIZE

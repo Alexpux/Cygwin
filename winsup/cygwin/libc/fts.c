@@ -34,7 +34,7 @@
 static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #endif /* LIBC_SCCS and not lint */
 #endif
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #include "winsup.h"
 #include <sys/statfs.h>
 #define __FBSDID(x)
@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: /repoman/r/ncvs/src/lib/libc/gen/fts.c,v 1.27 2004/06/08 06:23:23 das Exp $");
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 #include "namespace.h"
 #endif
 #include <sys/param.h>
@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD: /repoman/r/ncvs/src/lib/libc/gen/fts.c,v 1.27 2004/06/08 06:
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 #include "un-namespace.h"
 #endif
 
@@ -108,7 +108,7 @@ struct _fts_private {
  * links and directories this way, so we must punt for others.
  */
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 static const char *ufslike_filesystems[] = {
 	"ufs",
 	"nfs",
@@ -749,7 +749,7 @@ fts_build(sp, type)
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
 	for (head = tail = NULL, nitems = 0; dirp && (dp = readdir(dirp));) {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		dnamlen = strlen (dp->d_name);
 #else
 		dnamlen = dp->d_namlen;
@@ -1210,7 +1210,7 @@ static int
 fts_ufslinks(FTS *sp, const FTSENT *ent)
 {
 	struct _fts_private *priv;
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	const char **cpp;
 #endif
 
@@ -1224,10 +1224,10 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	if (priv->ftsp_dev != ent->fts_dev) {
 		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
-#ifdef __MSYS__
-			/* The link count is reliable in Msys's directory
+#ifdef __CYGWIN__
+			/* The link count is reliable in Cygwin's directory
 			   stat structures, unless the link count is 1.
-			   This indicates a filesystem on which Msys
+			   This indicates a filesystem on which Cygwin
 			   refuses to count the directory links for speed. */
 			priv->ftsp_linksreliable = (ent->fts_nlink == 1)
 						   ? 0 : 1;

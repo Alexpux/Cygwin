@@ -38,7 +38,7 @@
 #include "lmonetary.h"
 #include "lmessages.h"
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 #define TRANSITION_PERIOD_HACK
 #endif
 
@@ -183,7 +183,7 @@ _DEFUN(nl_langinfo, (item),
        nl_item item) {
 
    char *ret, *cs;
-#ifndef __MSYS__
+#ifndef __CYGWIN__
    char *s;
 #endif
    static char *csym = NULL;
@@ -207,22 +207,22 @@ _DEFUN(nl_langinfo, (item),
 	case _NL_MONETARY_CODESET:
 	      	ret = (char *) __get_current_monetary_locale ()->codeset;
 		goto do_codeset;
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	case _NL_COLLATE_CODESET:
 		{
 		  extern const char *__get_current_collate_codeset (void);
 		  ret = (char *) __get_current_collate_codeset ();
 		  goto do_codeset;
 		}
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 #endif /* __HAVE_LOCALE_INFO_EXTENDED__ */
 #endif /* __HAVE_LOCALE_INFO__ */
 	case CODESET:
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		ret = __locale_charset ();
 #endif
 do_codeset:
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		/* Convert charset to Linux compatible codeset string. */
 		if (ret[0] == 'A'/*SCII*/)
 		  ret = "ANSI_X3.4-1968";
@@ -250,7 +250,7 @@ do_codeset:
 		  }
 		else if (ret[0] == 'S'/*JIS*/)
 		  {
-		    /* Msys uses MSFT's implementation of SJIS, which differs
+		    /* Cygwin uses MSFT's implementation of SJIS, which differs
 		       in some codepoints from the real thing, especially
 		       0x5c: yen sign instead of backslash,
 		       0x7e: overline instead of tilde.
@@ -301,7 +301,7 @@ do_codeset:
 				  )
 				ret = "US-ASCII";
 		}
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 		break;
 	case D_T_FMT:
 		ret = (char *) __get_current_time_locale()->c_fmt;

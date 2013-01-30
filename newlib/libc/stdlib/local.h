@@ -23,7 +23,7 @@ int __eucjp_wctomb (struct _reent *, char *, wchar_t, const char *,
 int __jis_wctomb (struct _reent *, char *, wchar_t, const char *, mbstate_t *);
 int __iso_wctomb (struct _reent *, char *, wchar_t, const char *, mbstate_t *);
 int __cp_wctomb (struct _reent *, char *, wchar_t, const char *, mbstate_t *);
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 int __gbk_wctomb (struct _reent *, char *, wchar_t, const char *, mbstate_t *);
 int __kr_wctomb (struct _reent *, char *, wchar_t, const char *, mbstate_t *);
 int __big5_wctomb (struct _reent *, char *, wchar_t, const char *, mbstate_t *);
@@ -47,7 +47,7 @@ int __iso_mbtowc (struct _reent *, wchar_t *, const char *, size_t,
 		  const char *, mbstate_t *);
 int __cp_mbtowc (struct _reent *, wchar_t *, const char *, size_t,
 		 const char *, mbstate_t *);
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 int __gbk_mbtowc (struct _reent *, wchar_t *, const char *, size_t,
 		  const char *, mbstate_t *);
 int __kr_mbtowc (struct _reent *, wchar_t *, const char *, size_t,

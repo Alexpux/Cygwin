@@ -55,7 +55,7 @@
 #ifndef _ARPA_NAMESER_H_
 #define _ARPA_NAMESER_H_
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define BSD 199903   /* Used inside the .h file */
 #endif
 

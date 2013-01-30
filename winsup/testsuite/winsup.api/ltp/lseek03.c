@@ -197,7 +197,7 @@ and SIGSYS signal was received.",
 But SIGSYS signal was NOT received.",
 		            fname, whence, TEST_ERRNO, strerror(TEST_ERRNO));
 		    }
-#elif defined(linux) || defined (__MSYS__)
+#elif defined(linux) || defined (__CYGWIN__)
 	            tst_resm(TPASS,
 			    "lseek(%s, 1, %d) Failed, errno=%d : %s",
 		            fname, whence, TEST_ERRNO, strerror(TEST_ERRNO));

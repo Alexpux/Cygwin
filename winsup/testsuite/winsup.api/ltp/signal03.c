@@ -176,7 +176,7 @@ void update_timings();
 
 #if defined(linux)
 # define SIG_PF sig_t  /* This might need to be sighandler_t on some systems */
-#elif defined(__MSYS__)
+#elif defined(__CYGWIN__)
 typedef void (*sighandler_t) (int);
 #define SIG_PF sighandler_t
 #endif

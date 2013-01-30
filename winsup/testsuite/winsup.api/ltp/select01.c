@@ -117,7 +117,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 /*
   FIXME: workaround for bug in newlib -- FD_ZERO is defined via bzero and
   if we don't include strings.h compiler warns about implicit declaration

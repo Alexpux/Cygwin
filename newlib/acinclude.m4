@@ -29,7 +29,7 @@ AC_ARG_ENABLE(target-optspace,
   *)   AC_MSG_ERROR(bad value ${enableval} for target-optspace option) ;;
  esac], [target_optspace=])dnl
 
-dnl Support --enable-malloc-debugging - currently only supported for Msys
+dnl Support --enable-malloc-debugging - currently only supported for Cygwin
 AC_ARG_ENABLE(malloc-debugging,
 [  --enable-malloc-debugging indicate malloc debugging requested],
 [case "${enableval}" in

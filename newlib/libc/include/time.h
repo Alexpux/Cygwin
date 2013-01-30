@@ -129,9 +129,9 @@ extern __IMPORT char *_tzname[2];
 
 #include <sys/features.h>
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #include <cygwin/time.h>
-#endif /*__MSYS__*/
+#endif /*__CYGWIN__*/
 
 #if defined(_POSIX_TIMERS)
 

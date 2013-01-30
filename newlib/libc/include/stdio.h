@@ -50,14 +50,14 @@ _BEGIN_STD_C
 
 typedef __FILE FILE;
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 typedef _fpos64_t fpos_t;
 #else
 typedef _fpos_t fpos_t;
 #ifdef __LARGE64_FILES
 typedef _fpos64_t fpos64_t;
 #endif
-#endif /* !__MSYS__ */
+#endif /* !__CYGWIN__ */
 
 #include <sys/stdio.h>
 
@@ -76,7 +76,7 @@ typedef _fpos64_t fpos64_t;
 #define	__SNPT	0x0800		/* do not do fseek() optimisation */
 #define	__SOFF	0x1000		/* set iff _offset is in fact correct */
 #define	__SORD	0x2000		/* true => stream orientation (byte/wide) decided */
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 #  define __SCLE  0x4000        /* convert line endings CR/LF <-> NL */
 #endif
 #define	__SL64	0x8000		/* is 64-bit offset large file */
@@ -342,7 +342,7 @@ FILE *	_EXFUN(fmemopen, (void *, size_t, const char *));
 /* getdelim - see __getdelim for now */
 /* getline - see __getline for now */
 FILE *	_EXFUN(open_memstream, (char **, size_t *));
-#if defined (__MSYS__)
+#if defined (__CYGWIN__)
 int	_EXFUN(renameat, (int, const char *, int, const char *));
 #endif
 int	_EXFUN(vdprintf, (int, const char *, __VALIST)
@@ -487,7 +487,7 @@ ssize_t _EXFUN(__getdelim, (char **, size_t *, int, FILE *));
 ssize_t _EXFUN(__getline, (char **, size_t *, FILE *));
 
 #ifdef __LARGE64_FILES
-#if !defined(__MSYS__) || defined(_COMPILING_NEWLIB)
+#if !defined(__CYGWIN__) || defined(_COMPILING_NEWLIB)
 FILE *	_EXFUN(fdopen64, (int, const char *));
 FILE *  _EXFUN(fopen64, (const char *, const char *));
 FILE *  _EXFUN(freopen64, (_CONST char *, _CONST char *, FILE *));
@@ -505,7 +505,7 @@ _off64_t _EXFUN(_fseeko64_r, (struct _reent *, FILE *, _off64_t, int));
 int     _EXFUN(_fgetpos64_r, (struct _reent *, FILE *, _fpos64_t *));
 int     _EXFUN(_fsetpos64_r, (struct _reent *, FILE *, const _fpos64_t *));
 FILE *  _EXFUN(_tmpfile64_r, (struct _reent *));
-#endif /* !__MSYS__ */
+#endif /* !__CYGWIN__ */
 #endif /* __LARGE64_FILES */
 
 /*
@@ -590,7 +590,7 @@ FILE *_EXFUN(_fopencookie_r,(struct _reent *, void *__cookie,
   There are two possible means to this end when compiling with GCC,
   one when compiling with a standard C99 compiler, and for other
   compilers we're just stuck.  At the moment, this issue only
-  affects the msys target, so we'll most likely be using GCC. */
+  affects the Cygwin target, so we'll most likely be using GCC. */
 
 _ELIDABLE_INLINE int __sgetc_r(struct _reent *__ptr, FILE *__p);
 
@@ -657,12 +657,12 @@ _ELIDABLE_INLINE int __sputc_r(struct _reent *_ptr, int _c, FILE *_p) {
 #define	fileno(p)	__sfileno(p)
 #endif
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 #ifndef lint
 #define	getc(fp)	__sgetc_r(_REENT, fp)
 #define putc(x, fp)	__sputc_r(_REENT, x, fp)
 #endif /* lint */
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 #ifndef __STRICT_ANSI__
 /* fast always-buffered version, true iff error */
@@ -670,7 +670,7 @@ _ELIDABLE_INLINE int __sputc_r(struct _reent *_ptr, int _c, FILE *_p) {
 	__swbuf_r(_REENT, (int)(x), p) == EOF : (*(p)->_p = (x), (p)->_p++, 0))
 
 #define	L_cuserid	9		/* posix says it goes in stdio.h :( */
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define L_ctermid       16
 #endif
 #endif

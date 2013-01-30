@@ -3013,7 +3013,7 @@ esac
 # Configure extra directories which are host specific
 
 case "${host}" in
-  *-msys*)
+  *-cygwin*)
     configdirs="$configdirs libtermcap" ;;
 esac
 
@@ -3657,7 +3657,7 @@ case "${target}" in
   i[3456789]86-*-mingw*)
     target_configdirs="$target_configdirs target-winsup"
     ;;
-  *-*-msys*)
+  *-*-cygwin*)
     target_configdirs="$target_configdirs target-libtermcap target-winsup"
     noconfigdirs="$noconfigdirs target-libgloss"
     # always build newlib if winsup directory is present.
@@ -3788,7 +3788,7 @@ case "${host}" in
   i[3456789]86-*-msdosdjgpp*)
     host_makefile_frag="config/mh-djgpp"
     ;;
-  *-msys*)
+  *-cygwin*)
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking to see if cat works as expected" >&5
 $as_echo_n "checking to see if cat works as expected... " >&6; }
@@ -4342,7 +4342,7 @@ $as_echo "$ac_try_echo"; } >&5
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then :
   # If both `conftest.exe' and `conftest' are `present' (well, observable)
-# catch `conftest.exe'.  For instance with Msys, `ls conftest' will
+# catch `conftest.exe'.  For instance with Cygwin, `ls conftest' will
 # work properly (i.e., refer to `conftest.exe'), while it won't with
 # `rm'.
 for ac_file in conftest.exe conftest conftest.*; do
@@ -6156,7 +6156,7 @@ fi
 
 target_elf=no
 case $target in
-  *-darwin* | *-aix* | *-msys* | *-mingw* | *-aout* | *-*coff* | \
+  *-darwin* | *-aix* | *-cygwin* | *-mingw* | *-aout* | *-*coff* | \
   *-msdosdjgpp* | *-vms* | *-wince* | *-*-pe* | \
   alpha*-dec-osf* | *-interix* | hppa[12]*-*-hpux*)
     target_elf=no
@@ -6173,7 +6173,7 @@ if test $target_elf = yes; then :
 else
   if test x"$default_enable_lto" = x"yes" ; then
     case $target in
-      *-apple-darwin9* | *-msys* | *-mingw*) ;;
+      *-apple-darwin9* | *-cygwin* | *-mingw*) ;;
       # On other non-ELF platforms, LTO has yet to be validated.
       *) enable_lto=no ;;
     esac
@@ -6184,7 +6184,7 @@ else
   # warn during gcc/ subconfigure; unless you're bootstrapping with
   # -flto it won't be needed until after installation anyway.
     case $target in
-      *-msys* | *-mingw* | *-apple-darwin*) ;;
+      *-cygwin* | *-mingw* | *-apple-darwin*) ;;
       *) if test x"$enable_lto" = x"yes"; then
 	as_fn_error "LTO support is not enabled for this target." "$LINENO" 5
         fi
@@ -6194,7 +6194,7 @@ else
   # Among non-ELF, only Windows platforms support the lto-plugin so far.
   # Build it unless LTO was explicitly disabled.
   case $target in
-    *-msys* | *-mingw*) build_lto_plugin=$enable_lto ;;
+    *-cygwin* | *-mingw*) build_lto_plugin=$enable_lto ;;
     *) ;;
   esac
 
@@ -6980,7 +6980,7 @@ rm -f conftest*
 case "${host}" in
   *-*-hpux*) RPATH_ENVVAR=SHLIB_PATH ;;
   *-*-darwin*) RPATH_ENVVAR=DYLD_LIBRARY_PATH ;;
-  *-*-mingw* | *-*-msys ) RPATH_ENVVAR=PATH ;;
+  *-*-mingw* | *-*-cygwin ) RPATH_ENVVAR=PATH ;;
   *) RPATH_ENVVAR=LD_LIBRARY_PATH ;;
 esac
 
@@ -7427,7 +7427,7 @@ case " $target_configdirs " in
   case " $target_configargs " in
   *" --with-newlib "*)
    case "$target" in
-    *-msys*)
+    *-cygwin*)
       FLAGS_FOR_TARGET=$FLAGS_FOR_TARGET' -L$$r/$(TARGET_SUBDIR)/winsup/cygwin -isystem $$s/winsup/cygwin/include'
       ;;
    esac
@@ -7493,7 +7493,7 @@ case "$target" in
     FLAGS_FOR_TARGET=$FLAGS_FOR_TARGET' -L${prefix}/${target}/lib -L${prefix}/mingw/lib -isystem ${prefix}/${target}/include -isystem ${prefix}/mingw/include'
     ;;
   *-mingw*)
-  # MinGW can't be handled as Msys above since it does not use newlib.
+  # MinGW can't be handled as Cygwin above since it does not use newlib.
     FLAGS_FOR_TARGET=$FLAGS_FOR_TARGET' -L$$r/$(TARGET_SUBDIR)/winsup/mingw -L$$r/$(TARGET_SUBDIR)/winsup/w32api/lib -isystem $$s/winsup/mingw/include -isystem $$s/winsup/w32api/include'
     ;;
 esac
@@ -15251,7 +15251,7 @@ else
   ac_cs_awk_pipe_fini='END { print "|#_!!_#|"; print ":" }'
 fi
 ac_cr=`echo X | tr X '\015'`
-# On msys, bash can eat \r inside `` if the user requested igncr.
+# On cygwin, bash can eat \r inside `` if the user requested igncr.
 # But we know of no other shell where ac_cr would be empty at this
 # point, so we can use a bashism as a fallback.
 if test "x$ac_cr" = x; then

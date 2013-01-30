@@ -181,7 +181,7 @@ main(int ac, char **av)
 			tst_resm(TPASS, "Test block 4: getpgid(1) PASSED");
 		}
 		tst_resm(TINFO, "Exit block 4");
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 block5:
 		tst_resm(TINFO, "Enter block 5");
 		fail = 0;

@@ -113,7 +113,7 @@ struct test_case_t {		/* test case struct. to hold ref. test cond's*/
 	size_t buf_siz;
 	int (*setupfunc)();
 } Test_cases[] = {
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	{ SYM_FILE1, "No Search permissions to process", EACCES, 1, setup1 },
 	{ SYM_FILE2, "Buffer size is not positive", EINVAL, -1, setup2 },
 	{ TEST_FILE2, "File is not symbolic link", EINVAL, 1, no_setup },

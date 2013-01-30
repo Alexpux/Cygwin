@@ -73,7 +73,7 @@ _DEFUN(__sflags, (ptr, mode, optr),
 	  m |= O_BINARY;
 #endif
 	  break;
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	case 't':
 	  m |= O_TEXT;
 	  break;
@@ -90,7 +90,7 @@ _DEFUN(__sflags, (ptr, mode, optr),
 	  break;
 	}
     }
-#if defined (O_TEXT) && !defined (__MSYS__)
+#if defined (O_TEXT) && !defined (__CYGWIN__)
   if (!(m | O_BINARY))
     m |= O_TEXT;
 #endif

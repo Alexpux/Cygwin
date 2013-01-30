@@ -148,7 +148,7 @@ main(int ac, char **av)
      ***************************************************************/
     setup();
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
     /* we need to initialize output buffer before first sbrk.
        otherwise, when memory is freed bu second sbrk, fwrite will
        fail */

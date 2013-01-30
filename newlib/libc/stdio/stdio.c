@@ -140,7 +140,7 @@ int
 _DEFUN(__stextmode, (fd),
        int fd)
 {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
   extern int _cygwin_istext_for_stdio (int);
   return _cygwin_istext_for_stdio (fd);
 #else

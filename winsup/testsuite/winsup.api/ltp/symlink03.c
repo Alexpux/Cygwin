@@ -125,7 +125,7 @@ struct test_case_t {		/* test case struct. to hold ref. test cond's*/
 	{ TESTFILE, (char *)-1, "Negative address", EFAULT, no_setup },
 	{ TESTFILE, Longpathname, "Symlink path too long", ENAMETOOLONG, longpath_setup },
 	{ TESTFILE, "", "Symlink Pathname is empty", ENOENT, no_setup },
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	{ TEST_FILE3, SYM_FILE3, "Symlink Path contains regular file", ENOTDIR, setup3 },
 #endif
 	{ NULL, NULL, NULL, 0, no_setup }

@@ -73,7 +73,7 @@ static char sccsid[] = "@(#)ctype_.c	5.6 (Berkeley) 6/1/90";
 	0,	0,	0,	0,	0,	0,	0,	0, \
 	0,	0,	0,	0,	0,	0,	0,	0
 
-#if (defined(__GNUC__) && !defined(__CHAR_UNSIGNED__) && !defined(COMPACT_CTYPE)) || defined (__MSYS__)
+#if (defined(__GNUC__) && !defined(__CHAR_UNSIGNED__) && !defined(COMPACT_CTYPE)) || defined (__CYGWIN__)
 #define ALLOW_NEGATIVE_CTYPE_INDEX
 #endif
 
@@ -87,9 +87,9 @@ static char sccsid[] = "@(#)ctype_.c	5.6 (Berkeley) 6/1/90";
 #endif
 
 #if defined(ALLOW_NEGATIVE_CTYPE_INDEX)
-/* No static const on msys since it's referenced and potentially overwritten
+/* No static const on Cygwin since it's referenced and potentially overwritten
    for compatibility with older applications. */
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 static _CONST
 #endif
 char _ctype_b[128 + 256] = {
@@ -110,7 +110,7 @@ _CONST
 #endif
 char __EXPORT *__ctype_ptr__ = (char *) _ctype_b + 127;
 
-#  ifdef __MSYS__
+#  ifdef __CYGWIN__
 
 __asm__ ("					\n\
         .data					\n\
@@ -119,14 +119,14 @@ __asm__ ("					\n\
 	.text                                   \n\
 ");
 
-#  else /* !__MSYS__ */
+#  else /* !__CYGWIN__ */
 
 _CONST char _ctype_[1 + 256] = {
 	0,
 	_CTYPE_DATA_0_127,
 	_CTYPE_DATA_128_255
 };
-#  endif /* !__MSYS__ */
+#  endif /* !__CYGWIN__ */
 
 #else	/* !defined(ALLOW_NEGATIVE_CTYPE_INDEX) */
 
@@ -151,9 +151,9 @@ char *__ctype_ptr__ = (char *) _ctype_;
 #endif
 
 #if defined(_MB_CAPABLE)
-/* msys has its own implementation which additionally maintains backward
-   compatibility with applications built under older msys releases. */
-#ifndef __MSYS__
+/* Cygwin has its own implementation which additionally maintains backward
+   compatibility with applications built under older Cygwin releases. */
+#ifndef __CYGWIN__
 void
 __set_ctype (const char *charset)
 {
@@ -219,5 +219,5 @@ __set_ctype (const char *charset)
   __ctype_ptr__ = (char *) _ctype_;
 #  endif
 }
-#endif /* !__MSYS__ */
+#endif /* !__CYGWIN__ */
 #endif /* _MB_CAPABLE */

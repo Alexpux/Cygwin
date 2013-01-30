@@ -475,7 +475,7 @@ extern int __cp_index (const char *charset_ext);
 
 #if defined(ALLOW_NEGATIVE_CTYPE_INDEX)
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 static _CONST
 #endif
 char __ctype_cp[26][128 + 256] = {

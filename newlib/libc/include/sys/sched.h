@@ -27,7 +27,7 @@ extern "C" {
 
 /* Scheduling Policies */
 /* Open Group Specifications Issue 6 */
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 #define SCHED_OTHER    3
 #else
 #define SCHED_OTHER    0

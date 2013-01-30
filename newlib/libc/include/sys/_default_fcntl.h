@@ -43,7 +43,7 @@ extern "C" {
 #define	O_NONBLOCK	_FNONBLOCK
 #define	O_NOCTTY	_FNOCTTY
 /* For machines which care - */
-#if defined (_WIN32) || defined (__MSYS__)
+#if defined (_WIN32) || defined (__CYGWIN__)
 #define _FBINARY        0x10000
 #define _FTEXT          0x20000
 #define _FNOINHERIT	0x40000
@@ -124,7 +124,7 @@ extern "C" {
 #define	F_CNVT 		12	/* Convert a fhandle to an open fd */
 #define	F_RSETLKW 	13	/* Set or Clear remote record-lock(Blocking) */
 #endif	/* !_POSIX_SOURCE */
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define	F_DUPFD_CLOEXEC	14	/* As F_DUPFD, but set close-on-exec flag */
 #endif
 
@@ -136,7 +136,7 @@ extern "C" {
 #define	F_UNLKSYS	4	/* remove remote locks for a given system */
 #endif	/* !_POSIX_SOURCE */
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 /* Special descriptor value to denote the cwd in calls to openat(2) etc. */
 #define AT_FDCWD -2
 
@@ -149,7 +149,7 @@ extern "C" {
 
 /*#include <sys/stdtypes.h>*/
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 /* file segment locking set data type - information passed to system by user */
 struct flock {
 	short	l_type;		/* F_RDLCK, F_WRLCK, or F_UNLCK */
@@ -159,7 +159,7 @@ struct flock {
 	short	l_pid;		/* returned with F_GETLK */
 	short	l_xxx;		/* reserved for future use */
 };
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 #ifndef	_POSIX_SOURCE
 /* extended file segment locking set data type */
@@ -182,7 +182,7 @@ struct eflock {
 extern int open _PARAMS ((const char *, int, ...));
 extern int creat _PARAMS ((const char *, mode_t));
 extern int fcntl _PARAMS ((int, int, ...));
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #include <sys/time.h>
 extern int futimesat _PARAMS ((int, const char *, const struct timeval *));
 extern int openat _PARAMS ((int, const char *, int, ...));

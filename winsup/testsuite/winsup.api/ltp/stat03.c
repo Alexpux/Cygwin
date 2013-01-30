@@ -108,14 +108,14 @@ struct test_case_t {		/* test case struct. to hold ref. test cond's*/
 	int exp_errno;
 	int (*setupfunc)();
 } Test_cases[] = {
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	{ TEST_FILE1,  "No Search permissions to process", EACCES, setup1 },
 #endif
 	{ High_address_node, "Address beyond address space", EFAULT, no_setup },
 	{ (char *)-1, "Negative address", EFAULT, no_setup },
 	{ Longpathname, "Pathname too long", ENAMETOOLONG, longpath_setup },
 	{ "", "Pathname is empty", ENOENT, no_setup },
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 	{ TEST_FILE2, "Path contains regular file", ENOTDIR, setup2 },
 #endif
 	{ NULL, NULL, 0, no_setup }
@@ -376,7 +376,7 @@ cleanup()
 	 */
 	TEST_CLEANUP;
 
-#ifndef __MSYS__	
+#ifndef __CYGWIN__	
 	/* Restore mode permissions on test directory created in setup2() */
 	if (chmod(DIR_TEMP, MODE_RWX) < 0) {
 		tst_brkm(TFAIL, NULL, "chmod(2) of %s failed", DIR_TEMP);

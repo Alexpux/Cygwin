@@ -35,7 +35,7 @@
 #define LCMESSAGES_SIZE_MIN \
 		(offsetof(struct lc_messages_T, yesstr) / sizeof(char *))
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 static char empty[] = "";
 #endif
 
@@ -60,7 +60,7 @@ static char	*_messages_locale_buf;
 int
 __messages_load_locale (const char *name, void *f_wctomb, const char *charset)
 {
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 	extern int __set_lc_messages_from_win (const char *,
 					       const struct lc_messages_T *,
 					       struct lc_messages_T *, char **,

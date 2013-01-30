@@ -238,7 +238,7 @@ setup()
     /* make a temp dir and cd to it */
     tst_tmpdir();
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
     /* Check that user is root */
     if ( geteuid() != 0 )
 	tst_brkm(TBROK, cleanup, "Must be root for this test!");

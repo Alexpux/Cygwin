@@ -12,8 +12,8 @@ extern "C" {
 
 /* #ifndef __STRICT_ANSI__*/
 
-/* msys defines it's own sigset_t in include/cygwin/signal.h */
-#ifndef __MSYS__
+/* Cygwin defines it's own sigset_t in include/cygwin/signal.h */
+#ifndef __CYGWIN__
 typedef unsigned long sigset_t;
 #endif
 
@@ -104,7 +104,7 @@ struct sigaction {
 #define sa_sigaction  _signal_handlers._sigaction
 #endif
 
-#elif defined(__MSYS__)
+#elif defined(__CYGWIN__)
 #include <cygwin/signal.h>
 #else
 #define SA_NOCLDSTOP 1  /* only value supported now for sa_flags */
@@ -139,7 +139,7 @@ int _EXFUN(pthread_sigmask, (int how, const sigset_t *set, sigset_t *oset));
 #endif
 
 /* protos for functions found in winsup sources for CYGWIN */
-#if defined(__MSYS__) || defined(__rtems__)
+#if defined(__CYGWIN__) || defined(__rtems__)
 #undef sigaddset
 #undef sigdelset
 #undef sigemptyset
@@ -162,9 +162,9 @@ int _EXFUN(sigsuspend, (const sigset_t *));
 int _EXFUN(sigpause, (int));
 
 #if defined(_POSIX_THREADS)
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #  ifndef _CYGWIN_TYPES_H
-#    error You need the winsup sources or a msys installation to compile the msys version of newlib.
+#    error You need the winsup sources or a cygwin installation to compile the cygwin version of newlib.
 #  endif
 #endif
 int _EXFUN(pthread_kill, (pthread_t thread, int sig));
@@ -186,7 +186,7 @@ int _EXFUN(sigqueue, (pid_t pid, int signo, const union sigval value));
 
 #endif /* defined(_POSIX_REALTIME_SIGNALS) */
 
-#endif /* defined(__MSYS__) || defined(__rtems__) */
+#endif /* defined(__CYGWIN__) || defined(__rtems__) */
 
 /* #endif __STRICT_ANSI__ */
 

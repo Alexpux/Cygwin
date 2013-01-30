@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)rexec.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #include "winsup.h"
 #include "sigproc.h"
 #include "cygtls.h"

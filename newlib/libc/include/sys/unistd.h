@@ -20,24 +20,24 @@ int	_EXFUN(access,(const char *__path, int __amode ));
 unsigned  _EXFUN(alarm, (unsigned __secs ));
 int     _EXFUN(chdir, (const char *__path ));
 int     _EXFUN(chmod, (const char *__path, mode_t __mode ));
-#if !defined(__INSIDE_MSYS__)
+#if !defined(__INSIDE_CYGWIN__)
 int     _EXFUN(chown, (const char *__path, uid_t __owner, gid_t __group ));
 #endif
-#if defined(__MSYS__) || defined(__rtems__)
+#if defined(__CYGWIN__) || defined(__rtems__)
 int     _EXFUN(chroot, (const char *__path ));
 #endif
 int     _EXFUN(close, (int __fildes ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 size_t	_EXFUN(confstr, (int __name, char *__buf, size_t __len));
 #endif
 char *  _EXFUN(ctermid, (char *__s ));
 char *  _EXFUN(cuserid, (char *__s ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int	_EXFUN(daemon, (int nochdir, int noclose));
 #endif
 int     _EXFUN(dup, (int __fildes ));
 int     _EXFUN(dup2, (int __fildes, int __fildes2 ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int     _EXFUN(dup3, (int __fildes, int __fildes2, int flags));
 int	_EXFUN(eaccess, (const char *__path, int __mode));
 void	_EXFUN(endusershell, (void));
@@ -46,24 +46,24 @@ int	_EXFUN(euidaccess, (const char *__path, int __mode));
 int     _EXFUN(execl, (const char *__path, const char *, ... ));
 int     _EXFUN(execle, (const char *__path, const char *, ... ));
 int     _EXFUN(execlp, (const char *__file, const char *, ... ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int     _EXFUN(execlpe, (const char *__file, const char *, ... ));
 #endif
 int     _EXFUN(execv, (const char *__path, char * const __argv[] ));
 int     _EXFUN(execve, (const char *__path, char * const __argv[], char * const __envp[] ));
 int     _EXFUN(execvp, (const char *__file, char * const __argv[] ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int     _EXFUN(execvpe, (const char *__file, char * const __argv[], char * const __envp[] ));
 int	_EXFUN(faccessat, (int __dirfd, const char *__path, int __mode, int __flags));
 #endif
-#if defined(__MSYS__) || defined(__rtems__) || defined(__SPU__)
+#if defined(__CYGWIN__) || defined(__rtems__) || defined(__SPU__)
 int     _EXFUN(fchdir, (int __fildes));
 #endif
 int     _EXFUN(fchmod, (int __fildes, mode_t __mode ));
-#if !defined(__INSIDE_MSYS__)
+#if !defined(__INSIDE_CYGWIN__)
 int     _EXFUN(fchown, (int __fildes, uid_t __owner, gid_t __group ));
 #endif
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int	_EXFUN(fchownat, (int __dirfd, const char *__path, uid_t __owner, gid_t __group, int __flags));
 int	_EXFUN(fexecve, (int __fd, char * const __argv[], char * const __envp[] ));
 #endif
@@ -71,20 +71,20 @@ pid_t   _EXFUN(fork, (void ));
 long    _EXFUN(fpathconf, (int __fd, int __name ));
 int     _EXFUN(fsync, (int __fd));
 int     _EXFUN(fdatasync, (int __fd));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 char *  _EXFUN(get_current_dir_name, (void));
 #endif
 char *  _EXFUN(getcwd, (char *__buf, size_t __size ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int	_EXFUN(getdomainname ,(char *__name, size_t __len));
 #endif
-#if !defined(__INSIDE_MSYS__)
+#if !defined(__INSIDE_CYGWIN__)
 gid_t   _EXFUN(getegid, (void ));
 uid_t   _EXFUN(geteuid, (void ));
 gid_t   _EXFUN(getgid, (void ));
 #endif
 int     _EXFUN(getgroups, (int __gidsetsize, gid_t __grouplist[] ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 long    _EXFUN(gethostid, (void));
 #endif
 char *  _EXFUN(getlogin, (void ));
@@ -93,37 +93,37 @@ int _EXFUN(getlogin_r, (char *name, size_t namesize) );
 #endif
 char *  _EXFUN(getpass, (const char *__prompt));
 int	_EXFUN(getpagesize, (void));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int    _EXFUN(getpeereid, (int, uid_t *, gid_t *));
 #endif
 pid_t   _EXFUN(getpgid, (pid_t));
 pid_t   _EXFUN(getpgrp, (void ));
 pid_t   _EXFUN(getpid, (void ));
 pid_t   _EXFUN(getppid, (void ));
-#if defined(__MSYS__) || defined(__rtems__)
+#if defined(__CYGWIN__) || defined(__rtems__)
 pid_t   _EXFUN(getsid, (pid_t));
 #endif
-#if !defined(__INSIDE_MSYS__)
+#if !defined(__INSIDE_CYGWIN__)
 uid_t   _EXFUN(getuid, (void ));
 #endif
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 char *	_EXFUN(getusershell, (void));
 char *  _EXFUN(getwd, (char *__buf ));
 int	_EXFUN(iruserok, (unsigned long raddr, int superuser, const char *ruser, const char *luser));
 #endif
 int     _EXFUN(isatty, (int __fildes ));
-#if !defined(__INSIDE_MSYS__)
+#if !defined(__INSIDE_CYGWIN__)
 int     _EXFUN(lchown, (const char *__path, uid_t __owner, gid_t __group ));
 #endif
 int     _EXFUN(link, (const char *__path1, const char *__path2 ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int     _EXFUN(linkat, (int __dirfd1, const char *__path1, int __dirfd2, const char *__path2, int __flags ));
 #endif
 int	_EXFUN(nice, (int __nice_value ));
-#if !defined(__INSIDE_MSYS__)
+#if !defined(__INSIDE_CYGWIN__)
 off_t   _EXFUN(lseek, (int __fildes, off_t __offset, int __whence ));
 #endif
-#if defined(__SPU__) || defined(__MSYS__)
+#if defined(__SPU__) || defined(__CYGWIN__)
 #define F_ULOCK	0
 #define F_LOCK	1
 #define F_TLOCK	2
@@ -132,46 +132,46 @@ int     _EXFUN(lockf, (int __fd, int __cmd, off_t __len));
 #endif
 long    _EXFUN(pathconf, (const char *__path, int __name ));
 int     _EXFUN(pause, (void ));
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 int	_EXFUN(pthread_atfork, (void (*)(void), void (*)(void), void (*)(void)));
 #endif
 int     _EXFUN(pipe, (int __fildes[2] ));
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 int     _EXFUN(pipe2, (int __fildes[2], int flags));
 #endif
 ssize_t _EXFUN(pread, (int __fd, void *__buf, size_t __nbytes, off_t __offset));
 ssize_t _EXFUN(pwrite, (int __fd, const void *__buf, size_t __nbytes, off_t __offset));
 _READ_WRITE_RETURN_TYPE _EXFUN(read, (int __fd, void *__buf, size_t __nbyte ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int	_EXFUN(rresvport, (int *__alport));
 int	_EXFUN(revoke, (char *__path));
 #endif
 int     _EXFUN(rmdir, (const char *__path ));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int	_EXFUN(ruserok, (const char *rhost, int superuser, const char *ruser, const char *luser));
 #endif
 void *  _EXFUN(sbrk,  (ptrdiff_t __incr));
-#if !defined(__INSIDE_MSYS__)
-#if defined(__MSYS__) || defined(__rtems__)
+#if !defined(__INSIDE_CYGWIN__)
+#if defined(__CYGWIN__) || defined(__rtems__)
 int     _EXFUN(setegid, (gid_t __gid ));
 int     _EXFUN(seteuid, (uid_t __uid ));
 #endif
 int     _EXFUN(setgid, (gid_t __gid ));
 #endif
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int	_EXFUN(setgroups, (int ngroups, const gid_t *grouplist ));
 #endif
 int     _EXFUN(setpgid, (pid_t __pid, pid_t __pgid ));
 int     _EXFUN(setpgrp, (void ));
-#if defined(__MSYS__) && !defined(__INSIDE_MSYS__)
+#if defined(__CYGWIN__) && !defined(__INSIDE_CYGWIN__)
 int	_EXFUN(setregid, (gid_t __rgid, gid_t __egid));
 int	_EXFUN(setreuid, (uid_t __ruid, uid_t __euid));
 #endif
 pid_t   _EXFUN(setsid, (void ));
-#if !defined(__INSIDE_MSYS__)
+#if !defined(__INSIDE_CYGWIN__)
 int     _EXFUN(setuid, (uid_t __uid ));
 #endif
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 void	_EXFUN(setusershell, (void));
 #endif
 unsigned _EXFUN(sleep, (unsigned int __seconds ));
@@ -180,7 +180,7 @@ long    _EXFUN(sysconf, (int __name ));
 pid_t   _EXFUN(tcgetpgrp, (int __fildes ));
 int     _EXFUN(tcsetpgrp, (int __fildes, pid_t __pgrp_id ));
 char *  _EXFUN(ttyname, (int __fildes ));
-#if defined(__MSYS__) || defined(__rtems__)
+#if defined(__CYGWIN__) || defined(__rtems__)
 int     _EXFUN(ttyname_r, (int, char *, size_t)); 
 #endif
 int     _EXFUN(unlink, (const char *__path ));
@@ -188,7 +188,7 @@ int 	_EXFUN(usleep, (useconds_t __useconds));
 int     _EXFUN(vhangup, (void ));
 _READ_WRITE_RETURN_TYPE _EXFUN(write, (int __fd, const void *__buf, size_t __nbyte ));
 
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 # define __UNISTD_GETOPT__
 # include <getopt.h>
 # undef __UNISTD_GETOPT__
@@ -222,14 +222,14 @@ _READ_WRITE_RETURN_TYPE _EXFUN(_write, (int __fd, const void *__buf, size_t __nb
 int     _EXFUN(_execve, (const char *__path, char * const __argv[], char * const __envp[] ));
 #endif
 
-#if defined(__MSYS__) || defined(__rtems__) || defined(__sh__) || defined(__SPU__)
-#if !defined(__INSIDE_MSYS__)
+#if defined(__CYGWIN__) || defined(__rtems__) || defined(__sh__) || defined(__SPU__)
+#if !defined(__INSIDE_CYGWIN__)
 int     _EXFUN(ftruncate, (int __fd, off_t __length));
 int     _EXFUN(truncate, (const char *, off_t __length));
 #endif
 #endif
 
-#if defined(__MSYS__) || defined(__rtems__)
+#if defined(__CYGWIN__) || defined(__rtems__)
 int	_EXFUN(getdtablesize, (void));
 int	_EXFUN(setdtablesize, (int));
 useconds_t _EXFUN(ualarm, (useconds_t __useconds, useconds_t __interval));
@@ -240,16 +240,16 @@ useconds_t _EXFUN(ualarm, (useconds_t __useconds, useconds_t __interval));
 char *	_EXFUN(mktemp, (char *));
 #endif
 
-#if defined(__MSYS__) || defined(__SPU__) || defined(__rtems__)
+#if defined(__CYGWIN__) || defined(__SPU__) || defined(__rtems__)
 void    _EXFUN(sync, (void));
 #endif
 
 ssize_t _EXFUN(readlink, (const char *__path, char *__buf, size_t __buflen));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 ssize_t	_EXFUN(readlinkat, (int __dirfd1, const char *__path, char *__buf, size_t __buflen));
 #endif
 int     _EXFUN(symlink, (const char *__name1, const char *__name2));
-#if defined(__MSYS__)
+#if defined(__CYGWIN__)
 int	_EXFUN(symlinkat, (const char *, int, const char *));
 int	_EXFUN(unlinkat, (int, const char *, int));
 #endif
@@ -438,7 +438,7 @@ int	_EXFUN(unlinkat, (int, const char *, int));
 #define _PC_REC_MIN_XFER_SIZE            18
 #define _PC_REC_XFER_ALIGN               19
 #define _PC_TIMESTAMP_RESOLUTION         20
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 /* Ask for POSIX permission bits support. */
 #define _PC_POSIX_PERMISSIONS            90
 /* Ask for full POSIX permission support including uid/gid settings. */
@@ -449,7 +449,7 @@ int	_EXFUN(unlinkat, (int, const char *, int));
  *  confstr values per IEEE Std 1003.1, 2004 Edition
  */
 
-#ifdef __MSYS__	/* Only defined on msys for now. */
+#ifdef __CYGWIN__	/* Only defined on Cygwin for now. */
 #define _CS_PATH                               0
 #define _CS_POSIX_V7_ILP32_OFF32_CFLAGS        1
 #define _CS_POSIX_V6_ILP32_OFF32_CFLAGS       _CS_POSIX_V7_ILP32_OFF32_CFLAGS
@@ -500,7 +500,7 @@ int	_EXFUN(unlinkat, (int, const char *, int));
 #define _CS_V6_ENV                            _CS_V7_ENV
 #endif
 
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 # define	MAXPATHLEN	1024
 #endif
 

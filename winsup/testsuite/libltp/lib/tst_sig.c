@@ -150,7 +150,7 @@ tst_sig(int fork_flag, void (*handler)(), void (*cleanup)())
 #ifdef SIGPTRESCHED
                 case SIGPTRESCHED:
 #endif /* SIGPTRESCHED */
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 		case SIGILL:
 		case SIGTRAP:
 		case SIGABRT:

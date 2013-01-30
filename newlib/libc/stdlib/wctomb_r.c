@@ -8,8 +8,8 @@
 
 int (*__wctomb) (struct _reent *, char *, wchar_t, const char *charset,
 		 mbstate_t *)
-#ifdef __MSYS__
-   /* Msys starts up in UTF-8 mode. */
+#ifdef __CYGWIN__
+   /* Cygwin starts up in UTF-8 mode. */
     = __utf8_wctomb;
 #else
     = __ascii_wctomb;
@@ -35,13 +35,13 @@ _DEFUN (__ascii_wctomb, (r, s, wchar, charset, state),
 {
   /* Avoids compiler warnings about comparisons that are always false
      due to limited range when sizeof(wchar_t) is 2 but sizeof(wint_t)
-     is 4, as is the case on msys.  */
+     is 4, as is the case on cygwin.  */
   wint_t wchar = _wchar;
 
   if (s == NULL)
     return 0;
  
-#ifdef __MSYS__
+#ifdef __CYGWIN__
   if ((size_t)wchar >= 0x80)
 #else
   if ((size_t)wchar >= 0x100)
@@ -151,9 +151,9 @@ _DEFUN (__utf8_wctomb, (r, s, wchar, charset, state),
   return -1;
 }
 
-/* Msys defines its own doublebyte charset conversion functions 
+/* Cygwin defines its own doublebyte charset conversion functions 
    because the underlying OS requires wchar_t == UTF-16. */
-#ifndef __MSYS__
+#ifndef __CYGWIN__
 int
 _DEFUN (__sjis_wctomb, (r, s, wchar, charset, state),
         struct _reent *r       _AND 
@@ -279,7 +279,7 @@ _DEFUN (__jis_wctomb, (r, s, wchar, charset, state),
   *s = (char)char2;
   return cnt + 1;
 }
-#endif /* !__MSYS__ */
+#endif /* !__CYGWIN__ */
 
 #ifdef _MB_EXTENDED_CHARSETS_ISO
 int

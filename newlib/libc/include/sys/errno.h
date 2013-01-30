@@ -19,7 +19,7 @@ extern int *__errno _PARAMS ((void));
    Use strerror instead. */
 extern __IMPORT _CONST char * _CONST _sys_errlist[];
 extern __IMPORT int _sys_nerr;
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 extern __IMPORT const char * const sys_errlist[];
 extern __IMPORT int sys_nerr;
 extern __IMPORT char *program_invocation_name;
@@ -122,7 +122,7 @@ extern __IMPORT char *program_invocation_short_name;
 #define ELIBEXEC 87	/* Attempting to exec a shared library */
 #endif
 #define ENOSYS 88	/* Function not implemented */
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define ENMFILE 89      /* No more files */
 #endif
 #define ENOTEMPTY 90	/* Directory not empty */
@@ -170,7 +170,7 @@ extern __IMPORT char *program_invocation_short_name;
 #ifdef __LINUX_ERRNO_EXTENSIONS__
 #define ENOMEDIUM 135   /* No medium (in tape drive) */
 #endif
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #define ENOSHARE 136    /* No such host or network path */
 #define ECASECLASH 137  /* Filename exists with different case */
 #endif

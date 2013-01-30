@@ -470,9 +470,9 @@ DEFAULT_MMAP_THRESHOLD       default: 256K
 #ifndef LACKS_SYS_TYPES_H
 #include <sys/types.h>  /* For size_t */
 #endif  /* LACKS_SYS_TYPES_H */
-#ifdef __MSYS__
+#ifdef __CYGWIN__
 #include "cygmalloc.h"
-#endif /* __MSYS__ */
+#endif /* __CYGWIN__ */
 
 /* The maximum possible size_t value has all bits set */
 #define MAX_SIZE_T           (~(size_t)0)

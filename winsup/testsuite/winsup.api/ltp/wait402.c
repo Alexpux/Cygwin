@@ -63,7 +63,7 @@
 /*
  * See the Makefile for comments about the following preprocessor code.
  */
-#if defined (__MSYS__)
+#if defined (__CYGWIN__)
 #define PID_MAX 0xfffffffd
 #else
 #ifndef _LTP_TASKS_H

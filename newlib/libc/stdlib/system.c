@@ -61,7 +61,7 @@ Supporting OS subroutines required: <<_exit>>, <<_execve>>, <<_fork_r>>,
 #include <_syslist.h>
 #include <reent.h>
 
-#if defined (unix) || defined (__MSYS__)
+#if defined (unix) || defined (__CYGWIN__)
 static int _EXFUN(do_system, (struct _reent *ptr _AND _CONST char *s));
 #endif
 
@@ -85,7 +85,7 @@ _DEFUN(_system_r, (ptr, s),
      For now we always return 0 and leave it to each target to explicitly
      handle otherwise (this can always be relaxed in the future).  */
 
-#if defined (unix) || defined (__MSYS__)
+#if defined (unix) || defined (__CYGWIN__)
   if (s == NULL)
     return 1;
   return do_system (ptr, s);
@@ -110,7 +110,7 @@ _DEFUN(system, (s),
 
 #endif
 
-#if defined (unix) && !defined (__MSYS__) && !defined(__rtems__)
+#if defined (unix) && !defined (__CYGWIN__) && !defined(__rtems__)
 extern char **environ;
 
 /* Only deal with a pointer to environ, to work around subtle bugs with shared
@@ -149,7 +149,7 @@ _DEFUN(do_system, (ptr, s),
 }
 #endif
 
-#if defined (__MSYS__)
+#if defined (__CYGWIN__)
 static int
 _DEFUN(do_system, (ptr, s),
      struct _reent *ptr _AND
