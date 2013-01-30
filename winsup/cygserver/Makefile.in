@@ -51,7 +51,7 @@ LIBOBJS:=${patsubst %.o,lib%.o,$(OBJS)}
 
 CYGWIN_OBJS:=$(cygwin_build)/version.o
 
-CYGWIN_LIB:=$(cygwin_build)/libcygwin.a
+CYGWIN_LIB:=$(cygwin_build)/libmsys-2.0.dll.a
 
 all: cygserver.exe
 
