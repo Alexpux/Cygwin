@@ -321,7 +321,7 @@ build_argv (char *cmd, char **&argv, int &argc, int winshell)
 	    {
 	      sawquote = cmd;
 	      /* Handle quoting.  Only strip off quotes if the parent is
-		 a Cygwin process, or if the word starts with a '@'.
+		 a Msys process, or if the word starts with a '@'.
 		 In this case, the insert_file function needs an unquoted
 		 DOS filename and globbing isn't performed anyway. */
 	      cmd = quoted (cmd, winshell && argc > 0 && *word != '@');
@@ -382,15 +382,15 @@ check_sanity_and_sync (per_process *p)
 
   /* magic_biscuit != 0 if using the old style version numbering scheme.  */
   if (p->magic_biscuit != SIZEOF_PER_PROCESS)
-    api_fatal ("Incompatible cygwin .dll -- incompatible per_process info %u != %u",
+    api_fatal ("Incompatible msys .dll -- incompatible per_process info %u != %u",
 	       p->magic_biscuit, SIZEOF_PER_PROCESS);
 
   /* Complain if incompatible API changes made */
   if (p->api_major > cygwin_version.api_major)
-    api_fatal ("cygwin DLL and APP are out of sync -- API version mismatch %u > %u",
+    api_fatal ("msys DLL and APP are out of sync -- API version mismatch %u > %u",
 	       p->api_major, cygwin_version.api_major);
 
-  /* This is a kludge to work around a version of _cygwin_common_crt0
+  /* This is a kludge to work around a version of _msys_common_crt0
      which overwrote the cxx_malloc field with the local DLL copy.
      Hilarity ensues if the DLL is not loaded while the process
      is forking. */
@@ -465,7 +465,7 @@ child_info_fork::alloc_stack ()
   __asm__ volatile ("movl %%esp,%0": "=r" (stackp));
 #endif
   /* Make sure not to try a hard allocation if we have been forked off from
-     the main thread of a Cygwin process which has been started from a 64 bit
+     the main thread of a Msys process which has been started from a 64 bit
      parent.  In that case the _tlsbase of the forked child is not the same
      as the _tlsbase of the parent (== stackbottom), but only because the
      stack of the parent has been slightly rearranged.  See comment in
@@ -502,13 +502,13 @@ break_here ()
 static void
 initial_env ()
 {
-  if (GetEnvironmentVariableA ("CYGWIN_TESTING", NULL, 0))
+  if (GetEnvironmentVariableA ("MSYS_TESTING", NULL, 0))
     _cygwin_testing = 1;
 
 #ifdef DEBUGGING
   DWORD len;
   char buf[NT_MAX_PATH];
-  if (GetEnvironmentVariableA ("CYGWIN_DEBUG", buf, sizeof (buf) - 1))
+  if (GetEnvironmentVariableA ("MSYS_DEBUG", buf, sizeof (buf) - 1))
     {
       char buf1[NT_MAX_PATH];
       len = GetModuleFileName (NULL, buf1, NT_MAX_PATH);
@@ -827,9 +827,9 @@ main_thread_sinit ()
 }
 
 /* Take over from libc's crt0.o and start the application. Note the
-   various special cases when Cygwin DLL is being runtime loaded (as
-   opposed to being link-time loaded by Cygwin apps) from a non
-   cygwin app via LoadLibrary.  */
+   various special cases when Msys DLL is being runtime loaded (as
+   opposed to being link-time loaded by Msys apps) from a non
+   msys app via LoadLibrary.  */
 void
 dll_crt0_1 (void *)
 {
@@ -1014,10 +1014,10 @@ dll_crt0_1 (void *)
     }
   else
     {
-      /* Create a copy of Cygwin's version of __argv so that, if the user makes
-	 a change to an element of argv[] it does not affect Cygwin's argv.
+      /* Create a copy of mSYS's version of __argv so that, if the user makes
+	 a change to an element of argv[] it does not affect Msys's argv.
 	 Changing the the contents of what argv[n] points to will still
-	 affect Cygwin.  This is similar (but not exactly like) Linux. */
+	 affect Msys.  This is similar (but not exactly like) Linux. */
       char *newargv[__argc + 1];
       char **nav = newargv;
       char **oav = __argv;
@@ -1095,16 +1095,16 @@ dll_crt0 (per_process *uptr)
   _dll_crt0 ();
 }
 
-/* This must be called by anyone who uses LoadLibrary to load cygwin1.dll.
+/* This must be called by anyone who uses LoadLibrary to load msys-2.0.dll.
    You must have CYGTLS_PADSIZE bytes reserved at the bottom of the stack
    calling this function, and that storage must not be overwritten until you
-   unload cygwin1.dll, as it is used for _my_tls.  It is best to load
-   cygwin1.dll before spawning any additional threads in your process.
+   unload msys-2.0.dll, as it is used for _my_tls.  It is best to load
+   msys-2.0.dll before spawning any additional threads in your process.
 
-   See winsup/testsuite/cygload for an example of how to use cygwin1.dll
-   from MSVC and non-cygwin MinGW applications.  */
+   See winsup/testsuite/cygload for an example of how to use msys-2.0.dll
+   from MSVC and non-Msys MinGW applications.  */
 extern "C" void
-cygwin_dll_init ()
+msys_dll_init ()
 {
   static char **envp;
   static int _fmode;
@@ -1271,19 +1271,19 @@ multiple_cygwin_problem (const char *what, uintptr_t magic_version, uintptr_t ve
       return;
     }
 
-  if (GetEnvironmentVariableA ("CYGWIN_MISMATCH_OK", NULL, 0))
+  if (GetEnvironmentVariableA ("MSYS_MISMATCH_OK", NULL, 0))
     return;
 
   if (CYGWIN_VERSION_MAGIC_VERSION (magic_version) == version)
     system_printf ("%s magic number mismatch detected - %p/%ly", what, magic_version, version);
   else
     api_fatal ("%s mismatch detected - %ly/%ly.\n\
-This problem is probably due to using incompatible versions of the cygwin DLL.\n\
-Search for cygwin1.dll using the Windows Start->Find/Search facility\n\
+This problem is probably due to using incompatible versions of the msys DLL.\n\
+Search for msys-2.0.dll using the Windows Start->Find/Search facility\n\
 and delete all but the most recent version.  The most recent version *should*\n\
 reside in x:\\cygwin\\bin, where 'x' is the drive on which you have\n\
-installed the cygwin distribution.  Rebooting is also suggested if you\n\
-are unable to find another cygwin DLL.",
+installed the msys distribution.  Rebooting is also suggested if you\n\
+are unable to find another msys DLL.",
 	       what, magic_version, version);
 }
 
@@ -1291,7 +1291,7 @@ are unable to find another cygwin DLL.",
 void __stdcall
 cygbench (const char *s)
 {
-  if (GetEnvironmentVariableA ("CYGWIN_BENCH", NULL, 0))
+  if (GetEnvironmentVariableA ("MSYS_BENCH", NULL, 0))
     small_printf ("%05u ***** %s : %10d\n", GetCurrentProcessId (), s, strace.microseconds ());
 }
 #endif

@@ -113,7 +113,7 @@ echo ' build date'; echo $build_date; [ -n "$cvs_tag" ] && echo "$cvs_tag";\
 ) | while read var; do
     read val
 cat <<EOF
-  "%%% Cygwin $var: $val\n"
+  "%%% MSYS $var: $val\n"
 EOF
 done | tee /tmp/mkvers.$$ 1>&9
 
@@ -131,9 +131,9 @@ fi
 #
 cat <<EOF 1>&9
 #ifdef DEBUGGING
-  "%%% Cygwin shared id: " CYGWIN_VERSION_DLL_IDENTIFIER "S" shared_data_version "-$builddate\n"
+  "%%% MSYS shared id: " CYGWIN_VERSION_DLL_IDENTIFIER "S" shared_data_version "-$builddate\n"
 #else
-  "%%% Cygwin shared id: " CYGWIN_VERSION_DLL_IDENTIFIER "S" shared_data_version "\n"
+  "%%% MSYS shared id: " CYGWIN_VERSION_DLL_IDENTIFIER "S" shared_data_version "\n"
 #endif
   "END_CYGWIN_VERSION_INFO\n\0";
 cygwin_version_info cygwin_version =

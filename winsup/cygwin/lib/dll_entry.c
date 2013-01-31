@@ -7,7 +7,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
 /* Here we simply instantiate the DECLARE_CYGWIN_DLL to define the
-   linker entry point, __cygwin_dll_entry@12, which in turn calls
+   linker entry point, __msys_dll_entry@12, which in turn calls
    _DllMain@12 to do user-specific initialization, if any. There is a
    default DllMain stub in the library if there is no user supplied
    one. */

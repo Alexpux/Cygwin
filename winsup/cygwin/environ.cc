@@ -1,4 +1,4 @@
-/* environ.cc: Cygwin-adopted functions from newlib to manipulate
+/* environ.cc: Msys-adopted functions from newlib to manipulate
    process's environment.
 
    Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
@@ -34,7 +34,7 @@ details. */
 
 static char **lastenviron;
 
-/* Parse CYGWIN options */
+/* Parse MSYS options */
 
 static NO_COPY bool export_settings = false;
 
@@ -81,16 +81,16 @@ tty_is_gone (const char *buf)
 {
   if (!user_shared->warned_notty)
     {
-      small_printf ("\"tty\" option detected in CYGWIN environment variable.\n"
-		    "CYGWIN=tty is no longer supported.  Please remove it from your\n"
-		    "CYGWIN environment variable and use a terminal emulator like mintty,\n"
+      small_printf ("\"tty\" option detected in MSYS environment variable.\n"
+		    "MSYS=tty is no longer supported.  Please remove it from your\n"
+		    "MSYS environment variable and use a terminal emulator like mintty,\n"
 		    "xterm, or rxvt.\n");
       user_shared->warned_notty = 1;
     }
 }
 
 /* The structure below is used to set up an array which is used to
-   parse the CYGWIN environment variable or, if enabled, options from
+   parse the MSYS environment variable or, if enabled, options from
    the registry.  */
 static struct parse_thing
   {
@@ -150,7 +150,7 @@ parse_options (const char *inbuf)
       if (export_settings)
 	{
 	  debug_printf ("%s", newbuf + 1);
-	  setenv ("CYGWIN", newbuf + 1, 1);
+	  setenv ("MSYS", newbuf + 1, 1);
 	}
       return;
     }
@@ -265,8 +265,7 @@ static win_env conv_envvars[] =
   {
     {NL ("PATH="), NULL, NULL, env_PATH_to_posix, env_plist_to_win32, true},
     {NL ("HOME="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},
-    {NL ("LD_LIBRARY_PATH="), NULL, NULL,
-			       env_plist_to_posix, env_plist_to_win32, true},
+    {NL ("LD_LIBRARY_PATH="), NULL, NULL, env_plist_to_posix, env_plist_to_win32, true},
     {NL ("TMPDIR="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},
     {NL ("TMP="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},
     {NL ("TEMP="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},
@@ -506,7 +505,7 @@ getenv (const char *name)
 }
 
 /* This function is required so that newlib uses the same environment
-   as Cygwin. */
+   as Msys. */
 extern "C" char *
 _getenv_r (struct _reent *, const char *name)
 {
@@ -597,11 +596,11 @@ _addenv (const char *name, const char *value, int overwrite)
       strcpy (envhere + namelen + 1, value);
     }
 
-  /* Update cygwin's cache, if appropriate */
+  /* Update msys's cache, if appropriate */
   win_env *spenv;
   if ((spenv = getwinenv (envhere)))
     spenv->add_cache (value);
-  if (strcmp (name, "CYGWIN") == 0)
+  if (strcmp (name, "MSYS") == 0)
     parse_options (value);
 
   MALLOC_CHECK;
@@ -757,7 +756,7 @@ regopt (const WCHAR *name, char *buf)
   return parsed_something;
 }
 
-/* Initialize the environ array.  Look for the CYGWIN environment
+/* Initialize the environ array.  Look for the MSYS environment
    environment variable and set appropriate options from it.  */
 void
 environ_init (char **envp, int envc)
@@ -769,7 +768,7 @@ environ_init (char **envp, int envc)
   int sawTERM = 0;
   bool envp_passed_in;
   bool got_something_from_registry;
-  static char NO_COPY cygterm[] = "TERM=cygwin";
+  static char NO_COPY cygterm[] = "TERM=msys";
   myfault efault;
   tmp_pathbuf tp;
 
@@ -806,7 +805,7 @@ environ_init (char **envp, int envc)
       goto out;
     }
 
-  /* Allocate space for environment + trailing NULL + CYGWIN env. */
+  /* Allocate space for environment + trailing NULL + MSYS env. */
   lastenviron = envp = (char **) malloc ((4 + (envc = 100)) * sizeof (char *));
 
   rawenv = GetEnvironmentStringsW ();
@@ -833,7 +832,7 @@ environ_init (char **envp, int envc)
       ucenv (newp, eq);	/* uppercase env vars which need it */
       if (*newp == 'T' && strncmp (newp, "TERM=", 5) == 0)
 	sawTERM = 1;
-      else if (*newp == 'C' && strncmp (newp, "CYGWIN=", 7) == 0)
+      else if (*newp == 'C' && strncmp (newp, "MSYS=", 5) == 0)
 	parse_options (newp + 7);
       if (*eq)
 	posify_maybe (envp + i, *++eq ? eq : --eq, tmpbuf);
@@ -851,7 +850,7 @@ out:
   update_envptrs ();
   if (envp_passed_in)
     {
-      p = getenv ("CYGWIN");
+      p = getenv ("MSYS");
       if (p)
 	parse_options (p);
     }
@@ -916,7 +915,7 @@ struct spenv
 static NO_COPY spenv spenvs[] =
 {
 #ifdef DEBUGGING
-  {NL ("CYGWIN_DEBUG="), false, true, NULL},
+  {NL ("MSYS_DEBUG="), false, true, NULL},
 #endif
   {NL ("HOMEDRIVE="), false, false, &cygheap_user::env_homedrive},
   {NL ("HOMEPATH="), false, false, &cygheap_user::env_homepath},
@@ -944,7 +943,7 @@ spenv::retrieve (bool no_envblock, const char *const env)
       if (env && !cygheap->user.issetuid ())
 	{
 	  debug_printf ("duping existing value for '%s'", name);
-	  /* Don't really care what it's set to if we're calling a cygwin program */
+	  /* Don't really care what it's set to if we're calling a msys program */
 	  return cstrdup1 (env);
 	}
 
@@ -1102,7 +1101,7 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 
 	  /* See if environment variable is "special" in a Windows sense.
 	     Under NT, the current directories for visited drives are stored
-	     as =C:=\bar.  Cygwin converts the '=' to '!' for hopefully obvious
+	     as =C:=\bar.  Msys converts the '=' to '!' for hopefully obvious
 	     reasons.  We need to convert it back when building the envblock */
 	  if (s[0] == L'!' && (iswdrive (s + 1) || (s[1] == L':' && s[2] == L':'))
 	      && s[3] == L'=')
@@ -1118,9 +1117,9 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
   return newenv;
 }
 
-/* This idiocy is necessary because the early implementers of cygwin
+/* This idiocy is necessary because the early implementers of msys
    did not seem to know about importing data variables from the DLL.
-   So, we have to synchronize cygwin's idea of the environment with the
+   So, we have to synchronize msys's idea of the environment with the
    main program's with each reference to the environment. */
 extern "C" char ** __stdcall
 cur_environ ()

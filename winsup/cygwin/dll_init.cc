@@ -683,17 +683,17 @@ dll_dllcrt0_1 (VOID *x)
 
 #ifndef __x86_64__
 /* OBSOLETE: This function is obsolete and will go away in the
-   future.  Cygwin can now handle being loaded from a noncygwin app
+   future.  Msys can now handle being loaded from a nonmsys app
    using the same entry point. */
 extern "C" int
-dll_noncygwin_dllcrt0 (HMODULE h, per_process *p)
+dll_nonmsys_dllcrt0 (HMODULE h, per_process *p)
 {
   return (int) dll_dllcrt0 (h, p);
 }
 #endif /* !__x86_64__ */
 
 extern "C" void
-cygwin_detach_dll (dll *)
+msys_detach_dll (dll *)
 {
   HANDLE retaddr;
   if (_my_tls.isinitialized ())

@@ -157,7 +157,7 @@ _csbrk (int sbs)
   return prebrk;
 }
 
-/* Use absolute path of cygwin1.dll to derive the Win32 dir which
+/* Use absolute path of msys-2.0.dll to derive the Win32 dir which
    is our installation_root.  Note that we can't handle Cygwin installation
    root dirs of more than 4K path length.  I assume that's ok...
 

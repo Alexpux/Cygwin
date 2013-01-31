@@ -280,7 +280,7 @@ load_cygwin ()
   if (h)
     return 0;
 
-  if (!(h = LoadLibrary ("cygwin1.dll")))
+  if (!(h = LoadLibrary ("msys-2.0.dll")))
     {
       errno = ENOENT;
       return 0;
@@ -351,14 +351,14 @@ create_child (char **argv)
   make_command_line (one_line, argv);
 
   SetConsoleCtrlHandler (NULL, 0);
-  const char *cygwin_env = getenv ("CYGWIN");
+  const char *cygwin_env = getenv ("MSYS");
   const char *space;
   if (cygwin_env)
     space = " ";
   else
     space = cygwin_env = "";
-  char *newenv = (char *) malloc (sizeof ("CYGWIN=noglob") + strlen (space) + strlen (cygwin_env));
-  sprintf (newenv, "CYGWIN=noglob%s%s", space, cygwin_env);
+  char *newenv = (char *) malloc (sizeof ("MSYS=noglob") + strlen (space) + strlen (cygwin_env));
+  sprintf (newenv, "MSYS=noglob%s%s", space, cygwin_env);
   _putenv (newenv);
   ret = CreateProcess (0, one_line.buf,	/* command line */
 		       NULL,	/* Security */
@@ -457,9 +457,9 @@ handle_output_debug_string (DWORD id, LPVOID p, unsigned mask, FILE *ofile)
 	   id, hchild, GetLastError ());
 #endif
 
-  if (strncmp (alen, "cYg", 3))
+  if (strncmp (alen, "MsYs", 4))
     return;
-  len = (int) strtoul (alen + 3, NULL, 16);
+  len = (int) strtoul (alen + 4, NULL, 16);
   if (!len)
     return;
 
@@ -713,7 +713,7 @@ dotoggle (pid_t pid)
   child_pid = (DWORD) cygwin_internal (CW_CYGWIN_PID_TO_WINPID, pid);
   if (!child_pid)
     {
-      warn (0, "no such cygwin pid - %d", pid);
+      warn (0, "no such msys pid - %d", pid);
       child_pid = pid;
     }
   if (cygwin_internal (CW_STRACE_TOGGLE, child_pid))

@@ -16,7 +16,7 @@ details. */
 
 extern int main (int argc, char **argv);
 
-void cygwin_crt0 (int (*main) (int, char **));
+void msys_crt0 (int (*main) (int, char **));
 
 void
 mainCRTStartup ()
@@ -26,7 +26,7 @@ mainCRTStartup ()
   asm volatile ("andl $-16,%%esp" ::: "%esp");
 #endif
 
-  cygwin_crt0 (main);
+  msys_crt0 (main);
 
   /* These are never actually called.  They are just here to force the inclusion
      of things like -lbinmode.  */

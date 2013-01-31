@@ -109,7 +109,7 @@ details. */
      /* API_MAJOR 0.0: Initial version.  API_MINOR changes:
 	1: Export cygwin32_ calls as cygwin_ as well.
 	2: Export j1, jn, y1, yn.
-	3: Export dll_noncygwin_dllcrt0.
+	3: Export dll_nonmsys_dllcrt0.
 	4: New socket ioctls, revamped ifconf support.
 	5: Thread support/exports.
 	6: Change in termios handling.
@@ -453,7 +453,7 @@ details. */
 	The full names include the CYGWIN_VERSION_SHARED_DATA version
 	as well as this identifier. */
 
-#define CYGWIN_VERSION_DLL_IDENTIFIER	"cygwin1"
+#define CYGWIN_VERSION_DLL_IDENTIFIER	"msys-2.0"
 
      /* The Cygwin mount table interface in the Win32 registry also
 	has a version number associated with it in case that is

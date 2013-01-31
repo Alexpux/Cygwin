@@ -84,7 +84,7 @@ AR_FLAGS:=qv
 RANLIB:=@RANLIB@
 LD:=@LD@
 DLLTOOL:=@DLLTOOL@
-WINDRES:=@WINDRES@
+WINDRES:=@WINDRES@ --include-dir=$(srcdir)/include
 AS:=@AS@
 NM:=@NM@
 OBJCOPY:=@OBJCOPY@
@@ -105,15 +105,15 @@ RUNTEST = `if [ -f $${srcdir}/../dejagnu/runtest ] ; then \
 	    else echo runtest; fi`
 RUNTESTFLAGS =
 
-# Parameters used in building the cygwin.dll.
-# We build as cygwin0.dll and rename at install time to overcome
+# Parameters used in building the msys.dll.
+# We build as msys0.dll and rename at install time to overcome
 # native rebuilding issues (we don't want the build tools to see a partially
-# built cygwin.dll and attempt to use it instead of the old one).
+# built msys.dll and attempt to use it instead of the old one).
 
 DLL_NAME:=@DLL_NAME@
 TEST_DLL_NAME:=${patsubst %1.dll,%0.dll,@DLL_NAME@}
-TEST_LIB_NAME:=libcygwin0.a
-STATIC_LIB_NAME:=libcygwin_s.a
+TEST_LIB_NAME:=libmsys0.dll.a
+STATIC_LIB_NAME:=libmsys2_s.a
 DIN_FILE=@DIN_FILE@
 DEF_FILE:=cygwin.def
 TLSOFFSETS_H:=@TLSOFFSETS_H@
@@ -126,7 +126,7 @@ GMON_START:=gcrt0.o
 toolopts:=--ar=${AR} --as=${AS} --nm=${NM} --objcopy=${OBJCOPY} 
 speclib=\
     ${srcdir}/speclib ${toolopts} \
-	--exclude='cygwin' \
+	--exclude='msys-2.0' \
 	--exclude='(?i:dll)' \
 	--exclude='reloc' \
 	--exclude='^main$$' \
@@ -165,9 +165,9 @@ DLL_OFILES:=advapi32.o assert.o autoload.o bsdlib.o ctype.o cxx.o cygheap.o \
 	fhandler_termios.o fhandler_tty.o fhandler_virtual.o fhandler_windows.o \
 	fhandler_zero.o flock.o fnmatch.o fork.o fts.o ftw.o getopt.o glob.o \
 	glob_pattern_p.o globals.o grp.o heap.o hookapi.o inet_addr.o \
-	inet_network.o init.o ioctl.o ipc.o kernel32.o libstdcxx_wrapper.o \
+	inet_network.o init.o ioctl.o ismsys.o ipc.o kernel32.o libstdcxx_wrapper.o \
 	localtime.o lsearch.o malloc_wrapper.o minires-os-if.o minires.o \
-	miscfuncs.o mktemp.o mmap.o msg.o mount.o net.o netdb.o nfs.o nftw.o \
+	miscfuncs.o mktemp.o mmap.o msys.o msys_symlink.o msg.o mount.o net.o netdb.o nfs.o nftw.o \
 	nlsfuncs.o ntea.o passwd.o path.o pinfo.o pipe.o poll.o posix_ipc.o \
 	pseudo-reloc.o pthread.o random.o regcomp.o regerror.o regexec.o regfree.o \
 	registry.o resource.o rexec.o rcmd.o scandir.o sched.o sec_acl.o \
@@ -255,7 +255,7 @@ endif
 
 API_VER:=$(srcdir)/include/cygwin/version.h
 
-LIB_NAME:=libcygwin.a
+LIB_NAME:=libmsys-2.0.dll.a
 SUBLIBS:=libpthread.a libutil.a ${CURDIR}/libm.a ${CURDIR}/libc.a libdl.a libresolv.a librt.a
 EXTRALIBS:=libautomode.a libbinmode.a libtextmode.a libtextreadmode.a
 INSTOBJS:=automode.o binmode.o textmode.o textreadmode.o
@@ -349,7 +349,7 @@ install-libs: $(TARGET_LIBS)
 	for i in $^; do \
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/lib/`basename $$i` ; \
 	done
-	cd $(DESTDIR)$(tooldir)/lib && ln -sf libcygwin.a libg.a
+	cd $(DESTDIR)$(tooldir)/lib && ln -sf libmsys-2.0.dll.a libg.a
 
 install-headers:
 	cd $(srcdir); \
@@ -422,27 +422,27 @@ maintainer-clean realclean: clean
 $(LDSCRIPT): $(LDSCRIPT).in
 	$(CC) -E - -P < $^ -o $@
 
-# Rule to build cygwin.dll
+# Rule to build msys.dll
 $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIBM) $(API_VER) Makefile winver_stamp
 	$(CXX) $(CXXFLAGS) -L${WINDOWS_LIBDIR} -Wl,--gc-sections $(nostdlib) -Wl,-T$(firstword $^) -static \
-	-Wl,--heap=0 -Wl,--out-implib,cygdll.a -shared -o $@ \
+	-Wl,--heap=0 -Wl,--out-implib,msysdll.a -shared -o $@ \
 	-e $(DLL_ENTRY) $(DEF_FILE) $(DLL_OFILES) version.o winver.o \
 	$(MALLOC_OBJ) $(LIBSERVER) $(LIBM) $(LIBC) \
-	-lgcc $(DLL_IMPORTS) -Wl,-Map,cygwin.map
+	-lgcc $(DLL_IMPORTS) -Wl,-Map,msys.map
 	@$(word 2,$^) $(OBJDUMP) $(OBJCOPY) $@ ${patsubst %0.dll,%1.dbg,$@}
 	@ln -f $@ new-$(DLL_NAME)
 
-# Rule to build libcygwin.a
+# Rule to build libmsys-2.0.dll.a
 $(LIB_NAME): $(LIBCOS) | $(TEST_DLL_NAME) 
-	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ cygdll.a $^
+	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ msysdll.a $^
 
 ${STATIC_LIB_NAME}: mkstatic ${TEST_DLL_NAME}
-	perl -d $< -x ${EXCLUDE_STATIC_OFILES} --library=${LIBC} --library=${LIBM} --ar=${AR} $@ cygwin.map
+	perl -d $< -x ${EXCLUDE_STATIC_OFILES} --library=${LIBC} --library=${LIBM} --ar=${AR} $@ msys.map
 
 # Rule to make stub library used by testsuite
 # dependency set to $(LIB_NAME) to accommodate make -j2.
 $(TEST_LIB_NAME): $(LIB_NAME)
-	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/cygwin1/cygwin0/g' < $? > $@
+	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msys0/g' < $? > $@
 
 $(LIBSERVER): ${cygserver_blddir}/Makefile
 	$(MAKE) -C ${cygserver_blddir} libcygserver.a
