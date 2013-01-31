@@ -1,3 +1,5 @@
+#ifndef CYGWIN_VERSION_H
+#define CYGWIN_VERSION_H 1
 /* cygwin_version.h: shared info for cygwin
 
    Copyright 2000, 2001 Red Hat, Inc.
@@ -10,9 +12,11 @@ details. */
 
 #include <cygwin/version.h>
 
+#ifdef __cplusplus
 extern "C" {
 /* This is for programs that want to access the shared data. */
 class shared_info *cygwin_getshared (void);
+#endif
 
 struct cygwin_version_info
 {
@@ -26,6 +30,14 @@ struct cygwin_version_info
   char shared_id[sizeof (CYGWIN_VERSION_DLL_IDENTIFIER) + 64];
 };
 
+#ifndef __cplusplus
+typedef struct cygwin_version_info cygwin_version_info;
+#endif
+
 extern cygwin_version_info cygwin_version;
 extern const char *cygwin_version_strings;
+#ifdef __cplusplus
 }
+#endif
+
+#endif
