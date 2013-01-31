@@ -28,18 +28,21 @@ HANDLE NO_COPY tty_list::mutex = NULL;
 extern "C" int
 getpt (void)
 {
+  TRACETTY;
   return open ("/dev/ptmx", O_RDWR | O_NOCTTY);
 }
 
 extern "C" int
 posix_openpt (int oflags)
 {
+  TRACETTY;
   return open ("/dev/ptmx", oflags);
 }
 
 extern "C" int
 grantpt (int fd)
 {
+  TRACETTY;
   cygheap_fdget cfd (fd);
   return cfd < 0 ? -1 : 0;
 }
@@ -47,6 +50,7 @@ grantpt (int fd)
 extern "C" int
 unlockpt (int fd)
 {
+  TRACETTY;
   cygheap_fdget cfd (fd);
   return cfd < 0 ? -1 : 0;
 }
@@ -54,6 +58,7 @@ unlockpt (int fd)
 extern "C" int
 revoke (char *ttyname)
 {
+  TRACETTY;
   set_errno (ENOSYS);
   return -1;
 }
@@ -61,6 +66,7 @@ revoke (char *ttyname)
 extern "C" int
 ttyslot (void)
 {
+  TRACETTY;
   if (myself->ctty <= 0 || iscons_dev (myself->ctty))
     return -1;
   return device::minor (myself->ctty);
@@ -69,6 +75,7 @@ ttyslot (void)
 void __stdcall
 tty_list::init_session ()
 {
+  TRACETTY;
   char mutex_name[MAX_PATH];
   char *name = shared_name (mutex_name, "tty_list::mutex", 0);
 
@@ -81,6 +88,7 @@ tty_list::init_session ()
 void __stdcall
 tty::init_session ()
 {
+  TRACETTY;
   if (!myself->cygstarted && NOTSTATE (myself, PID_CYGPARENT))
     cygheap->fdtab.get_debugger_info ();
 }
@@ -88,6 +96,7 @@ tty::init_session ()
 int __stdcall
 tty_list::attach (int n)
 {
+  TRACETTY;
   int res;
   if (iscons_dev (n))
     res = -1;
@@ -101,6 +110,7 @@ tty_list::attach (int n)
 int
 tty_list::connect (int ttynum)
 {
+  TRACETTY;
   if (ttynum < 0 || ttynum >= NTTYS)
     {
       termios_printf ("ttynum (%d) out of range", ttynum);
@@ -119,6 +129,7 @@ tty_list::connect (int ttynum)
 void
 tty_list::init ()
 {
+  TRACETTY;
   for (int i = 0; i < NTTYS; i++)
     {
       ttys[i].init ();
@@ -132,6 +143,7 @@ tty_list::init ()
 int
 tty_list::allocate (HANDLE& r, HANDLE& w)
 {
+  TRACETTY;
   lock_ttys here;
   int freetty = -1;
 
@@ -160,6 +172,7 @@ tty_list::allocate (HANDLE& r, HANDLE& w)
 bool
 tty::not_allocated (HANDLE& r, HANDLE& w)
 {
+  TRACETTY;
   /* Attempt to open the from-master side of the tty.  If it is accessible
      then it exists although we may not have privileges to actually use it. */
   char pipename[sizeof("ptyNNNN-from-master")];
@@ -173,6 +186,7 @@ tty::not_allocated (HANDLE& r, HANDLE& w)
 bool
 tty::exists ()
 {
+  TRACETTY;
   HANDLE r, w;
   bool res;
   if (!not_allocated (r, w))
@@ -192,6 +206,7 @@ tty::exists ()
 bool
 tty::slave_alive ()
 {
+  TRACETTY;
   HANDLE ev;
   if ((ev = open_inuse (READ_CONTROL)))
     CloseHandle (ev);
@@ -201,6 +216,7 @@ tty::slave_alive ()
 HANDLE
 tty::open_mutex (const char *mutex, ACCESS_MASK access)
 {
+  TRACETTY;
   char buf[MAX_PATH];
   shared_name (buf, mutex, get_minor ());
   return OpenMutex (access, TRUE, buf);
@@ -209,6 +225,7 @@ tty::open_mutex (const char *mutex, ACCESS_MASK access)
 HANDLE
 tty::open_inuse (ACCESS_MASK access)
 {
+  TRACETTY;
   char buf[MAX_PATH];
   shared_name (buf, TTY_SLAVE_ALIVE, get_minor ());
   return OpenEvent (access, FALSE, buf);
@@ -217,6 +234,7 @@ tty::open_inuse (ACCESS_MASK access)
 HANDLE
 tty::create_inuse (PSECURITY_ATTRIBUTES sa)
 {
+  TRACETTY;
   HANDLE h;
   char buf[MAX_PATH];
 
@@ -231,6 +249,7 @@ tty::create_inuse (PSECURITY_ATTRIBUTES sa)
 void
 tty::init ()
 {
+  TRACETTY;
   output_stopped = 0;
   setsid (0);
   pgid = 0;
@@ -242,6 +261,7 @@ tty::init ()
 HANDLE
 tty::get_event (const char *fmt, PSECURITY_ATTRIBUTES sa, BOOL manual_reset)
 {
+  TRACETTY;
   HANDLE hev;
   char buf[MAX_PATH];
 
@@ -261,6 +281,7 @@ tty::get_event (const char *fmt, PSECURITY_ATTRIBUTES sa, BOOL manual_reset)
 
 lock_ttys::lock_ttys (DWORD howlong): release_me (true)
 {
+  TRACETTY;
   if (WaitForSingleObject (tty_list::mutex, howlong) == WAIT_FAILED)
     {
       termios_printf ("WFSO for mutex %p failed, %E", tty_list::mutex);
@@ -271,12 +292,14 @@ lock_ttys::lock_ttys (DWORD howlong): release_me (true)
 void
 lock_ttys::release ()
 {
+  TRACETTY;
   ReleaseMutex (tty_list::mutex);
 }
 
 const char *
 tty_min::ttyname ()
 {
+  TRACETTY;
   device d;
   d.parse (ntty);
   return d.name;

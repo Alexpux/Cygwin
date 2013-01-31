@@ -318,6 +318,7 @@ time (time_t * ptr)
   time_t res;
   FILETIME filetime;
 
+  debug_printf("time (%x)", ptr);
   GetSystemTimeAsFileTime (&filetime);
   res = to_time_t (&filetime);
   if (ptr)
