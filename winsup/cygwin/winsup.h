@@ -1,9 +1,10 @@
 /* winsup.h: main Cygwin header file.
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009, 2010, 2011, 2012, 2013 Red Hat, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
+   2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012 Red Hat, Inc.
+   Copyright 2013 Earnie Boyd <earnie@users.sf.net>
 
-This file is part of Cygwin.
+This file is part of MSYS.
 
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
@@ -11,7 +12,35 @@ details. */
 
 #include "config.h"
 
-#define __INSIDE_CYGWIN__
+#if defined (__CYGWIN__)
+  #define __INSIDE_CYGWIN__ 1
+#endif
+
+#if defined (__MSYS__)
+  #define __INSIDE_MSYS__ 1
+#endif
+
+#include "cygwin/version.h"
+
+#define HMMM(HUM) debug_printf("%s-%d: %s", "HMMM", __LINE__, (HUM))
+#if DEBUGGING
+# define FIXME debug_printf("FIXME - %s (%s): %d", __FILE__, __FUNCTION__, __LINE__)
+#else
+# define FIXME
+#endif
+#if TRACING
+# define TRACE_IN {char TrcInBuf[256]; __small_sprintf(TrcInBuf, "TRACE_IN: %s, %d, %s", __FILE__, __LINE__, __PRETTY_FUNCTION__); OutputDebugString (TrcInBuf);}
+#else
+# define TRACE_IN
+#endif
+
+#if TRACETTY
+# undef TRACETTY
+# define TRACETTY {char TrcInBuf[256]; __small_sprintf(TrcInBuf, "TRACETTY: %s, %d, %s", __FILE__, __LINE__, __PRETTY_FUNCTION__); OutputDebugString (TrcInBuf);}
+#else
+# undef TRACETTY
+# define TRACETTY
+#endif
 
 #define NO_COPY __attribute__((nocommon)) __attribute__((section(".data_cygwin_nocopy")))
 #define NO_COPY_INIT __attribute__((section(".data_cygwin_nocopy")))
@@ -159,7 +188,7 @@ extern int cygserver_running;
 /******************** Initialization/Termination **********************/
 
 class per_process;
-/* cygwin .dll initialization */
+/* msys .dll initialization */
 void dll_crt0 (per_process *) __asm__ (_SYMSTR (dll_crt0__FP11per_process));
 extern "C" void __stdcall _dll_crt0 ();
 void dll_crt0_1 (void *);
@@ -171,8 +200,8 @@ extern "C" PVOID dll_dllcrt0 (HMODULE, per_process *);
 extern "C" void _pei386_runtime_relocator (per_process *);
 
 #ifndef __x86_64__
-/* dynamically loaded dll initialization for non-cygwin apps */
-extern "C" int dll_noncygwin_dllcrt0 (HMODULE, per_process *);
+/* dynamically loaded dll initialization for non-msys apps */
+extern "C" int dll_nonmsys_dllcrt0 (HMODULE, per_process *);
 #endif /* !__x86_64__ */
 
 void __reg1 do_exit (int) __attribute__ ((noreturn));
@@ -287,6 +316,8 @@ int cygwin_select (int , fd_set *, fd_set *, fd_set *,
 		   struct timeval *to);
 int cygwin_gethostname (char *__name, size_t __len);
 };
+
+extern bool IsMsys (char const * const);
 
 /*************************** Unsorted ******************************/
 
