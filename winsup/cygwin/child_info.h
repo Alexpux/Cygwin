@@ -174,7 +174,7 @@ public:
     return !!hExeced;
   }
   bool get_parent_handle ();
-  bool has_execed_cygwin () const { return iscygwin () && has_execed (); }
+  bool has_execed_cygwin () const { return ismsys () && has_execed (); }
   operator HANDLE& () {return hExeced;}
   int __reg3 worker (const char *, const char *const *, const char *const [], int,
 	      int = -1, int = -1);;
