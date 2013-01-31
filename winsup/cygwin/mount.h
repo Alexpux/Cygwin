@@ -153,7 +153,7 @@ class mount_item
    higher numbered registry entries.  Don't change this number willy-nilly.
    What we need is to have a more dynamic allocation scheme, but the current
    scheme should be satisfactory for a long while yet.  */
-#define MAX_MOUNTS 64
+#define MAX_MOUNTS 128
 
 class reg_key;
 struct device;
@@ -167,9 +167,9 @@ class mount_info
   int nmounts;
   mount_item mount[MAX_MOUNTS];
 
-  static bool got_usr_bin;
-  static bool got_usr_lib;
-  static int root_idx;
+  /* changed a bit for msys */
+  static bool root_mnt;
+  static int  root_idx;
 
   /* cygdrive_prefix is used as the root of the path automatically
      prepended to a path when the path has no associated mount.

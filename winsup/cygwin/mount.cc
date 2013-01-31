@@ -45,9 +45,8 @@ details. */
 #define isproc(path) \
   (path_prefix_p (proc, (path), proc_len, false))
 
-bool NO_COPY mount_info::got_usr_bin;
-bool NO_COPY mount_info::got_usr_lib;
 int NO_COPY mount_info::root_idx = -1;
+bool NO_COPY mount_info::root_mnt;
 
 /* is_unc_share: Return non-zero if PATH begins with //server/share
 		 or with one of the native prefixes //./ or //?/
@@ -57,6 +56,7 @@ int NO_COPY mount_info::root_idx = -1;
 static inline bool __stdcall
 is_native_path (const char *path)
 {
+  TRACE_IN;
   return isdirsep (path[0])
 	 && (isdirsep (path[1]) || path[1] == '?')
 	 && (path[2] == '?' || path[2] == '.')
@@ -67,6 +67,7 @@ is_native_path (const char *path)
 static inline bool __stdcall
 is_unc_share (const char *path)
 {
+  TRACE_IN;
   const char *p;
   return (isdirsep (path[0])
 	 && isdirsep (path[1])
@@ -82,6 +83,7 @@ is_unc_share (const char *path)
 static bool
 win32_device_name (const char *src_path, char *win32_path, device& dev)
 {
+  TRACE_IN;
   dev.parse (src_path);
   if (dev == FH_FS || dev == FH_DEV)
     return false;
@@ -118,7 +120,7 @@ class fs_info_cache
   uint32_t genhash (PFILE_FS_VOLUME_INFORMATION);
 
 public:
-  fs_info_cache () : count (0) { fsi_lock.init ("fsi_lock"); }
+  fs_info_cache () : count (0) { TRACE_IN; fsi_lock.init ("fsi_lock"); }
   fs_info *search (PFILE_FS_VOLUME_INFORMATION, uint32_t &);
   void add (uint32_t, fs_info *);
 };
@@ -129,6 +131,7 @@ muto NO_COPY fs_info_cache::fsi_lock;
 uint32_t
 fs_info_cache::genhash (PFILE_FS_VOLUME_INFORMATION pffvi)
 {
+  TRACE_IN;
   uint32_t hash = 0;
   const uint16_t *p = (const uint16_t *) pffvi;
   const uint16_t *end = (const uint16_t *)
@@ -143,6 +146,7 @@ fs_info_cache::genhash (PFILE_FS_VOLUME_INFORMATION pffvi)
 fs_info *
 fs_info_cache::search (PFILE_FS_VOLUME_INFORMATION pffvi, uint32_t &hash)
 {
+  TRACE_IN;
   hash = genhash (pffvi);
   for (uint32_t i = 0; i < count; ++i)
     if (entry[i].hash == hash)
@@ -153,6 +157,7 @@ fs_info_cache::search (PFILE_FS_VOLUME_INFORMATION pffvi, uint32_t &hash)
 void
 fs_info_cache::add (uint32_t hashval, fs_info *new_fsi)
 {
+  TRACE_IN;
   fsi_lock.acquire ();
   if (count < MAX_FS_INFO_CNT)
     {
@@ -166,6 +171,7 @@ fs_info_cache::add (uint32_t hashval, fs_info *new_fsi)
 bool
 fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
 {
+  TRACE_IN;
   NTSTATUS status = STATUS_OBJECT_NAME_NOT_FOUND;
   HANDLE vol;
   OBJECT_ATTRIBUTES attr;
@@ -443,6 +449,7 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
 inline void
 mount_info::create_root_entry (const PWCHAR root)
 {
+  TRACE_IN;
  /* Create a default root dir derived from the location of the Cygwin DLL.
     The entry is immutable, unless the "override" option is given in /etc/fstab. */
   char native_root[PATH_MAX];
@@ -465,6 +472,7 @@ mount_info::create_root_entry (const PWCHAR root)
 void
 mount_info::init ()
 {
+  TRACE_IN;
   PWCHAR pathend;
   WCHAR path[PATH_MAX];
 
@@ -475,30 +483,25 @@ mount_info::init ()
   from_fstab (false, path, pathend);
   from_fstab (true, path, pathend);
 
-  if (!got_usr_bin || !got_usr_lib)
+  /* map root to /usr on msys */
+  if (!root_mnt)
     {
       char native[PATH_MAX];
       if (root_idx < 0)
-	api_fatal ("root_idx %d, user_shared magic %y, nmounts %d", root_idx, user_shared->version, nmounts);
+	api_fatal ("root_idx %d, user_shared magic %p, nmounts %d", root_idx, user_shared->version, nmounts);
       char *p = stpcpy (native, mount[root_idx].native_path);
-      if (!got_usr_bin)
-      {
-	stpcpy (p, "\\bin");
-	add_item (native, "/usr/bin",
-		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
-      }
-      if (!got_usr_lib)
-      {
-	stpcpy (p, "\\lib");
-	add_item (native, "/usr/lib",
-		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
-      }
+      if (!root_mnt)
+        {
+          stpcpy (p, "\\");
+          add_item (native, "/usr", MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
+        }
     }
 }
 
 static void
 set_flags (unsigned *flags, unsigned val)
 {
+  TRACE_IN;
   *flags = val;
   if (!(*flags & PATH_BINARY))
     {
@@ -515,6 +518,7 @@ set_flags (unsigned *flags, unsigned val)
 int
 mount_item::build_win32 (char *dst, const char *src, unsigned *outflags, unsigned chroot_pathlen)
 {
+  TRACE_IN;
   int n, err = 0;
   const char *real_native_path;
   int real_posix_pathlen;
@@ -561,6 +565,7 @@ int
 mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
 				unsigned *flags)
 {
+  TRACE_IN;
   bool chroot_ok = !cygheap->root.exists ();
 
   MALLOC_CHECK;
@@ -726,6 +731,7 @@ mount_info::get_mounts_here (const char *parent_dir, int parent_dir_len,
 			     PUNICODE_STRING mount_points,
 			     PUNICODE_STRING cygd)
 {
+  TRACE_IN;
   int n_mounts = 0;
 
   for (int i = 0; i < nmounts; i++)
@@ -758,6 +764,7 @@ mount_info::get_mounts_here (const char *parent_dir, int parent_dir_len,
 void
 mount_info::cygdrive_posix_path (const char *src, char *dst, int trailing_slash_p)
 {
+  TRACE_IN;
   int len = cygdrive_len;
 
   memcpy (dst, cygdrive, len + 1);
@@ -784,6 +791,7 @@ mount_info::cygdrive_posix_path (const char *src, char *dst, int trailing_slash_
 int
 mount_info::cygdrive_win32_path (const char *src, char *dst, int& unit)
 {
+  TRACE_IN;
   int res;
   const char *p = src + cygdrive_len;
   if (!isalpha (*p) || (!isdirsep (p[1]) && p[1]))
@@ -819,6 +827,7 @@ int
 mount_info::conv_to_posix_path (PWCHAR src_path, char *posix_path,
 				int keep_rel_p)
 {
+  TRACE_IN;
   bool changed = false;
   if (!wcsncmp (src_path, L"\\\\?\\", 4))
     {
@@ -842,6 +851,7 @@ int
 mount_info::conv_to_posix_path (const char *src_path, char *posix_path,
 				int keep_rel_p)
 {
+  TRACE_IN;
   int src_path_len = strlen (src_path);
   int relative_path_p = !isabspath (src_path);
   int trailing_slash_p;
@@ -968,6 +978,7 @@ out:
 unsigned
 mount_info::set_flags_from_win32_path (const char *p)
 {
+  TRACE_IN;
   for (int i = 0; i < nmounts; i++)
     {
       mount_item &mi = mount[native_sorted[i]];
@@ -1099,6 +1110,7 @@ fstab_list_flags ()
 bool
 mount_info::from_fstab_line (char *line, bool user)
 {
+  TRACE_IN;
   char *native_path, *posix_path, *fs_type;
 
   /* First field: Native path. */
@@ -1170,6 +1182,7 @@ mount_info::from_fstab_line (char *line, bool user)
 bool
 mount_info::from_fstab (bool user, WCHAR fstab[], PWCHAR fstab_end)
 {
+  TRACE_IN;
   UNICODE_STRING upath;
   OBJECT_ATTRIBUTES attr;
   IO_STATUS_BLOCK io;
@@ -1274,6 +1287,7 @@ done:
 int
 mount_info::write_cygdrive_info (const char *cygdrive_prefix, unsigned flags)
 {
+  TRACE_IN;
   /* Verify cygdrive prefix starts with a forward slash and if there's
      another character, it's not a slash. */
   if ((cygdrive_prefix == NULL) || (*cygdrive_prefix == 0) ||
@@ -1301,6 +1315,7 @@ int
 mount_info::get_cygdrive_info (char *user, char *system, char *user_flags,
 			       char *system_flags)
 {
+  TRACE_IN;
   if (user)
     *user = '\0';
   if (system)
@@ -1334,6 +1349,7 @@ static mount_item *mounts_for_sort;
 static int
 sort_by_posix_name (const void *a, const void *b)
 {
+  TRACE_IN;
   mount_item *ap = mounts_for_sort + (*((int*) a));
   mount_item *bp = mounts_for_sort + (*((int*) b));
 
@@ -1370,6 +1386,7 @@ sort_by_posix_name (const void *a, const void *b)
 static int
 sort_by_native_name (const void *a, const void *b)
 {
+  TRACE_IN;
   mount_item *ap = mounts_for_sort + (*((int*) a));
   mount_item *bp = mounts_for_sort + (*((int*) b));
 
@@ -1388,20 +1405,26 @@ sort_by_native_name (const void *a, const void *b)
   res = strcmp (ap->native_path, bp->native_path);
 
   if (res == 0)
-   {
-     /* need to select between user and system mount to same POSIX path */
-     if (!(bp->flags & MOUNT_SYSTEM))	/* user mount */
-      return 1;
-     else
-      return -1;
-   }
-
+    {
+      if (ap->flags & MOUNT_SYSTEM != bp->flags & MOUNT_SYSTEM)
+        {
+          /* need to select between user and system mount to same native path */
+          if (!(bp->flags & MOUNT_SYSTEM))	/* user mount */
+            return 1;
+          else
+            return -1;
+        }
+      else
+        /* All things being equal, sort by POSIX path */
+        return sort_by_posix_name (a, b);
+    }
   return res;
 }
 
 void
 mount_info::sort ()
 {
+  TRACE_IN;
   for (int i = 0; i < nmounts; i++)
     native_sorted[i] = posix_sorted[i] = i;
   /* Sort them into reverse length order, otherwise we won't
@@ -1421,6 +1444,7 @@ int
 mount_info::add_item (const char *native, const char *posix,
 		      unsigned mountflags)
 {
+  TRACE_IN;
   tmp_pathbuf tp;
   char *nativetmp = tp.c_get ();
   /* FIXME: The POSIX path is stored as value name right now, which is
@@ -1499,11 +1523,9 @@ mount_info::add_item (const char *native, const char *posix,
   if (i == nmounts)
     nmounts++;
 
-  if (strcmp (posixtmp, "/usr/bin") == 0)
-    got_usr_bin = true;
-
-  if (strcmp (posixtmp, "/usr/lib") == 0)
-    got_usr_lib = true;
+  /* only /usr thanks */
+  if (strcmp (posixtmp, "/usr") == 0)
+    root_mnt = true;
 
   if (posixtmp[0] == '/' && posixtmp[1] == '\0' && !(mountflags & MOUNT_CYGDRIVE))
     root_idx = i;
@@ -1525,6 +1547,7 @@ mount_info::add_item (const char *native, const char *posix,
 int
 mount_info::del_item (const char *path, unsigned flags)
 {
+  TRACE_IN;
   tmp_pathbuf tp;
   char *pathtmp = tp.c_get ();
   int posix_path_p = false;
@@ -1597,6 +1620,7 @@ fs_names_t fs_names[] = {
 static mntent *
 fillout_mntent (const char *native_path, const char *posix_path, unsigned flags)
 {
+  TRACE_IN;
   struct mntent& ret=_my_tls.locals.mntbuf;
   bool append_bs = false;
 
@@ -1699,6 +1723,7 @@ mount_item::getmntent ()
 static struct mntent *
 cygdrive_getmntent ()
 {
+  TRACE_IN;
   char native_path[4];
   char posix_path[CYG_MAX_PATH];
   DWORD mask = 1, drive = 'a';
@@ -1728,6 +1753,7 @@ cygdrive_getmntent ()
 struct mntent *
 mount_info::getmntent (int x)
 {
+  TRACE_IN;
   if (x < 0 || x >= nmounts)
     return cygdrive_getmntent ();
 
@@ -1739,6 +1765,7 @@ mount_info::getmntent (int x)
 void
 mount_item::init (const char *native, const char *posix, unsigned mountflags)
 {
+  TRACE_IN;
   strcpy ((char *) native_path, native);
   strcpy ((char *) posix_path, posix);
 
@@ -1760,6 +1787,7 @@ mount_item::init (const char *native, const char *posix, unsigned mountflags)
 extern "C" int
 mount (const char *win32_path, const char *posix_path, unsigned flags)
 {
+  TRACE_IN;
   /* FIXME: Should we disallow setting MOUNT_SYSTEM in flags since it
      isn't really supported except from fstab? */
   int res = -1;
@@ -1819,6 +1847,7 @@ mount (const char *win32_path, const char *posix_path, unsigned flags)
 extern "C" int
 umount (const char *path)
 {
+  TRACE_IN;
   myfault efault;
   if (efault.faulted (EFAULT))
     return -1;
@@ -1837,6 +1866,7 @@ umount (const char *path)
 extern "C" int
 cygwin_umount (const char *path, unsigned flags)
 {
+  TRACE_IN;
   int res = -1;
 
   if (!(flags & MOUNT_CYGDRIVE))
@@ -1851,6 +1881,7 @@ cygwin_umount (const char *path, unsigned flags)
 disk_type
 get_disk_type (LPCWSTR dos)
 {
+  TRACE_IN;
   WCHAR dev[MAX_PATH], *d = dev;
   if (!QueryDosDeviceW (dos, dev, MAX_PATH))
     return DT_NODISK;
@@ -1887,6 +1918,7 @@ get_disk_type (LPCWSTR dos)
 extern "C" FILE *
 setmntent (const char *filep, const char *)
 {
+  TRACE_IN;
   _my_tls.locals.iteration = 0;
   _my_tls.locals.available_drives = GetLogicalDrives ();
   /* Filter floppy drives on A: and B: */
@@ -1902,12 +1934,14 @@ setmntent (const char *filep, const char *)
 extern "C" struct mntent *
 getmntent (FILE *)
 {
+  TRACE_IN;
   return mount_table->getmntent (_my_tls.locals.iteration++);
 }
 
 extern "C" struct mntent *
 getmntent_r (FILE *, struct mntent *mntbuf, char *buf, int buflen)
 {
+  TRACE_IN;
   struct mntent *mnt = mount_table->getmntent (_my_tls.locals.iteration++);
   int fsname_len, dir_len, type_len, tmplen = buflen;
 
@@ -1936,12 +1970,14 @@ getmntent_r (FILE *, struct mntent *mntbuf, char *buf, int buflen)
 extern "C" int
 endmntent (FILE *)
 {
+  TRACE_IN;
   return 1;
 }
 
 static bool
 get_volume_path_names_for_volume_name (LPCWSTR vol, LPWSTR mounts)
 {
+  TRACE_IN;
   DWORD len;
   if (GetVolumePathNamesForVolumeNameW (vol, mounts, NT_MAX_PATH, &len))
     return true;
@@ -1977,6 +2013,7 @@ get_volume_path_names_for_volume_name (LPCWSTR vol, LPWSTR mounts)
 dos_drive_mappings::dos_drive_mappings ()
 : mappings(0)
 {
+  TRACE_IN;
   tmp_pathbuf tp;
   wchar_t vol[64]; /* Long enough for Volume GUID string */
   wchar_t *devpath = tp.w_get ();
@@ -2053,6 +2090,7 @@ dos_drive_mappings::dos_drive_mappings ()
 wchar_t *
 dos_drive_mappings::fixup_if_match (wchar_t *path)
 {
+  TRACE_IN;
   /* Check for network drive first. */
   if (!wcsncmp (path, L"\\Device\\Mup\\", 12))
     {
@@ -2080,6 +2118,7 @@ dos_drive_mappings::fixup_if_match (wchar_t *path)
 
 dos_drive_mappings::~dos_drive_mappings ()
 {
+  TRACE_IN;
   mapping *n = 0;
   for (mapping *m = mappings; m; m = n)
     {
