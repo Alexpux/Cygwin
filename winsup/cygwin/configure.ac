@@ -21,7 +21,7 @@ AC_LANG(C++)
 AC_CYGWIN_INCLUDES
 
 case "$with_cross_host" in
-  ""|*cygwin*)
+  ""|*msys*)
     all_host="all_host"
     install_host="install_host"
     ;;
@@ -48,7 +48,7 @@ AC_CHECK_TOOL(WINDRES, windres, windres)
 AC_PROG_MAKE_SET
 
 AC_ARG_ENABLE(debugging,
-[ --enable-debugging		Build a cygwin DLL which has more consistency checking for debugging],
+[ --enable-debugging		Build a msys DLL which has more consistency checking for debugging],
 [case "${enableval}" in
 yes)	 AC_DEFINE(DEBUGGING) ;;
 no)	 ;;

@@ -4217,7 +4217,7 @@ if test -n "$CONFIG_FILES"; then
 
 
 ac_cr=`echo X | tr X '\015'`
-# On cygwin, bash can eat \r inside `` if the user requested igncr.
+# On msys, bash can eat \r inside `` if the user requested igncr.
 # But we know of no other shell where ac_cr would be empty at this
 # point, so we can use a bashism as a fallback.
 if test "x$ac_cr" = x; then
