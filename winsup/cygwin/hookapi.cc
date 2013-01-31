@@ -420,11 +420,11 @@ hook_or_detect_cygwin (const char *name, const void *fn, WORD& subsys, HANDLE h)
     {
       if (!ascii_strcasematch (rva (PSTR, map ?: (char *) hm,
 				    pd->Name - delta - offset),
-			       is_64bit ? "cyg64win1.dll" : "cygwin1.dll"))
+			       is_64bit ? "msys64-2.0.dll" : "msys-2.0.dll"))
       	continue;
       if (!fn)
 	{
-	  /* Just checking if executable used cyg{64}win1.dll. */
+	  /* Just checking if executable used msys{64}-2.0.dll. */
 	  if (map)
 	    UnmapViewOfFile (map);
 	  /* The return value indicates the target CPU. */
