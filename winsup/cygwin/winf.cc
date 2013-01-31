@@ -34,34 +34,36 @@ linebuf::finish (bool cmdlenoverflow_ok)
 void
 linebuf::add (const char *what, int len)
 {
-  size_t newix = ix + len;
-  if (newix >= alloced || !buf)
+  TRACE_IN;
+  size_t nbufidx;
+  if ((nbufidx = bufidx + len) >= alloced || !buf)
     {
-      alloced += LINE_BUF_CHUNK + newix;
+      alloced += (MAX_PATH * 2) + nbufidx;
       buf = (char *) realloc (buf, alloced + 1);
     }
-  memcpy (buf + ix, what, len);
-  ix = newix;
-  buf[ix] = '\0';
+  memcpy (buf + bufidx, what, len);
+  bufidx = nbufidx;
+  buf[bufidx] = '\0';
 }
 
 void
 linebuf::prepend (const char *what, int len)
 {
+  TRACE_IN;
   int buflen;
-  size_t newix;
-  if ((newix = ix + len) >= alloced)
+  size_t nbufidx;
+  if ((nbufidx = bufidx + len) >= alloced)
     {
-      alloced += LINE_BUF_CHUNK + newix;
+      alloced += (MAX_PATH * 2) + nbufidx;
       buf = (char *) realloc (buf, alloced + 1);
-      buf[ix] = '\0';
+      buf[bufidx] = '\0';
     }
   if ((buflen = strlen (buf)))
       memmove (buf + len, buf, buflen + 1);
   else
-      buf[newix] = '\0';
+      buf[nbufidx] = '\0';
   memcpy (buf, what, len);
-  ix = newix;
+  bufidx = nbufidx;
 }
 
 bool
@@ -129,6 +131,7 @@ linebuf::fromargv (av& newargv, const char *real_path, bool cmdlenoverflow_ok)
 int
 av::unshift (const char *what, int conv)
 {
+  TRACE_IN;
   char **av;
   av = (char **) crealloc (argv, (argc + 2) * sizeof (char *));
   if (!av)
