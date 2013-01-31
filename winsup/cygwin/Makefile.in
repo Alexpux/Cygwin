@@ -105,10 +105,10 @@ RUNTEST = `if [ -f $${srcdir}/../dejagnu/runtest ] ; then \
 	    else echo runtest; fi`
 RUNTESTFLAGS =
 
-# Parameters used in building the cygwin.dll.
-# We build as cygwin0.dll and rename at install time to overcome
+# Parameters used in building the msys.dll.
+# We build as msys0.dll and rename at install time to overcome
 # native rebuilding issues (we don't want the build tools to see a partially
-# built cygwin.dll and attempt to use it instead of the old one).
+# built msys.dll and attempt to use it instead of the old one).
 
 DLL_NAME:=msys-2.0.dll
 TEST_DLL_NAME:=msys0.dll
