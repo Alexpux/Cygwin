@@ -23,7 +23,7 @@ enum child_info_types
 enum child_status
 {
   _CI_STRACED	 = 0x01,
-  _CI_ISCYGWIN	 = 0x02,
+  _CI_ISMSYS	 = 0x02,
   _CI_SAW_CTRL_C = 0x04
 };
 
@@ -79,7 +79,7 @@ public:
   bool __reg3 sync (int, HANDLE&, DWORD);
   DWORD __reg2 proc_retry (HANDLE);
   bool isstraced () const {return !!(flag & _CI_STRACED);}
-  bool iscygwin () const {return !!(flag & _CI_ISCYGWIN);}
+  bool ismsys () const {return !!(flag & _CI_ISMSYS);}
   bool saw_ctrl_c () const {return !!(flag & _CI_SAW_CTRL_C);}
   void prefork (bool = false);
   void cleanup ();
