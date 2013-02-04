@@ -309,7 +309,7 @@ int cygwin_select (int , fd_set *, fd_set *, fd_set *,
 int cygwin_gethostname (char *__name, size_t __len);
 };
 
-extern bool IsMsys (char const * const);
+/*extern bool IsMsys (char const * const);*/
 
 /*************************** Unsorted ******************************/
 

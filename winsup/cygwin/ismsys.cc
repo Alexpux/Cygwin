@@ -94,7 +94,7 @@ IsMsys (const char *File)
     HANDLE fh =
       CreateFile (File
 		 , GENERIC_READ
-		 , wincap.shared ()    // host dependent flags
+		 , FILE_SHARE_READ
 		 , NULL
 		 , OPEN_EXISTING
 		 , FILE_ATTRIBUTE_NORMAL

@@ -187,7 +187,7 @@ class path_conv
   int is_fs_special () const {return dev.is_fs_special ();}
   int is_lnk_special () const {return is_fs_device () || isfifo () || is_lnk_symlink ();}
   int issocket () const {return dev.is_device (FH_UNIX);}
-  int iscygexec () const {return (IsMsys (path));}
+  int iscygexec () const {return path_flags & PATH_CYGWIN_EXEC;}
   int isopen () const {return path_flags & PATH_OPEN;}
   int isctty_capable () const {return path_flags & PATH_CTTY;}
   void set_cygexec (bool isset)
@@ -480,5 +480,5 @@ public:
   int lnk_match () {return nextstate >= SCAN_APPENDLNK;}
 };
 
-extern "C" int msys_symlink(const char *, const char *);
+//extern "C" int msys_symlink(const char *, const char *);
 #endif /* PATH_H */
