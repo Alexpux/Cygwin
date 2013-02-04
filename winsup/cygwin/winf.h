@@ -83,12 +83,11 @@ class av
 
 class linebuf
 {
- private:
-  size_t bufidx;
-  size_t alloced;
  public:
+  size_t ix;
   char *buf;
-  linebuf () : bufidx (0), alloced (0), buf (NULL) {}
+  size_t alloced;
+  linebuf () : ix (0), buf (NULL), alloced (0) {}
   ~linebuf () {if (buf) free (buf);}
   void __reg3 add (const char *, int);
   void add (const char *what) {add (what, strlen (what));}
@@ -96,7 +95,7 @@ class linebuf
   void __reg2 finish (bool);
   bool __reg3 fromargv(av&, const char *, bool);;
   operator char *() {return buf;}
-  size_t idx() {return bufidx;}
+  size_t idx() {return ix;}
 };
 
 #endif /*_WINF_H*/

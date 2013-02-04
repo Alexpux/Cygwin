@@ -35,15 +35,15 @@ void
 linebuf::add (const char *what, int len)
 {
   TRACE_IN;
-  size_t nbufidx;
-  if ((nbufidx = bufidx + len) >= alloced || !buf)
+  size_t newix = ix + len;
+  if (newix >= alloced || !buf)
     {
-      alloced += (MAX_PATH * 2) + nbufidx;
+      alloced += LINE_BUF_CHUNK + newix;
       buf = (char *) realloc (buf, alloced + 1);
     }
-  memcpy (buf + bufidx, what, len);
-  bufidx = nbufidx;
-  buf[bufidx] = '\0';
+  memcpy (buf + ix, what, len);
+  ix = newix;
+  buf[ix] = '\0';
 }
 
 void
@@ -51,19 +51,19 @@ linebuf::prepend (const char *what, int len)
 {
   TRACE_IN;
   int buflen;
-  size_t nbufidx;
-  if ((nbufidx = bufidx + len) >= alloced)
+  size_t newix;
+  if ((newix = ix + len) >= alloced)
     {
-      alloced += (MAX_PATH * 2) + nbufidx;
+      alloced += LINE_BUF_CHUNK + newix;
       buf = (char *) realloc (buf, alloced + 1);
-      buf[bufidx] = '\0';
+      buf[ix] = '\0';
     }
   if ((buflen = strlen (buf)))
       memmove (buf + len, buf, buflen + 1);
   else
-      buf[nbufidx] = '\0';
+      buf[newix] = '\0';
   memcpy (buf, what, len);
-  bufidx = nbufidx;
+  ix = newix;
 }
 
 bool
