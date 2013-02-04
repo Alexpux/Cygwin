@@ -34,7 +34,7 @@ details. */
 # define TRACE_IN
 #endif
 
-#if TRACETTY
+#ifdef TRACETTY
 # undef TRACETTY
 # define TRACETTY {char TrcInBuf[256]; __small_sprintf(TrcInBuf, "TRACETTY: %s, %d, %s", __FILE__, __LINE__, __PRETTY_FUNCTION__); OutputDebugString (TrcInBuf);}
 #else

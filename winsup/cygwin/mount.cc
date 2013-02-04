@@ -1406,7 +1406,7 @@ sort_by_native_name (const void *a, const void *b)
 
   if (res == 0)
     {
-      if (ap->flags & MOUNT_SYSTEM != bp->flags & MOUNT_SYSTEM)
+      if ((ap->flags & MOUNT_SYSTEM) != (bp->flags & MOUNT_SYSTEM))
         {
           /* need to select between user and system mount to same native path */
           if (!(bp->flags & MOUNT_SYSTEM))	/* user mount */

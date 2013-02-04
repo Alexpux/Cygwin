@@ -116,7 +116,7 @@ shared_name (char *ret_buf, const char *str, int num)
   } while (*tptr);
 
   debug_printf("%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
-  __small_sprintf (buf, "%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
+  __small_sprintf (buf2, "%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
 /* This code was removed because cygwin_version.dll_build_date is invalid.
  * This should be put back into service once we discover the culprit.
  */
@@ -141,7 +141,7 @@ shared_name (WCHAR *ret_buf, const WCHAR *str, int num)
   } while (*tptr);
 
   debug_printf("%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
-  __small_sprintf (buf, "%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
+  __small_sprintf (buf2, "%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
 /* This code was removed because cygwin_version.dll_build_date is invalid.
  * This should be put back into service once we discover the culprit.
  */
