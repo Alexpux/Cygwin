@@ -442,7 +442,7 @@ try_to_debug (bool waitloop)
 
 extern "C" void WINAPI RtlUnwind (void *, void *, PEXCEPTION_RECORD, void *);
 static void __reg3 rtl_unwind (exception_list *, PEXCEPTION_RECORD) __attribute__ ((noinline, ));
-void __stdcall
+void __reg3
 rtl_unwind (exception_list *frame, PEXCEPTION_RECORD e)
 {
   __asm__ ("\n\
@@ -742,7 +742,7 @@ _cygtls::interrupt_now (CONTEXT *cx, siginfo_t& si, void *handler,
   return interrupted;
 }
 
-void __stdcall
+void __reg3
 _cygtls::interrupt_setup (siginfo_t& si, void *handler, struct sigaction& siga)
 {
   push ((__stack_t) sigdelayed);
@@ -1125,7 +1125,7 @@ signal_exit (int sig, siginfo_t *si)
 }
 } /* extern "C" */
 
-int __stdcall
+int __reg1
 sigpacket::process ()
 {
   bool continue_now;

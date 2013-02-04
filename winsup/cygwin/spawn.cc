@@ -100,7 +100,7 @@ perhaps_suffix (const char *prog, path_conv& buf, int& err, unsigned opt)
    of name is placed in buf and returned.  Otherwise the contents of buf
    is undefined and NULL is returned.  */
 
-const char * __stdcall
+const char * __reg3
 find_exec (const char *name, path_conv& buf, const char *mywinenv,
 	   unsigned opt, const char **known_suffix)
 {

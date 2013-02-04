@@ -81,7 +81,7 @@ fhandler_dev::fstat (struct __stat64 *st)
   return 0;
 }
 
-int __stdcall
+int __reg2
 fhandler_dev::fstatvfs (struct statvfs *sfs)
 {
   int ret = -1, opened = 0;
@@ -111,7 +111,7 @@ out:
   return ret;
 }
 
-DIR *
+DIR __reg2 *
 fhandler_dev::opendir (int fd)
 {
   DIR *dir;

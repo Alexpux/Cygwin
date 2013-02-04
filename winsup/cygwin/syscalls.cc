@@ -1875,7 +1875,7 @@ sync ()
 }
 
 /* Cygwin internal */
-int __stdcall
+int __reg2
 stat_worker (path_conv &pc, struct __stat64 *buf)
 {
   TRACE_IN;

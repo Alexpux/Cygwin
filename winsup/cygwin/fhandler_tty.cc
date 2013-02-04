@@ -689,7 +689,7 @@ fhandler_pty_slave::write (const void *ptr, size_t len)
   return towrite;
 }
 
-void __stdcall
+void __reg3
 fhandler_pty_slave::read (void *ptr, size_t& len)
 {
   int totalread = 0;
@@ -1155,7 +1155,7 @@ fhandler_pty_slave::fch_close_handles ()
   close_maybe (inuse);
 }
 
-int __stdcall
+int __reg1
 fhandler_pty_slave::fchmod (mode_t mode)
 {
   int ret = -1;
@@ -1181,7 +1181,7 @@ errout:
   return ret;
 }
 
-int __stdcall
+int __reg2
 fhandler_pty_slave::fchown (__uid32_t uid, __gid32_t gid)
 {
   int ret = -1;
@@ -1360,7 +1360,7 @@ fhandler_pty_master::write (const void *ptr, size_t len)
   return i;
 }
 
-void __stdcall
+void __reg3
 fhandler_pty_master::read (void *ptr, size_t& len)
 {
   bg_check_types bg = bg_check (SIGTTIN);
