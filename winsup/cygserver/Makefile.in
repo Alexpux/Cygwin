@@ -83,7 +83,7 @@ Makefile: Makefile.in configure
 	./config.status
 
 lib%.o: %.cc
-	${filter-out -D__OUTSIDE_CYGWIN__, $(COMPILE.cc)} -c -o $(@D)/${basename $(@F)}.o $<
+	${filter-out -D__OUTSIDE_CYGWIN__ -D__OUTSIDE_MSYS__, $(COMPILE.cc)} -c -o $(@D)/${basename $(@F)}.o $<
 
 libcygserver.a: $(LIBOBJS)
 	$(AR) crus $@ $?

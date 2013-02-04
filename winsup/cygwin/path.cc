@@ -1552,8 +1552,9 @@ extern "C" int
 symlink (const char *oldpath, const char *newpath)
 {
   TRACE_IN;
-  debug_printf("symlink (%s, %s)", topath, frompath);
-  return msys_symlink (topath, frompath);
+  debug_printf("symlink (%s, %s)", newpath, oldpath);
+  return symlink_worker (oldpath, newpath, allow_winsymlinks, false);
+  /*return msys_symlink (newpath, oldpath);*/
 }
 
 int
@@ -3037,7 +3038,6 @@ QuotedRelativePath (const char *Path)
 	return false;
       }
 }
-#endif
 
 static bool
 IsAbsWin32Path (const char * path)
@@ -3097,6 +3097,7 @@ ScrubRetpath (char * const retpath)
   debug_printf("returning: %s", retpath);
   return retpath;
 }
+#endif
 
 /******************** Exported Path Routines *********************/
 

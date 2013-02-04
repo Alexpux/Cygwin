@@ -501,5 +501,5 @@ public:
   int lnk_match () {return nextstate >= SCAN_APPENDLNK;}
 };
 
-extern "C" int msys_symlink(const char *, const char *);
+//extern "C" int msys_symlink(const char *, const char *);
 #endif /* PATH_H */
