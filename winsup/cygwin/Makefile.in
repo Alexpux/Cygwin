@@ -126,7 +126,8 @@ GMON_START:=gcrt0.o
 toolopts:=--ar=${AR} --as=${AS} --nm=${NM} --objcopy=${OBJCOPY} 
 speclib=\
     ${srcdir}/speclib ${toolopts} \
-	--exclude='msys-2.0' \
+	--exclude='msys' \
+	--exclude='cygwin' \
 	--exclude='(?i:dll)' \
 	--exclude='reloc' \
 	--exclude='^main$$' \
