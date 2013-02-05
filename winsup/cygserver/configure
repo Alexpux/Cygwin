@@ -561,7 +561,7 @@ PACKAGE_STRING=
 PACKAGE_BUGREPORT=
 PACKAGE_URL=
 
-ac_unique_file="mount.cc"
+ac_unique_file="../cygwin/mount.cc"
 ac_no_link=no
 ac_subst_vars='LTLIBOBJS
 LIBOBJS

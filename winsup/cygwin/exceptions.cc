@@ -779,7 +779,7 @@ _cygtls::interrupt_now (CONTEXT *cx, siginfo_t& si, void *handler,
   return interrupted;
 }
 
-void __stdcall
+void __reg3
 _cygtls::interrupt_setup (siginfo_t& si, void *handler, struct sigaction& siga)
 {
   push ((__stack_t) sigdelayed);
@@ -1166,7 +1166,7 @@ signal_exit (int sig, siginfo_t *si)
 }
 } /* extern "C" */
 
-int __stdcall
+int __reg1
 sigpacket::process ()
 {
   bool continue_now;

@@ -319,7 +319,7 @@ path_conv::ndisk_links (DWORD nNumberOfLinks)
    This returns the content of a struct fattr3 as defined in RFC 1813.
    The content is the NFS equivalent of struct stat. so there's not much
    to do here except for copying. */
-int __stdcall
+int __reg2
 fhandler_base::fstat_by_nfs_ea (struct stat *buf)
 {
   fattr3 *nfs_attr = pc.nfsattr ();
@@ -359,7 +359,7 @@ fhandler_base::fstat_by_nfs_ea (struct stat *buf)
   return 0;
 }
 
-int __stdcall
+int __reg2
 fhandler_base::fstat_by_handle (struct stat *buf)
 {
   /* Don't use FileAllInformation info class.  It returns a pathname rather
@@ -417,7 +417,7 @@ fhandler_base::fstat_by_handle (struct stat *buf)
   return fstat_helper (buf, fsi.NumberOfLinks);
 }
 
-int __stdcall
+int __reg2
 fhandler_base::fstat_by_name (struct stat *buf)
 {
   NTSTATUS status;
@@ -461,7 +461,7 @@ fhandler_base::fstat_by_name (struct stat *buf)
   return fstat_helper (buf, 1);
 }
 
-int __stdcall
+int __reg2
 fhandler_base::fstat_fs (struct stat *buf)
 {
   int res = -1;
@@ -505,7 +505,7 @@ fhandler_base::fstat_fs (struct stat *buf)
   return res;
 }
 
-int __stdcall
+int __reg3
 fhandler_base::fstat_helper (struct stat *buf,
 			     DWORD nNumberOfLinks)
 {
@@ -705,7 +705,7 @@ fhandler_disk_file::fstat (struct stat *buf)
   return fstat_fs (buf);
 }
 
-int __stdcall
+int __reg2
 fhandler_disk_file::fstatvfs (struct statvfs *sfs)
 {
   int ret = -1, opened = 0;
@@ -799,7 +799,7 @@ out:
   return ret;
 }
 
-int __stdcall
+int __reg1
 fhandler_disk_file::fchmod (mode_t mode)
 {
   extern int chmod_device (path_conv& pc, mode_t mode);
@@ -907,7 +907,7 @@ out:
   return res;
 }
 
-int __stdcall
+int __reg2
 fhandler_disk_file::fchown (uid_t uid, gid_t gid)
 {
   int oret = 0;
@@ -975,7 +975,7 @@ fhandler_disk_file::fchown (uid_t uid, gid_t gid)
   return res;
 }
 
-int _stdcall
+int __reg3
 fhandler_disk_file::facl (int cmd, int nentries, aclent_t *aclbufp)
 {
   int res = -1;
@@ -1091,7 +1091,7 @@ cant_access_acl:
   return res;
 }
 
-ssize_t
+ssize_t __reg3
 fhandler_disk_file::fgetxattr (const char *name, void *value, size_t size)
 {
   if (pc.is_fs_special ())
@@ -1102,7 +1102,7 @@ fhandler_disk_file::fgetxattr (const char *name, void *value, size_t size)
   return read_ea (get_handle (), pc, name, (char *) value, size);
 }
 
-int
+int __reg3
 fhandler_disk_file::fsetxattr (const char *name, const void *value, size_t size,
 			       int flags)
 {
@@ -1114,7 +1114,7 @@ fhandler_disk_file::fsetxattr (const char *name, const void *value, size_t size,
   return write_ea (get_handle (), pc, name, (const char *) value, size, flags);
 }
 
-int
+int __reg3
 fhandler_disk_file::fadvise (off_t offset, off_t length, int advice)
 {
   if (advice < POSIX_FADV_NORMAL || advice > POSIX_FADV_NOREUSE)
@@ -1157,7 +1157,7 @@ fhandler_disk_file::fadvise (off_t offset, off_t length, int advice)
   return -1;
 }
 
-int
+int __reg3
 fhandler_disk_file::ftruncate (off_t length, bool allow_truncate)
 {
   int res = -1;
@@ -1214,7 +1214,7 @@ fhandler_disk_file::ftruncate (off_t length, bool allow_truncate)
   return res;
 }
 
-int
+int __reg2
 fhandler_disk_file::link (const char *newpath)
 {
   size_t nlen = strlen (newpath);
@@ -1304,7 +1304,7 @@ fhandler_disk_file::link (const char *newpath)
   return 0;
 }
 
-int
+int __reg2
 fhandler_disk_file::utimens (const struct timespec *tvp)
 {
   return utimens_fs (tvp);
@@ -1551,7 +1551,7 @@ fhandler_disk_file::prw_open (bool write)
   return 0;
 }
 
-ssize_t __stdcall
+ssize_t __reg3
 fhandler_disk_file::pread (void *buf, size_t count, off_t offset)
 {
   if ((get_flags () & O_ACCMODE) == O_WRONLY)
@@ -1621,7 +1621,7 @@ non_atomic:
   return res;
 }
 
-ssize_t __stdcall
+ssize_t __reg3
 fhandler_disk_file::pwrite (void *buf, size_t count, off_t offset)
 {
   if ((get_flags () & O_ACCMODE) == O_RDONLY)
@@ -1937,7 +1937,7 @@ free_dir:
   return res;
 }
 
-ino_t __stdcall
+ino_t __reg2
 readdir_get_ino (const char *path, bool dot_dot)
 {
   char *fname;
@@ -2433,7 +2433,7 @@ fhandler_cygdrive::fstat (struct stat *buf)
   return 0;
 }
 
-int __stdcall
+int __reg2
 fhandler_cygdrive::fstatvfs (struct statvfs *sfs)
 {
   /* Virtual file system.  Just return an empty buffer with a few values

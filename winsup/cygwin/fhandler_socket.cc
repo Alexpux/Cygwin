@@ -831,7 +831,7 @@ fhandler_socket::fstat (struct stat *buf)
   return res;
 }
 
-int __stdcall
+int __reg2
 fhandler_socket::fstatvfs (struct statvfs *sfs)
 {
   if (get_device () == FH_UNIX)
@@ -844,7 +844,7 @@ fhandler_socket::fstatvfs (struct statvfs *sfs)
   return -1;
 }
 
-int
+int __reg1
 fhandler_socket::fchmod (mode_t mode)
 {
   if (get_device () == FH_UNIX)
@@ -882,7 +882,7 @@ fhandler_socket::facl (int cmd, int nentries, aclent_t *aclbufp)
   return -1;
 }
 
-int
+int __reg2
 fhandler_socket::link (const char *newpath)
 {
   if (get_device () == FH_UNIX)
@@ -1459,7 +1459,7 @@ fhandler_socket::recv_internal (LPWSAMSG wsamsg, bool use_recvmsg)
   return ret;
 }
 
-void __stdcall
+void __reg3
 fhandler_socket::read (void *in_ptr, size_t& len)
 {
   char *ptr = (char *) in_ptr;
