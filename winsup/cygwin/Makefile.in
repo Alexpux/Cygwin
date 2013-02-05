@@ -111,11 +111,11 @@ RUNTESTFLAGS =
 # built msys.dll and attempt to use it instead of the old one).
 
 DLL_NAME:=@DLL_NAME@
-TEST_DLL_NAME:=${patsubst %1.dll,%0.dll,@DLL_NAME@}
+TEST_DLL_NAME:=${patsubst %-2.0.dll,%t.dll,@DLL_NAME@}
 TEST_LIB_NAME:=libmsys0.dll.a
 STATIC_LIB_NAME:=libmsys2_s.a
 DIN_FILE=@DIN_FILE@
-DEF_FILE:=cygwin.def
+DEF_FILE:=msys.def
 TLSOFFSETS_H:=@TLSOFFSETS_H@
 DLL_ENTRY:=@DLL_ENTRY@
 
@@ -410,7 +410,7 @@ uninstall-man:
 	done
 
 clean:
-	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc winver_stamp *.exe *.d *stamp* *_magic.h sigfe.s cygwin.def globals.h $(srcdir)/$(TLSOFFSETS_H) $(srcdir)/devices.cc
+	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc winver_stamp *.exe *.d *stamp* *_magic.h sigfe.s msys.def globals.h $(srcdir)/$(TLSOFFSETS_H) $(srcdir)/devices.cc
 	-@$(MAKE) -C ${cygserver_blddir} libclean
 
 maintainer-clean realclean: clean
@@ -429,7 +429,7 @@ $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIB
 	-e $(DLL_ENTRY) $(DEF_FILE) $(DLL_OFILES) version.o winver.o \
 	$(MALLOC_OBJ) $(LIBSERVER) $(LIBM) $(LIBC) \
 	-lgcc $(DLL_IMPORTS) -Wl,-Map,msys.map
-	@$(word 2,$^) $(OBJDUMP) $(OBJCOPY) $@ ${patsubst %0.dll,%1.dbg,$@}
+	@$(word 2,$^) $(OBJDUMP) $(OBJCOPY) $@ ${patsubst %t.dll,%-2.0.dbg,$@}
 	@ln -f $@ new-$(DLL_NAME)
 
 # Rule to build libmsys-2.0.dll.a
