@@ -1,7 +1,7 @@
 /* cygcheck.cc
 
    Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011, 2012 Red Hat, Inc.
+   2009, 2010, 2011, 2012, 2013 Red Hat, Inc.
 
    This file is part of Cygwin.
 
@@ -1116,7 +1116,7 @@ pretty_id ()
   sz = -sz;
   for (char **g = groups; g <= ng; g++)
     if ((g != ng) && (++i < n))
-      printf ("%*s", sz, *g);
+      printf ("%*s", (int) sz, *g);
     else
       {
 	puts (*g);
@@ -1692,7 +1692,7 @@ dump_sysinfo ()
 	{
 	  for (e = s; *e && *e != sep; e++);
 	  if (e-s)
-	    printf ("\t%.*s\n", e - s, s);
+	    printf ("\t%.*s\n", (int) (e - s), s);
 	  else
 	    puts ("\t.");
 	  count_path_items++;
@@ -2308,7 +2308,7 @@ nuke (char *ev)
 }
 
 extern "C" {
-unsigned long (*cygwin_internal) (int, ...);
+uintptr_t (*cygwin_internal) (int, ...);
 WCHAR cygwin_dll_path[32768];
 };
 
@@ -2320,10 +2320,11 @@ load_cygwin (int& argc, char **&argv)
   if (!(h = LoadLibrary ("msys-2.0.dll")))
     return;
   GetModuleFileNameW (h, cygwin_dll_path, 32768);
-  if ((cygwin_internal = (DWORD (*) (int, ...)) GetProcAddress (h, "cygwin_internal")))
+  if ((cygwin_internal = (uintptr_t (*) (int, ...))
+  			 GetProcAddress (h, "cygwin_internal")))
     {
       char **av = (char **) cygwin_internal (CW_ARGV);
-      if (av && ((DWORD) av != (DWORD) -1))
+      if (av && ((uintptr_t) av != (uintptr_t) -1))
 	{
 	  /* Copy cygwin's idea of the argument list into this Window application. */
 	  for (argc = 0; av[argc]; argc++)
@@ -2335,7 +2336,7 @@ load_cygwin (int& argc, char **&argv)
 
 
       char **envp = (char **) cygwin_internal (CW_ENVP);
-      if (envp && ((DWORD) envp != (DWORD) -1))
+      if (envp && ((uintptr_t) envp != (uintptr_t) -1))
 	{
 	  /* Store path and revert to this value, otherwise path gets overwritten
 	     by the POSIXy Cygwin variation, which breaks cygcheck.

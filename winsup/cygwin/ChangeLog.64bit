@@ -1,3 +1,47 @@
+2013-02-05  Corinna Vinschen  <corinna@vinschen.de>
+
+	* pseudo-reloc.cc (do_pseudo_reloc): Enable 64 bit code for x86_64
+	Cygwin.
+
+2013-02-05  Corinna Vinschen  <corinna@vinschen.de>
+
+	* miscfuncs.cc (RtlFillMemory): Declare.
+	(RtlCopyMemory): Declare.
+	(memset): Just call RtlFillMemory.
+	(memcpy): Just call RtlCopyMemory.
+	* mmap.cc (class mmap_record): Drop enforced packing.  Reorder members
+	to allow tight packing on 32 as well as on 64 bit.
+	* include/sys/dirent.h: Don't enforced structure packing on x86_64.
+	(__DIRENT_COOKIE): Use different value on 64 bit.
+
+2013-02-04  Corinna Vinschen  <corinna@vinschen.de>
+
+	* gendef (fefunc): Fix incorrect pc-relative jmp instruction.
+	(_sigfe): Fix offset to return address on stack.  Add and fix comments.
+	(_sigbe): Fix stack alignment when creating spill area for call to
+	yield.  Add and fix comments.
+	(sigdelayed): Add fake push to make sure stack is aligned correctly.
+	Use fake stack alignment on exit to store return address and call ret,
+	rather than jmp.  Fix comments.
+	(_cygtls::lock): Only create and destroy spill area when really calling
+	yield.
+
+2013-02-04  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (LoadDLLfuncEx3): Adjust address computation required
+	by latest change to the 64 bit code.
+	* cygmalloc.h (MALLOC_ALIGNMENT): Set to 16 on x86_64.
+	* cygtls.h: Set struct alignment to 8 on x86_64.  Move inclusion of
+	other header files outside of alignment-enforced code area.  Drop
+	inclusion of security.h entirely.
+	(_cygtls::get_signal_arrived): Use NULL SECURITY_ATTRIBUTES rather than
+	&sec_none_nih.
+	* gendef (_cygtls::lock): Fix stack alignment.
+	* heap.cc (page_const): Change type to ptrdiff_t, otherwise negation
+	operator in pround creates broken bitmask.
+	* shared.cc (page_const): Add cast to ptrdiff_t.
+	* tlsoffsets64.h: Regenerate.
+
 2013-01-30  Corinna Vinschen  <corinna@vinschen.de>
 
 	* Makefile.in ($(LIB_NAME)): Add --target option to mkimport call.
