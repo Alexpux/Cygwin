@@ -60,7 +60,7 @@ install: all cygserver.conf cygserver-config README
 	$(INSTALL_PROGRAM) cygserver.exe $(DESTDIR)$(sbindir)/cygserver.exe
 	$(INSTALL_PROGRAM) $(srcdir)/cygserver-config $(DESTDIR)$(bindir)/cygserver-config
 	$(INSTALL_DATA) $(srcdir)/cygserver.conf $(DESTDIR)$(sysconfdir)/defaults/etc/cygserver.conf
-	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(prefix)/share/doc/Cygwin/cygserver.README
+	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(prefix)/share/doc/Msys/cygserver.README
 
 clean:
 	rm -f $(OBJS) ${patsubst %.o,%.d,$(OBJS)} cygserver.exe
