@@ -28,7 +28,7 @@ my $sym_prefix = ($is64bit ? '' : '_');
 
 while (<$nm_fd>) {
     chomp;
-    if (substr($_,1,1) eq ":") {
+	if (substr($_,1,1) eq ":") {
 		my $letter = "/".substr($_, 0, 1);
 		substr($_, 0, 2) = $letter;
 	}
