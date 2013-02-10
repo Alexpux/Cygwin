@@ -27,7 +27,7 @@ while (<$nm_fd>) {
 	if (substr($_,1,1) eq ":") {
 			my $letter = "/".substr($_, 0, 1);
 			substr($_, 0, 2) = $letter;
-		}
+	}
     my ($fn, $type, $sym) = /^$inpdll:(.*?):\S+\s+(\S)\s+(\S+)/o;
     next unless $fn;
     $text{$fn} = $sym if $type eq 'T';
