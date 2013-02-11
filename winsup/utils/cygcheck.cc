@@ -958,7 +958,7 @@ scan_registry (RegInfo * prev, HKEY hKey, char *name, int cygwin, bool wow64)
 
   char *cp;
   for (cp = name; *cp; cp++)
-    if (strncasecmp (cp, "Msys", 6) == 0)
+    if (strncasecmp (cp, "Msys", 4) == 0)
       cygwin = 1;
 
   DWORD num_subkeys, max_subkey_len, num_values;

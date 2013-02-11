@@ -832,7 +832,7 @@ environ_init (char **envp, int envc)
       ucenv (newp, eq);	/* uppercase env vars which need it */
       if (*newp == 'T' && strncmp (newp, "TERM=", 5) == 0)
 	sawTERM = 1;
-      else if (*newp == 'C' && strncmp (newp, "MSYS=", 5) == 0)
+      else if (*newp == 'M' && strncmp (newp, "MSYS=", 5) == 0)
 	parse_options (newp + 7);
       if (*eq)
 	posify_maybe (envp + i, *++eq ? eq : --eq, tmpbuf);
