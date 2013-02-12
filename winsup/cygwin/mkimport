@@ -47,7 +47,7 @@ for my $sym (keys %replace) {
 	$fn = "$sym.o";
 	$text{$fn} = $_sym;
     }
-    my $imp_sym = '__imp__' . $replace{$sym};
+    my $imp_sym = '__imp_' . $sym_prefix . $replace{$sym};
     $import{$fn} = $imp_sym;
 }
 
@@ -56,7 +56,7 @@ for my $f (keys %text) {
     my $glob_sym = $text{$f};
     if (!defined $imp_sym) {
 	delete $text{$f};
-    } elsif ($imp_sym eq '__imp__') {
+    } elsif ($imp_sym eq '__imp_' . $sym_prefix) {
 	$text{$f} = 0;
     } else {
 	$text{$f} = 1;
