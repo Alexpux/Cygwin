@@ -1694,11 +1694,11 @@ fhandler_socket::sendmsg (const struct msghdr *msg, int flags)
       (wsaptr++)->buf = (char *) (iovptr++)->iov_base;
     }
   WSAMSG wsamsg = { msg->msg_name ? (struct sockaddr *) &sst : NULL, len,
-		    wsabuf, msg->msg_iovlen,
+		    wsabuf, (DWORD) msg->msg_iovlen,
 		    /* Disappointing but true:  Even if WSASendMsg is
 		       supported, it's only supported for datagram and
 		       raw sockets. */
-		    { !wincap.has_sendmsg ()
+		    { (DWORD) !wincap.has_sendmsg ()
 		      || get_socket_type () == SOCK_STREAM
 		      || get_addr_family () == AF_LOCAL
 		      ? 0 : msg->msg_controllen, (char *) msg->msg_control },

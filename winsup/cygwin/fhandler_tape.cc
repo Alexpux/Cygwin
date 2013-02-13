@@ -722,7 +722,7 @@ mtinfo_drive::set_compression (HANDLE mt, long count)
   TAPE_SET_DRIVE_PARAMETERS sdp =
     {
       dp ()->ECC,
-      count ? TRUE : FALSE,
+      (BOOLEAN) (count ? TRUE : FALSE),
       dp ()->DataPadding,
       dp ()->ReportSetmarks,
       dp ()->EOTWarningZoneSize

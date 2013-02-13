@@ -112,9 +112,9 @@ int fcntl64 (int fd, int cmd, ...);
 #define __reg2 __stdcall __attribute__ ((regparm (2)))
 #define __reg3 __stdcall __attribute__ ((regparm (3)))
 
-extern const char case_folded_lower[];
+extern const unsigned char case_folded_lower[];
 #define cyg_tolower(c) (case_folded_lower[(unsigned char)(c)])
-extern const char case_folded_upper[];
+extern const unsigned char case_folded_upper[];
 #define cyg_toupper(c) (case_folded_upper[(unsigned char)(c)])
 
 #ifndef MALLOC_DEBUG
