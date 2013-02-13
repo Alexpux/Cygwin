@@ -35,7 +35,7 @@ enum child_status
 #define EXEC_MAGIC_SIZE sizeof(child_info)
 
 /* Change this value if you get a message indicating that it is out-of-sync. */
-#define CURR_CHILD_INFO_MAGIC 0xe399543U
+#define CURR_CHILD_INFO_MAGIC 0xabf25c9eU
 
 #define NPROCS	256
 
