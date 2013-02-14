@@ -833,7 +833,7 @@ environ_init (char **envp, int envc)
       if (*newp == 'T' && strncmp (newp, "TERM=", 5) == 0)
 	sawTERM = 1;
       else if (*newp == 'M' && strncmp (newp, "MSYS=", 5) == 0)
-	parse_options (newp + 7);
+	parse_options (newp + 5);
       if (*eq)
 	posify_maybe (envp + i, *++eq ? eq : --eq, tmpbuf);
       debug_printf ("%p: %s", envp[i], envp[i]);
