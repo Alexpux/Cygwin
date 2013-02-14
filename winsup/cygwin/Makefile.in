@@ -106,13 +106,13 @@ RUNTEST = `if [ -f $${srcdir}/../dejagnu/runtest ] ; then \
 RUNTESTFLAGS =
 
 # Parameters used in building the msys.dll.
-# We build as msys0.dll and rename at install time to overcome
+# We build as msyst.dll and rename at install time to overcome
 # native rebuilding issues (we don't want the build tools to see a partially
 # built msys.dll and attempt to use it instead of the old one).
 
 DLL_NAME:=msys-2.0.dll
 TEST_DLL_NAME:=msyst.dll
-TEST_LIB_NAME:=libmsys0.dll.a
+TEST_LIB_NAME:=libmsyst.a
 STATIC_LIB_NAME:=libmsys2_s.a
 DEF_FILE:=msys.def
 DLL_ENTRY:=@DLL_ENTRY@
@@ -433,7 +433,7 @@ ${STATIC_LIB_NAME}: mkstatic ${TEST_DLL_NAME}
 # Rule to make stub library used by testsuite
 # dependency set to $(LIB_NAME) to accommodate make -j2.
 $(TEST_LIB_NAME): $(LIB_NAME)
-	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msys0/g' < $? > $@
+	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msyst/g' < $? > $@
 
 $(LIBSERVER): ${cygserver_blddir}/Makefile
 	$(MAKE) -C ${cygserver_blddir} libcygserver.a
