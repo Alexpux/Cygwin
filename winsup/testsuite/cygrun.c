@@ -46,7 +46,7 @@ main (int argc, char **argv)
 	  strcat (buf, " ");
 	}
       strcat(buf, "ntsec");
-      SetEnvironmentVariable ("CYGWIN", buf);
+      SetEnvironmentVariable ("MSYS", buf);
     }
 
   memset (&sa, 0, sizeof (sa));

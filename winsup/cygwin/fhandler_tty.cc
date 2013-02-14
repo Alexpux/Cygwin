@@ -513,7 +513,7 @@ fhandler_pty_slave::open (int flags, mode_t)
       pipe_reply repl;
       DWORD len;
 
-      __small_sprintf (buf, "\\\\.\\pipe\\cygwin-%S-pty%d-master-ctl",
+      __small_sprintf (buf, "\\\\.\\pipe\\msys-%S-pty%d-master-ctl",
 		       &cygheap->installation_key, get_unit ());
       termios_printf ("dup handles via master control pipe %s", buf);
       if (!CallNamedPipe (buf, &req, sizeof req, &repl, sizeof repl,
@@ -1296,7 +1296,7 @@ fhandler_pty_master::close ()
 	  pipe_reply repl;
 	  DWORD len;
 
-	  __small_sprintf (buf, "\\\\.\\pipe\\cygwin-%S-pty%d-master-ctl",
+	  __small_sprintf (buf, "\\\\.\\pipe\\msys-%S-pty%d-master-ctl",
 			   &cygheap->installation_key, get_unit ());
 	  CallNamedPipe (buf, &req, sizeof req, &repl, sizeof repl, &len, 500);
 	  CloseHandle (master_ctl);
@@ -1697,7 +1697,7 @@ fhandler_pty_master::setup ()
 
   /* Create master control pipe which allows the master to duplicate
      the pty pipe handles to processes which deserve it. */
-  __small_sprintf (buf, "\\\\.\\pipe\\cygwin-%S-pty%d-master-ctl",
+  __small_sprintf (buf, "\\\\.\\pipe\\msys-%S-pty%d-master-ctl",
 		   &cygheap->installation_key, unit);
   master_ctl = CreateNamedPipe (buf, PIPE_ACCESS_DUPLEX,
 				PIPE_WAIT | PIPE_TYPE_MESSAGE
