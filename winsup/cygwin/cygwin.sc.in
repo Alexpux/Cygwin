@@ -4,7 +4,7 @@ SEARCH_DIR("/usr/lib64"); SEARCH_DIR("=/usr/lib64/w32api");
 #else
 #undef i386
 OUTPUT_FORMAT(pei-i386)
-SEARCH_DIR("/usr/i686-pc-cygwin/lib/w32api"); SEARCH_DIR("=/usr/lib/w32api");
+SEARCH_DIR("/usr/i686-pc-msys/lib/w32api"); SEARCH_DIR("=/usr/lib/w32api");
 #endif
 #define __CONCAT1(a,b)	a##b
 #define __CONCAT(a,b) __CONCAT1(a,b)

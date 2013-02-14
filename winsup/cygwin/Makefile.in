@@ -49,7 +49,7 @@ tooldir:=$(exec_prefix)
 else
 tooldir:=$(exec_prefix)/$(target_alias)
 endif
-ifeq ($(target_alias),x86_64-pc-cygwin)
+ifeq ($(target_alias),x86_64-pc-msys)
 toollibdir:=$(tooldir)/lib64
 else
 toollibdir:=$(tooldir)/lib
@@ -112,13 +112,13 @@ RUNTEST = `if [ -f $${srcdir}/../dejagnu/runtest ] ; then \
 RUNTESTFLAGS =
 
 # Parameters used in building the msys.dll.
-# We build as msys0.dll and rename at install time to overcome
+# We build as msyst.dll and rename at install time to overcome
 # native rebuilding issues (we don't want the build tools to see a partially
 # built msys.dll and attempt to use it instead of the old one).
 
 DLL_NAME:=@DLL_NAME@
 TEST_DLL_NAME:=${patsubst %-2.0.dll,%t.dll,@DLL_NAME@}
-TEST_LIB_NAME:=libmsys0.dll.a
+TEST_LIB_NAME:=libmsyst.a
 STATIC_LIB_NAME:=libmsys2_s.a
 DIN_FILE=@DIN_FILE@
 DEF_FILE:=msys.def
@@ -203,7 +203,7 @@ endif #PREPROCESS
 
 GMON_OFILES:=gmon.o mcount.o profil.o
 
-ifeq ($(target_alias),x86_64-pc-cygwin)
+ifeq ($(target_alias),x86_64-pc-msys)
 NEW_FUNCTIONS:=
 else
 NEW_FUNCTIONS:=$(addprefix --replace=,\
@@ -449,7 +449,7 @@ ${STATIC_LIB_NAME}: mkstatic ${TEST_DLL_NAME}
 # Rule to make stub library used by testsuite
 # dependency set to $(LIB_NAME) to accommodate make -j2.
 $(TEST_LIB_NAME): $(LIB_NAME)
-	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msys0/g' < $? > $@
+	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msyst/g' < $? > $@
 
 $(LIBSERVER): ${cygserver_blddir}/Makefile
 	$(MAKE) -C ${cygserver_blddir} libcygserver.a
