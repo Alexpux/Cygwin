@@ -30,7 +30,7 @@ uname (struct utsname *name)
   char msystem[128];
 
   memset (name, 0, sizeof (*name));
-  if (! GetEnvironmentVariable("MSYSTEM", msystem, sizeof (msystem)))
+  if (! GetEnvironmentVariableA("MSYSTEM", msystem, sizeof (msystem) - 1))
       strcpy (msystem, "MINGW32");
   __small_sprintf (name->sysname, "%s_%s", msystem, wincap.osname ());
 
