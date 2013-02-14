@@ -82,11 +82,12 @@ for my $f (keys %text) {
 }
 
 unlink $libdll;
+my @sp = glob('*.o');
+push ( @sp, @ARGV );
 #system $ar, 'crus', $libdll, glob('*.o'), @ARGV;
-foreach my $linkf ( glob('*.o') ) {
+foreach my $linkf ( @sp ) {
 	system $ar, 'crus', $libdll, $linkf;
 }
-system $ar, 'crusv', $libdll, @ARGV;
 unlink glob('*.o');
 exit 1 if $?;
 
