@@ -187,7 +187,7 @@ fhandler_pipe::dup (fhandler_base *child, int flags)
   return res;
 }
 
-#define PIPE_INTRO "\\\\.\\pipe\\cygwin-"
+#define PIPE_INTRO "\\\\.\\pipe\\msys-"
 
 /* Create a pipe, and return handles to the read and write ends,
    just like CreatePipe, but ensure that the write end permits
