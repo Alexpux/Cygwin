@@ -21,7 +21,7 @@ AC_LANG(C++)
 AC_CYGWIN_INCLUDES
 
 case "$with_cross_host" in
-  ""|*msys*)
+  ""|*cygwin* | *msys*)
     all_host="all_host"
     install_host="install_host"
     ;;
@@ -81,7 +81,7 @@ case "$target_cpu" in
 		TLSOFFSETS_H="tlsoffsets.h"
 		CONFIG_DIR="i386"  ;;
    x86_64)
-		DLL_NAME="msys64-2.0.dll"
+		DLL_NAME="msys-2.0.dll"
 		DLL_ENTRY="dll_entry"
 		DEF_DLL_ENTRY="dll_entry"
 		DIN_FILE="cygwin64.din"
