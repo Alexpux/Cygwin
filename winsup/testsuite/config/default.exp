@@ -1,7 +1,7 @@
 proc winsup_version {} {
     global env
     global rootme
-    clone_output "\n[exec grep ^%%% $rootme/../cygwin/msyst.dll]\n"
+    clone_output "\n[exec grep ^%%% $rootme/../cygwin/msys0.dll]\n"
     if { [info exists env(MSYS)] } {
         clone_output "MSYS=$env(MSYS)\n"
     } else {
