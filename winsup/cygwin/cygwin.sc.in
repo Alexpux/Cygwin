@@ -100,13 +100,14 @@ SECTIONS
   }
   .gnu_debuglink_overlay ALIGN(__section_alignment__) (NOLOAD):
   {
-    BYTE(0)	/* c */
+    BYTE(0)	/* m */
+    BYTE(0)	/* s */
     BYTE(0)	/* y */
-    BYTE(0)	/* g */
-    BYTE(0)	/* w */
-    BYTE(0)	/* i */
-    BYTE(0)	/* n */
-    BYTE(0)	/* 1 */
+    BYTE(0)	/* s */
+    BYTE(0)	/* - */
+    BYTE(0)	/* 2 */
+    BYTE(0)	/* . */
+    BYTE(0)	/* 0 */
     BYTE(0)	/* . */
     BYTE(0)	/* d */
     BYTE(0)	/* b */
