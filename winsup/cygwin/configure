@@ -3433,7 +3433,7 @@ export CXX
 
 
 case "$with_cross_host" in
-  ""|*msys*)
+  ""|*msys*|*cygwin*)
     all_host="all_host"
     install_host="install_host"
     ;;
