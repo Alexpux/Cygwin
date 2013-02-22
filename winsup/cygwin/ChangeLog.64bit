@@ -1,3 +1,27 @@
+2013-02-11  Corinna Vinschen  <corinna@vinschen.de>
+
+	* Makefile.in (target_cpu): Define.  Check for target_cpu rather than
+	target_alias for conditional compilation issues.
+	(toolopts): Change --target into --cpu option and use $target_cpu as
+	argument.
+	($(DEF_FILE)): Call gendef with $(target_cpu) as argument, rather than
+	with $(target_alias).
+	* gendef: Accommodate change from --target to --cpu option.
+	* mkimport: Ditto.
+	* speclib: Ditto.
+
+2013-02-20  Yaakov Selkowitz  <yselkowitz@users.sourceforge.net>
+
+	* cygserver_ipc (class ipc_retval): Add ssize_t member to anonymous
+	union.
+	(ipc_retval::operator =): Add ssize_t variant for x86_64.
+	* fhandler_floppy.cc (fhandler_dev_floppy::raw_write): Change return
+	type to ssize_t to match fhandler.h.
+	* fhandler_socket.cc (fhandler_socket::readv): Ditto.
+	(fhandler_socket::write): Ditto.
+	(fhandler_socket::writev): Ditto.
+	(fhandler_socket::sendmsg): Ditto.
+
 2013-02-18  Corinna Vinschen  <corinna@vinschen.de>
 
 	* localtime.cc: Add comment.
