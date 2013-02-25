@@ -177,7 +177,8 @@ path_prefix_p (const char *path1, const char *path2, int len1,
   return 0;
 }
 
-/* Return non-zero if paths match in first len chars. */
+/* Return non-zero if paths match in first len chars.
+   Check is dependent of the case sensitivity setting. */
 int
 pathnmatch (const char *path1, const char *path2, int len, bool caseinsensitive)
 {
@@ -187,7 +188,8 @@ pathnmatch (const char *path1, const char *path2, int len, bool caseinsensitive)
 	 ? strncasematch (path1, path2, len) : !strncmp (path1, path2, len);
 }
 
-/* Return non-zero if paths match. */
+/* Return non-zero if paths match. Check is dependent of the case
+   sensitivity setting. */
 int
 pathmatch (const char *path1, const char *path2, bool caseinsensitive)
 {
@@ -605,68 +607,6 @@ void
 path_conv::check (const char *src, unsigned opt,
 		  const suffix_info *suffixes)
 {
-  TRACE_IN;
-  /* ******************************************************************
-   * So what do we need to check, or what the &*(# is this doing?
-   * 
-   * Symlinks are out but the coding for all path checking
-   * appears to be embedded with symlink checking so we have
-   * misleading names below.
-   * 
-   * A class suffix_scan is used in symlink_info::check to find the
-   * extension based on the suffix_info passed to this function.
-   * symlink_info is both a class and a struct.
-   *
-   * Now, to answer the question:
-   * First, let's remember that we're a member of the path_conv class.
-   * Second, let's remember that we're passed the path to check, A
-   *   bit mask set of options, and a list of suffixes.
-   * So, let's check what the valid options are to perform on *src.
-   * 1) PC_NULLEMPTY: Appears to cause an error to be set if the src
-   *    is 0 or *src = '\0'
-   * 2) PC_SYM_IGNORE: Doesn't do symlink checking including the path
-   *    extention.
-   * 3) PC_SYM_CONTENTS: Then return the contents of the symlink;
-   *    I.E.: the file pointed to.
-   * ******************************************************************
-   * pcheck_case == PCHECK_RELAXED used with opt & PC_SYM_IGNORE.
-   * pcheck_case == PCHECK_STRICT used with sym.case_clase;
-   * sym.case_clash is set via the previous sym.check call and sym is
-   * an object of the symlink_info class.
-   * pcheck_case == PCHECK_ADJUST allows a path creator to maintain
-   * the current case of a file if the file exists and the case for
-   * the new name differs.
-   * ******************************************************************
-   * FIXME: All we really need path_conv::check to do is:
-   * 1) Does the value of src exists in the file system?
-   *    Y) Does case of file system name differ with the value of src?
-   *       Y) Report File Not Found.
-   *       N) Report File Found
-   *    N) Does the value of src contain a '.'?
-   *       Y) Report File Not Found.
-   *       N) Do 2).
-   * 2) Loop through values of suffix_info appending the suffix
-   *    to the value of src and recursive call path_conv::check.
-   * 3) Successful path_conv::check?
-   *    Y) Report File Found.
-   *    N) Report File Not Found.
-   * 4) FUTURE ENHANCEMENT: Create a hash value for the value of src
-   *    and check for that value first for existing files.
-   * ******************************************************************
-   * Further analysis needs to be done for the use of the symlink_info
-   * struct to see if that needs to have values filled.
-   * *****************************************************************/
-
-// This isn't working.  Giving much to do with symlink_info.  I've modified
-// other methods to remove some symlink checking.  This needs a complete
-// rework including all calls.
-
-// This is also used in the path_conv constructor for initialization!!!!
-
-#if 0 
-    FIXME: Please!!!
-    Using the above analysis, rewrite this function.
-#else
   /* The tmp_buf array is used when expanding symlinks.  It is NT_MAX_PATH * 2
      in length so that we can hold the expanded symlink plus a trailer.  */
   tmp_pathbuf tp;
@@ -680,6 +620,17 @@ path_conv::check (const char *src, unsigned opt,
   bool add_ext = false;
   bool is_relpath;
   char *tail, *path_end;
+
+#if 0
+  static path_conv last_path_conv;
+  static char last_src[CYG_MAX_PATH];
+
+  if (*last_src && strcmp (last_src, src) == 0)
+    {
+      *this = last_path_conv;
+      return;
+    }
+#endif
 
   myfault efault;
   if (efault.faulted ())
@@ -710,13 +661,6 @@ path_conv::check (const char *src, unsigned opt,
     }
   int component = 0;		// Number of translated components
 
-  //MSYS - See if this works
-  //FIXME: If it does work then what can we remove from this function
-  //
-  //opt |= PC_SYM_IGNORE;
-  //OK, it doesn't work and the reason is that foo is treated as a symlink for
-  //foo.exe.  So, now maybe we can go clean this up.
-
   if (!(opt & PC_NULLEMPTY))
     error = 0;
   else if (!*src)
@@ -729,7 +673,6 @@ path_conv::check (const char *src, unsigned opt,
   /* This loop handles symlink expansion.  */
   for (;;)
     {
-      //What's this macro do?
       MALLOC_CHECK;
       assert (src);
 
@@ -909,9 +852,8 @@ path_conv::check (const char *src, unsigned opt,
 
 	  /* If path is only a drivename, Windows interprets it as the
 	     current working directory on this drive instead of the root
-	     dir which is what we want.
-	     So we need the trailing backslash in this case.
-      */
+	     dir which is what we want. So we need the trailing backslash
+	     in this case. */
 	  if (full_path[0] && full_path[1] == ':' && full_path[2] == '\0')
 	    {
 	      full_path[2] = '\\';
@@ -1005,17 +947,19 @@ is_virtual_symlink:
 	  else if (symlen > 0)
 	    {
 	      saw_symlinks = 1;
-	      if (component == 0 && !need_directory)
+	      if (component == 0 && !need_directory
+		  && (!(opt & PC_SYM_FOLLOW)
+		      || (is_rep_symlink () && (opt & PC_SYM_NOFOLLOW_REP))))
+		{
+		  set_symlink (symlen); // last component of path is a symlink.
+		  if (opt & PC_SYM_CONTENTS)
 		    {
-		      set_symlink (symlen); // last component of path is a symlink.
-		      if (opt & PC_SYM_CONTENTS)
-		        {
-		          strcpy (THIS_path, sym.contents);
-		          goto out;
-		        }
-		      add_ext = true;
+		      strcpy (THIS_path, sym.contents);
 		      goto out;
 		    }
+		  add_ext = true;
+		  goto out;
+		}
 	      /* Following a symlink we can't trust the collected filesystem
 		 information any longer. */
 	      fs.clear ();
@@ -1236,6 +1180,12 @@ out:
 	warn_msdos (src);
     }
 
+#if 0
+  if (!error)
+    {
+      last_path_conv = *this;
+      strcpy (last_src, src);
+    }
 #endif
 }
 
@@ -2243,6 +2193,13 @@ suffix_scan::has (const char *in_path, const suffix_info *in_suffixes)
 	  }
     }
 
+  /* Didn't match.  Use last resort -- .lnk. */
+  if (ascii_strcasematch (ext_here, ".lnk"))
+    {
+      nextstate = SCAN_HASLNK;
+      suffixes = NULL;
+    }
+
  noext:
   ext_here = eopath;
 
@@ -2269,16 +2226,28 @@ suffix_scan::next ()
 	    suffixes = suffixes_start;
 	    if (!suffixes)
 	      {
-		nextstate = SCAN_JUSTCHECK;
+		nextstate = SCAN_LNK;
 		return 1;
 	      }
-	    nextstate = SCAN_DONE;
+	    nextstate = SCAN_EXTRALNK;
 	    /* fall through to suffix checking below */
 	    break;
-	  case SCAN_JUSTCHECK:
+	  case SCAN_HASLNK:
+	    nextstate = SCAN_APPENDLNK;	/* Skip SCAN_BEG */
+	    return 1;
+	  case SCAN_EXTRALNK:
 	    nextstate = SCAN_DONE;
+	    *eopath = '\0';
+	    return 0;
+	  case SCAN_JUSTCHECK:
+	    nextstate = SCAN_LNK;
 	    return 1;
 	  case SCAN_JUSTCHECKTHIS:
+	    nextstate = SCAN_DONE;
+	    return 1;
+	  case SCAN_LNK:
+	  case SCAN_APPENDLNK:
+	    strcat (eopath, ".lnk");
 	    nextstate = SCAN_DONE;
 	    return 1;
 	  default:
@@ -3289,6 +3258,7 @@ cygwin_create_path (cygwin_conv_path_t what, const void *from)
   return to;
 }
 
+#ifndef __x86_64__	/* Disable deprecated functions on x86_64. */
 
 extern "C" int
 cygwin_conv_to_win32_path (const char *path, char *win32_path)
@@ -3323,6 +3293,8 @@ cygwin_conv_to_full_posix_path (const char *path, char *posix_path)
   return cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE, path, posix_path,
 			   MAX_PATH);
 }
+
+#endif /* !__x86_64__ */
 
 /* The realpath function is required by POSIX:2008.  */
 
@@ -3464,6 +3436,15 @@ conv_path_list_buf_size (const char *path_list, bool to_posix)
   return size;
 }
 
+extern "C" ssize_t
+env_PATH_to_posix (const void *win32, void *posix, size_t size)
+{
+  TRACE_IN;
+  return_with_errno (conv_path_list ((const char *) win32, (char *) posix,
+				     size, ENV_CVT));
+}
+
+#ifndef __x86_64__	/* Disable deprecated functions on x86_64. */
 
 extern "C" int
 cygwin_win32_to_posix_path_list_buf_size (const char *path_list)
@@ -3477,14 +3458,6 @@ cygwin_posix_to_win32_path_list_buf_size (const char *path_list)
 {
   TRACE_IN;
   return conv_path_list_buf_size (path_list, false);
-}
-
-extern "C" ssize_t
-env_PATH_to_posix (const void *win32, void *posix, size_t size)
-{
-  TRACE_IN;
-  return_with_errno (conv_path_list ((const char *) win32, (char *) posix,
-				     size, ENV_CVT));
 }
 
 extern "C" int
@@ -3502,6 +3475,8 @@ cygwin_posix_to_win32_path_list (const char *posix, char *win32)
   return_with_errno (conv_path_list (posix, win32, MAX_PATH,
 		     CCP_POSIX_TO_WIN_A | CCP_RELATIVE));
 }
+
+#endif /* !__x86_64__ */
 
 extern "C" ssize_t
 cygwin_conv_path_list (cygwin_conv_path_t what, const void *from, void *to,
