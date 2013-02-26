@@ -696,6 +696,9 @@ static struct renv {
 	{ NL("TMP=") },
 	{ NL("TMPDIR=") },
 	{ NL("WINDIR=") }			// 22
+#ifdef __MSYS__
+	,{ NL("MSYSTEM") }			//23
+#endif /* __MSYS__ */
 };
 #define RENV_SIZE (sizeof (renv_arr) / sizeof (renv_arr[0]))
 
@@ -703,7 +706,11 @@ static struct renv {
 static const char idx_arr[] = "ACHNOPSTW";
 /* Index into renv_arr at which the variables with this specific character
    starts. */
-static const int start_at[] = { 0, 1, 4, 7, 8, 9, 16, 18, 22 };
+static const int start_at[] = { 0, 1, 4, 7, 8, 9, 16, 18, 22 
+#ifdef __MSYS__ 
+								, 23
+#endif
+								};
 
 /* Turn environment variable part of a=b string into uppercase - for some
    environment variables only. */
