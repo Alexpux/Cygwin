@@ -606,67 +606,6 @@ path_conv::check (const char *src, unsigned opt,
 		  const suffix_info *suffixes)
 {
   TRACE_IN;
-  /* ******************************************************************
-   * So what do we need to check, or what the &*(# is this doing?
-   * 
-   * Symlinks are out but the coding for all path checking
-   * appears to be embedded with symlink checking so we have
-   * misleading names below.
-   * 
-   * A class suffix_scan is used in symlink_info::check to find the
-   * extension based on the suffix_info passed to this function.
-   * symlink_info is both a class and a struct.
-   *
-   * Now, to answer the question:
-   * First, let's remember that we're a member of the path_conv class.
-   * Second, let's remember that we're passed the path to check, A
-   *   bit mask set of options, and a list of suffixes.
-   * So, let's check what the valid options are to perform on *src.
-   * 1) PC_NULLEMPTY: Appears to cause an error to be set if the src
-   *    is 0 or *src = '\0'
-   * 2) PC_SYM_IGNORE: Doesn't do symlink checking including the path
-   *    extention.
-   * 3) PC_SYM_CONTENTS: Then return the contents of the symlink;
-   *    I.E.: the file pointed to.
-   * ******************************************************************
-   * pcheck_case == PCHECK_RELAXED used with opt & PC_SYM_IGNORE.
-   * pcheck_case == PCHECK_STRICT used with sym.case_clase;
-   * sym.case_clash is set via the previous sym.check call and sym is
-   * an object of the symlink_info class.
-   * pcheck_case == PCHECK_ADJUST allows a path creator to maintain
-   * the current case of a file if the file exists and the case for
-   * the new name differs.
-   * ******************************************************************
-   * FIXME: All we really need path_conv::check to do is:
-   * 1) Does the value of src exists in the file system?
-   *    Y) Does case of file system name differ with the value of src?
-   *       Y) Report File Not Found.
-   *       N) Report File Found
-   *    N) Does the value of src contain a '.'?
-   *       Y) Report File Not Found.
-   *       N) Do 2).
-   * 2) Loop through values of suffix_info appending the suffix
-   *    to the value of src and recursive call path_conv::check.
-   * 3) Successful path_conv::check?
-   *    Y) Report File Found.
-   *    N) Report File Not Found.
-   * 4) FUTURE ENHANCEMENT: Create a hash value for the value of src
-   *    and check for that value first for existing files.
-   * ******************************************************************
-   * Further analysis needs to be done for the use of the symlink_info
-   * struct to see if that needs to have values filled.
-   * *****************************************************************/
-
-// This isn't working.  Giving much to do with symlink_info.  I've modified
-// other methods to remove some symlink checking.  This needs a complete
-// rework including all calls.
-
-// This is also used in the path_conv constructor for initialization!!!!
-
-#if 0 
-    FIXME: Please!!!
-    Using the above analysis, rewrite this function.
-#else
   /* The tmp_buf array is used when expanding symlinks.  It is NT_MAX_PATH * 2
      in length so that we can hold the expanded symlink plus a trailer.  */
   tmp_pathbuf tp;
@@ -680,6 +619,17 @@ path_conv::check (const char *src, unsigned opt,
   bool add_ext = false;
   bool is_relpath;
   char *tail, *path_end;
+
+#if 0
+  static path_conv last_path_conv;
+  static char last_src[CYG_MAX_PATH];
+
+  if (*last_src && strcmp (last_src, src) == 0)
+    {
+      *this = last_path_conv;
+      return;
+    }
+#endif
 
   myfault efault;
   if (efault.faulted ())
@@ -1005,17 +955,20 @@ is_virtual_symlink:
 	  else if (symlen > 0)
 	    {
 	      saw_symlinks = 1;
-	      if (component == 0 && !need_directory)
+	      if (component == 0 && !need_directory
+		  && (!(opt & PC_SYM_FOLLOW)
+		      || (is_rep_symlink () && (opt & PC_SYM_NOFOLLOW_REP))))
+		{
+		  set_symlink (symlen); // last component of path is a symlink.
+		  if (opt & PC_SYM_CONTENTS)
+
 		    {
-		      set_symlink (symlen); // last component of path is a symlink.
-		      if (opt & PC_SYM_CONTENTS)
-		        {
-		          strcpy (THIS_path, sym.contents);
-		          goto out;
-		        }
-		      add_ext = true;
+		      strcpy (THIS_path, sym.contents);
 		      goto out;
 		    }
+		  add_ext = true;
+		  goto out;
+		}
 	      /* Following a symlink we can't trust the collected filesystem
 		 information any longer. */
 	      fs.clear ();
@@ -1235,7 +1188,12 @@ out:
       if (is_msdos && !(opt & PC_NOWARN))
 	warn_msdos (src);
     }
-
+#if 0
+  if (!error)
+    {
+      last_path_conv = *this;
+      strcpy (last_src, src);
+    }
 #endif
 }
 
@@ -2242,6 +2200,12 @@ suffix_scan::has (const char *in_path, const suffix_info *in_suffixes)
 	    goto done;
 	  }
     }
+  /* Didn't match.  Use last resort -- .lnk. */
+  if (ascii_strcasematch (ext_here, ".lnk"))
+    {
+      nextstate = SCAN_HASLNK;
+      suffixes = NULL;
+    }
 
  noext:
   ext_here = eopath;
@@ -2269,16 +2233,28 @@ suffix_scan::next ()
 	    suffixes = suffixes_start;
 	    if (!suffixes)
 	      {
-		nextstate = SCAN_JUSTCHECK;
+		nextstate = SCAN_LNK;
 		return 1;
 	      }
 	    nextstate = SCAN_DONE;
 	    /* fall through to suffix checking below */
 	    break;
-	  case SCAN_JUSTCHECK:
+	  case SCAN_HASLNK:
+	    nextstate = SCAN_APPENDLNK;	/* Skip SCAN_BEG */
+	    return 1;
+	  case SCAN_EXTRALNK:
 	    nextstate = SCAN_DONE;
+	    *eopath = '\0';
+	    return 0;
+	  case SCAN_JUSTCHECK:
+	    nextstate = SCAN_LNK;
 	    return 1;
 	  case SCAN_JUSTCHECKTHIS:
+	    nextstate = SCAN_DONE;
+	    return 1;
+	  case SCAN_LNK:
+	  case SCAN_APPENDLNK:
+	    strcat (eopath, ".lnk");
 	    nextstate = SCAN_DONE;
 	    return 1;
 	  default:
