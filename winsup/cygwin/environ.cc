@@ -680,6 +680,9 @@ static struct renv {
 	{ NL("HOME=") },			// 4
 	{ NL("HOMEDRIVE=") },
 	{ NL("HOMEPATH=") },
+#ifdef __MSYS__
+	{ NL("MSYSTEM=") },		// 7
+#endif /* __MSYS__ */
 	{ NL("NUMBER_OF_PROCESSORS=") },	// 7
 	{ NL("OS=") },				// 8
 	{ NL("PATH=") },			// 9
@@ -700,10 +703,21 @@ static struct renv {
 #define RENV_SIZE (sizeof (renv_arr) / sizeof (renv_arr[0]))
 
 /* Set of first characters of the above list of variables. */
-static const char idx_arr[] = "ACHNOPSTW";
+static const char idx_arr[] = 
+#ifdef __MSYS__
+	"ACHMNOPSTW";
+#else
+	"ACHNOPSTW";
+#endif
 /* Index into renv_arr at which the variables with this specific character
    starts. */
-static const int start_at[] = { 0, 1, 4, 7, 8, 9, 16, 18, 22 };
+static const int start_at[] = { 0, 1, 4, 
+#ifdef __MSYS__ 
+								7, 8, 9, 10, 17, 19, 23
+#else
+								7, 8, 9, 16, 18, 22
+#endif
+								};
 
 /* Turn environment variable part of a=b string into uppercase - for some
    environment variables only. */

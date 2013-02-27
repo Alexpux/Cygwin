@@ -27,11 +27,11 @@ uname (struct utsname *name)
     return -1;
 
   char *snp = strstr  (cygwin_version.dll_build_date, "SNP");
-  char msystem[128];
 
   memset (name, 0, sizeof (*name));
-  if (! GetEnvironmentVariableA("MSYSTEM", msystem, sizeof (msystem) - 1))
-      strcpy (msystem, "MINGW32");
+  char* msystem = getenv("MSYSTEM");
+  if (!msystem)
+    strcpy (msystem, "MINGW32");
   __small_sprintf (name->sysname, "%s_%s", msystem, wincap.osname ());
 
 #if 0
