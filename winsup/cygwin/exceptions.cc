@@ -421,10 +421,7 @@ cygwin_stackdump ()
 {
   CONTEXT c;
   c.ContextFlags = CONTEXT_FULL;
-  if (wincap.has_rtl_capture_context ())
-    RtlCaptureContext (&c);
-  else
-    GetThreadContext (GetCurrentThread (), &c);
+  RtlCaptureContext (&c);
   cygwin_exception exc ((PUINT_PTR) c._GR(bp), &c);
   exc.dumpstack ();
 }
@@ -519,12 +516,9 @@ try_to_debug (bool waitloop)
 }
 
 #ifdef __x86_64__
-static void rtl_unwind (exception_list *, PEXCEPTION_RECORD) __attribute__ ((noinline));
-void
-rtl_unwind (exception_list *frame, PEXCEPTION_RECORD e)
-{
-  RtlUnwind (frame, __builtin_return_address (0), e, 0);
-}
+/* Don't unwind the stack on x86_64.  It's not necessary to do that from the
+   exception handler. */
+#define rtl_unwind(el,er)
 #else
 static void __reg3 rtl_unwind (exception_list *, PEXCEPTION_RECORD) __attribute__ ((noinline, regparm (3)));
 void __reg3
@@ -566,13 +560,11 @@ exception::handle (EXCEPTION_RECORD *e, exception_list *frame, CONTEXT *in, void
 #endif
 {
   static bool NO_COPY debugging;
-  static int NO_COPY recursed;
   _cygtls& me = _my_tls;
 
 #ifdef __x86_64__
   EXCEPTION_RECORD *e = ep->ExceptionRecord;
   CONTEXT *in = ep->ContextRecord;
-  exception_list *frame = (exception_list *) __builtin_frame_address (0);
 #endif
 
   if (debugging && ++debugging < 500000)
@@ -723,10 +715,9 @@ exception::handle (EXCEPTION_RECORD *e, exception_list *frame, CONTEXT *in, void
   _except_list->handler = handle;
 #endif
 
-  /* Another exception could happen while tracing or while exiting.
-     Only do this once.  */
-  if (recursed++)
-    api_fatal ("Error while dumping state (probably corrupted stack)");
+  if (exit_state >= ES_SIGNAL_EXIT
+      && (NTSTATUS) e->ExceptionCode != STATUS_CONTROL_C_EXIT)
+    api_fatal ("Exception during process exit");
   else if (!try_to_debug (0))
     rtl_unwind (frame, e);
   else
@@ -1223,10 +1214,7 @@ signal_exit (int sig, siginfo_t *si)
 	 {
 	   CONTEXT c;
 	   c.ContextFlags = CONTEXT_FULL;
-	   if (wincap.has_rtl_capture_context ())
-	     RtlCaptureContext (&c);
-	   else
-	     GetThreadContext (GetCurrentThread (), &c);
+	   RtlCaptureContext (&c);
 #ifdef __x86_64__
 	   cygwin_exception exc ((PUINT_PTR) _my_tls.thread_context.rbp, &c);
 #else
@@ -1366,7 +1354,7 @@ dispatch_sig:
     {
       CONTEXT c;
       c.ContextFlags = CONTEXT_FULL;
-      if (&_my_tls == _main_tls && wincap.has_rtl_capture_context ())
+      if (&_my_tls == _main_tls)
 	RtlCaptureContext (&c);
       else
 	GetThreadContext (hMainThread, &c);
