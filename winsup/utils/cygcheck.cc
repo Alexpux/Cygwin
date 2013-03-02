@@ -1966,7 +1966,7 @@ dump_sysinfo ()
 	  wcstombs (f, ffinfo.cFileName, sizeof f);
 	  if (strcasecmp (f + strlen (f) - 4, ".dll") == 0)
 	    {
-	      if (strncasecmp (f, "cyg", 3) == 0)
+	      if (strncasecmp (f, "msys-", 5) == 0)
 		{
 		  sprintf (tmp, "%s%s", pth->dir, f);
 		  if (strcasecmp (f, "msys-2.0.dll") == 0)
