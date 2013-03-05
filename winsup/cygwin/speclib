@@ -33,10 +33,6 @@ my $exclude_regex = @exclude ? join('|', @exclude) : '\\UnLiKeLy//';
 $exclude_regex = qr/$exclude_regex/;
 my $dllname;
 while (<$nm_fd>) {
-	if (substr($_,1,1) eq ":") {
-			my $letter = "/".substr($_, 0, 1);
-			substr($_, 0, 2) = $letter;
-	}
     study;
     if (/ I _(.*)_dll_iname/o) {
 	$dllname = $1;

@@ -24,11 +24,7 @@ my %import = ();
 my %symfile = ();
 while (<$nm_fd>) {
     chomp;
-	if (substr($_,1,1) eq ":") {
-			my $letter = "/".substr($_, 0, 1);
-			substr($_, 0, 2) = $letter;
-	}
-    my ($fn, $type, $sym) = /^$inpdll:(.*?):\S+\s+(\S)\s+(\S+)/o;
+    my ($fn, $type, $sym) = /^$inpdll:(.*?):\S+\s+(\S)\s+(\S+)$/o;
     next unless $fn;
     $text{$fn} = $sym if $type eq 'T';
     $import{$fn} = $sym if $type eq 'I';
@@ -82,12 +78,7 @@ for my $f (keys %text) {
 }
 
 unlink $libdll;
-my @sp = glob('*.o');
-push ( @sp, @ARGV );
-#system $ar, 'crus', $libdll, glob('*.o'), @ARGV;
-foreach my $linkf ( @sp ) {
-	system $ar, 'crus', $libdll, $linkf;
-}
+system $ar, 'crus', $libdll, glob('*.o'), @ARGV;
 unlink glob('*.o');
 exit 1 if $?;
 
