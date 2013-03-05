@@ -935,6 +935,7 @@ static NO_COPY spenv spenvs[] =
   {NL ("HOMEPATH="), false, false, &cygheap_user::env_homepath},
   {NL ("LOGONSERVER="), false, false, &cygheap_user::env_logsrv},
   {NL ("PATH="), false, true, NULL},
+  {NL ("MSYSTEM="), true, true, NULL},
   {NL ("SYSTEMDRIVE="), false, true, NULL},
   {NL ("SYSTEMROOT="), true, true, &cygheap_user::env_systemroot},
   {NL ("USERDOMAIN="), false, false, &cygheap_user::env_domain},
