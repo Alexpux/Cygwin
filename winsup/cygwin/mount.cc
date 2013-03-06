@@ -1614,7 +1614,8 @@ fs_names_t fs_names[] = {
     { "mvfs", false },
     { "cifs", false },
     { "nwfs", false },
-    { "ncfsd", false }
+    { "ncfsd", false },
+    { NULL, false }
 };
 
 static mntent *
