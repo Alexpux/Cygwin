@@ -14,7 +14,7 @@ details. */
 #include <sys/types.h>
 #include "cygserver.h"
 
-#define CYGWIN_LSA_KEY_PREFIX	L"L$CYGWIN_"
+#define CYGWIN_LSA_KEY_PREFIX	L"L$MSYS_"
 
 #ifndef __INSIDE_CYGWIN__
 class transport_layer_base;
