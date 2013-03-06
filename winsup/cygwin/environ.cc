@@ -1132,7 +1132,8 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
   return newenv;
 }
 
-/* This idiocy is necessary because the early implementers of msys
+#ifndef __x86_64__
+/* This idiocy is necessary because the early implementers of cygwin
    did not seem to know about importing data variables from the DLL.
    So, we have to synchronize msys's idea of the environment with the
    main program's with each reference to the environment. */
@@ -1147,3 +1148,4 @@ cur_environ ()
 
   return __cygwin_environ;
 }
+#endif

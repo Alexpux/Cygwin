@@ -1,7 +1,7 @@
 /* dll_init.cc
 
    Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011, 2012 Red Hat, Inc.
+   2009, 2010, 2011, 2012, 2013 Red Hat, Inc.
 
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
@@ -86,11 +86,13 @@ dll::init ()
 {
   int ret = 1;
 
+#ifndef __x86_64__
   /* This should be a no-op.  Why didn't we just import this variable? */
   if (!p.envptr)
     p.envptr = &__cygwin_environ;
   else if (*(p.envptr) != __cygwin_environ)
     *(p.envptr) = __cygwin_environ;
+#endif
 
   /* Don't run constructors or the "main" if we've forked. */
   if (!in_forkee)
@@ -243,7 +245,9 @@ dll_list::alloc (HINSTANCE h, per_process *p, dll_type type)
 	loaded_dlls++;
     }
   guard (false);
+#ifndef __x86_64__
   assert (p->envptr != NULL);
+#endif
   return d;
 }
 
@@ -709,6 +713,7 @@ dlfork (int val)
   dlls.reload_on_fork = val;
 }
 
+#ifndef __x86_64__
 /* Called from various places to update all of the individual
    ideas of the environ block.  Explain to me again why we didn't
    just import __cygwin_environ? */
@@ -720,3 +725,4 @@ update_envptrs ()
       *(d->p.envptr) = __cygwin_environ;
   *main_environ = __cygwin_environ;
 }
+#endif
