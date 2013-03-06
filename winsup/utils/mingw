@@ -78,7 +78,7 @@ set -- -B"$mingw_dir"/lib/ "${newargs[@]}"
 if sawcomp || sawcfile; then
     ccdir=$(dirname $($compiler -print-libgcc-file-name))
     sawnostdinc || set -- -isystem "$ccdir"/include -I"${mingw_dir}"/include  "$@"
-    set -- -D__MINGW32__ -D__MSVCRT__ -DWIN32 -D_WIN32 -D__WIN32 -D__WIN32__ -U__CYGWIN__ -Uunix -U__unix__ -U__unix -U __CYGWIN32__ "$@"
+    set -- -D__MINGW32__ -D__MSVCRT__ -DWIN32 -D_WIN32 -D__WIN32 -D__WIN32__ -U__CYGWIN__ -U__MSYS__ -Uunix -U__unix__ -U__unix -U __CYGWIN32__ "$@"
     if ! sawnostdinc; then
 	case "$compiler" in
 	    *++*) set -- -nostdinc++ "$@" ;;
