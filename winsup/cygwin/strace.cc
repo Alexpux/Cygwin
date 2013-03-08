@@ -36,8 +36,8 @@ strace::activate (bool isfork)
 {
   if (!_active && being_debugged ())
     {
-      char buf[31];
-      __small_sprintf (buf, "MsYs%8x %x %d", _STRACE_INTERFACE_ACTIVATE_ADDR, &_active, isfork);
+      char buf[30];
+      __small_sprintf (buf, "cYg%8x %x %d", _STRACE_INTERFACE_ACTIVATE_ADDR, &_active, isfork);
       OutputDebugString (buf);
       if (_active)
 	{
@@ -211,11 +211,11 @@ done:
 void
 strace::write (unsigned category, const char *buf, int count)
 {
-# define PREFIX (4 + 8 + 1 + 8 + 1)
+# define PREFIX (3 + 8 + 1 + 8 + 1)
   char outbuf[PREFIX + 1 + count + 1];
 # define outstuff (outbuf + 12)
   __small_sprintf (outstuff, "%x %s", category, buf);
-  __small_sprintf (outbuf, "MsYs%08x", strlen (outstuff) + 1);
+  __small_sprintf (outbuf, "cYg%08x", strlen (outstuff) + 1);
   outstuff[-1] = ' ';
   OutputDebugString (outbuf);
 #undef outstuff
@@ -225,11 +225,11 @@ strace::write (unsigned category, const char *buf, int count)
 void
 strace::write_childpid (DWORD pid)
 {
-  char buf[31];
+  char buf[30];
 
   if (!attached () || !being_debugged ())
     return;
-  __small_sprintf (buf, "MsYs%8x %x", _STRACE_CHILD_PID, pid);
+  __small_sprintf (buf, "cYg%8x %x", _STRACE_CHILD_PID, pid);
   OutputDebugString (buf);
 }
 

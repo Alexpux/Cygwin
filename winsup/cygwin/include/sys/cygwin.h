@@ -19,7 +19,7 @@ details. */
 extern "C" {
 #endif
 
-#define _CYGWIN_SIGNAL_STRING "MsYsSiGw00f"
+#define _CYGWIN_SIGNAL_STRING "cYgSiGw00f"
 
 /* DEPRECATED INTERFACES.  These are restricted to MAX_PATH length.
    Don't use in modern applications. */
