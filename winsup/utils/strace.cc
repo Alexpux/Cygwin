@@ -457,7 +457,7 @@ handle_output_debug_string (DWORD id, LPVOID p, unsigned mask, FILE *ofile)
 	   id, hchild, GetLastError ());
 #endif
 
-  if (strncmp (alen, "MsYs", 4))
+  if (strncmp (alen, "cYg", 3))
     return;
   len = (int) strtoul (alen + 4, NULL, 16);
   if (!len)
