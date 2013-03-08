@@ -439,7 +439,7 @@ $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIB
 
 # Rule to build libmsys-2.0.a
 $(LIB_NAME): $(LIBCOS) | $(TEST_DLL_NAME) 
-	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ cygdll.a $^
+	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ msysdll.a $^
 
 ${STATIC_LIB_NAME}: mkstatic ${TEST_DLL_NAME}
 	perl -d $< -x ${EXCLUDE_STATIC_OFILES} --library=${LIBC} --library=${LIBM} --ar=${AR} $@ msys.map
