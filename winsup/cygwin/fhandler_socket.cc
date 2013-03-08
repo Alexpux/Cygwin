@@ -904,13 +904,37 @@ fhandler_socket::bind (const struct sockaddr *name, int namelen)
       struct sockaddr_in sin;
       int len = namelen - offsetof (struct sockaddr_un, sun_path);
 
-      /* Check that name is within bounds and NUL-terminated. */
-      if (len <= 1 || len > UNIX_PATH_LEN
-	  || !memchr (un_addr->sun_path, '\0', len))
+      /* Check that name is within bounds.  Don't check if the string is
+         NUL-terminated, because there are projects out there which set
+	 namelen to a value which doesn't cover the trailing NUL. */
+      if (len <= 1 || (len = strnlen (un_addr->sun_path, len)) > UNIX_PATH_MAX)
 	{
 	  set_errno (len <= 1 ? (len == 1 ? ENOENT : EINVAL) : ENAMETOOLONG);
 	  goto out;
 	}
+      /* Copy over the sun_path string into a buffer big enough to add a
+	 trailing NUL. */
+      char sun_path[len + 1];
+      strncpy (sun_path, un_addr->sun_path, len);
+      sun_path[len] = '\0';
+
+      /* This isn't entirely foolproof, but we check first if the file exists
+	 so we can return with EADDRINUSE before having bound the socket.
+	 This allows an application to call bind again on the same socket using
+	 another filename.  If we bind first, the application will not be able
+	 to call bind successfully ever again. */
+      path_conv pc (sun_path, PC_SYM_FOLLOW);
+      if (pc.error)
+	{
+	  set_errno (pc.error);
+	  goto out;
+	}
+      if (pc.exists ())
+	{
+	  set_errno (EADDRINUSE);
+	  goto out;
+	}
+
       sin.sin_family = AF_INET;
       sin.sin_port = 0;
       sin.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
@@ -930,17 +954,6 @@ fhandler_socket::bind (const struct sockaddr *name, int namelen)
       sin.sin_port = ntohs (sin.sin_port);
       debug_printf ("AF_LOCAL: socket bound to port %u", sin.sin_port);
 
-      path_conv pc (un_addr->sun_path, PC_SYM_FOLLOW);
-      if (pc.error)
-	{
-	  set_errno (pc.error);
-	  goto out;
-	}
-      if (pc.exists ())
-	{
-	  set_errno (EADDRINUSE);
-	  goto out;
-	}
       mode_t mode = adjust_socket_file_mode ((S_IRWXU | S_IRWXG | S_IRWXO)
 					     & ~cygheap->umask);
       DWORD fattr = FILE_ATTRIBUTE_SYSTEM;
@@ -1001,7 +1014,7 @@ fhandler_socket::bind (const struct sockaddr *name, int namelen)
 	    }
 	  else
 	    {
-	      set_sun_path (un_addr->sun_path);
+	      set_sun_path (sun_path);
 	      res = 0;
 	    }
 	  NtClose (fh);
@@ -1238,7 +1251,7 @@ fhandler_socket::getsockname (struct sockaddr *name, int *namelen)
       sun.sun_family = AF_LOCAL;
       sun.sun_path[0] = '\0';
       if (get_sun_path ())
-	strncat (sun.sun_path, get_sun_path (), UNIX_PATH_LEN - 1);
+	strncat (sun.sun_path, get_sun_path (), UNIX_PATH_MAX - 1);
       memcpy (name, &sun, MIN (*namelen, (int) SUN_LEN (&sun) + 1));
       *namelen = (int) SUN_LEN (&sun) + (get_sun_path () ? 1 : 0);
       res = 0;
@@ -1312,7 +1325,7 @@ fhandler_socket::getpeername (struct sockaddr *name, int *namelen)
       sun.sun_family = AF_LOCAL;
       sun.sun_path[0] = '\0';
       if (get_peer_sun_path ())
-	strncat (sun.sun_path, get_peer_sun_path (), UNIX_PATH_LEN - 1);
+	strncat (sun.sun_path, get_peer_sun_path (), UNIX_PATH_MAX - 1);
       memcpy (name, &sun, MIN (*namelen, (int) SUN_LEN (&sun) + 1));
       *namelen = (int) SUN_LEN (&sun) + (get_peer_sun_path () ? 1 : 0);
     }
@@ -1348,6 +1361,7 @@ fhandler_socket::recv_internal (LPWSAMSG wsamsg, bool use_recvmsg)
   LPWSABUF &wsabuf = wsamsg->lpBuffers;
   ULONG &wsacnt = wsamsg->dwBufferCount;
   static NO_COPY LPFN_WSARECVMSG WSARecvMsg;
+  int orig_namelen = wsamsg->namelen;
 
   DWORD wait_flags = wsamsg->dwFlags;
   bool waitall = !!(wait_flags & MSG_WAITALL);
@@ -1444,17 +1458,43 @@ fhandler_socket::recv_internal (LPWSAMSG wsamsg, bool use_recvmsg)
       /* According to SUSv3, errno isn't set in that case and no error
 	 condition is returned. */
       if (WSAGetLastError () == WSAEMSGSIZE)
-	return ret + wret;
-
-      if (!ret)
+	ret += wret;
+      else if (!ret)
 	{
 	  /* ESHUTDOWN isn't defined for recv in SUSv3.  Simply EOF is returned
 	     in this case. */
 	  if (WSAGetLastError () == WSAESHUTDOWN)
-	    return 0;
+	    ret = 0;
+	  else
+	    {
+	      set_winsock_errno ();
+	      return SOCKET_ERROR;
+	    }
+	}
+    }
 
-	  set_winsock_errno ();
-	  return SOCKET_ERROR;
+  if (get_addr_family () == AF_LOCAL && wsamsg->name != NULL
+      && orig_namelen >= (int) sizeof (sa_family_t))
+    {
+      /* WSARecvFrom copied the sockaddr_in block to wsamsg->name.
+	 We have to overwrite it with a sockaddr_un block. */
+      sockaddr_un *un = (sockaddr_un *) wsamsg->name;
+      un->sun_family = AF_LOCAL;
+      int len = orig_namelen - offsetof (struct sockaddr_un, sun_path);
+      if (len > 0)
+      	{
+	  if (!get_peer_sun_path ())
+	    wsamsg->namelen = sizeof (sa_family_t);
+	  else
+	    {
+	      memset (un->sun_path, 0, len);
+	      strncpy (un->sun_path, get_peer_sun_path (), len);
+	      if (un->sun_path[len - 1] == '\0')
+		len = strlen (un->sun_path) + 1;
+	      if (len > UNIX_PATH_MAX)
+		len = UNIX_PATH_MAX;
+	      wsamsg->namelen = offsetof (struct sockaddr_un, sun_path) + len;
+	    }
 	}
     }
 
