@@ -625,6 +625,9 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       SetHandleInformation (wr_proc_pipe, HANDLE_FLAG_INHERIT, 0);
       SetHandleInformation (parent, HANDLE_FLAG_INHERIT, 0);
     }
+  /* FIXME: racy */
+  if (mode != _P_OVERLAY)
+    SetHandleInformation (my_wr_proc_pipe, HANDLE_FLAG_INHERIT, 0);
   parent_winpid = GetCurrentProcessId ();
 
   /* When ruid != euid we create the new process under the current original
@@ -729,10 +732,9 @@ loop:
 	}
     }
 
-  /* Restore impersonation. In case of _P_OVERLAY this isn't
-     allowed since it would overwrite child data. */
-  if (mode != _P_OVERLAY || !rc)
-    ::cygheap->user.reimpersonate ();
+  if (mode != _P_OVERLAY)
+    SetHandleInformation (my_wr_proc_pipe, HANDLE_FLAG_INHERIT,
+			  HANDLE_FLAG_INHERIT);
 
   /* Set errno now so that debugging messages from it appear before our
      final debugging message [this is a general rule for debugging
@@ -752,10 +754,17 @@ loop:
 	 process fails.  Only need to do this for _P_OVERLAY since the handle will
 	 be closed otherwise.  Don't need to do this for 'parent' since it will
 	 be closed in every case.  See FIXME above. */
-      if (!ismsys() && mode == _P_OVERLAY)
-	SetHandleInformation (wr_proc_pipe, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+      if (!ismsys () && mode == _P_OVERLAY)
+	SetHandleInformation (wr_proc_pipe, HANDLE_FLAG_INHERIT,
+			      HANDLE_FLAG_INHERIT);
       if (wr_proc_pipe == my_wr_proc_pipe)
 	wr_proc_pipe = NULL;	/* We still own it: don't nuke in destructor */
+
+      /* Restore impersonation. In case of _P_OVERLAY this isn't
+	 allowed since it would overwrite child data. */
+      if (mode != _P_OVERLAY)
+	::cygheap->user.reimpersonate ();
+
       res = -1;
       goto out;
     }

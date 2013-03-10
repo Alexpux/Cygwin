@@ -1,3 +1,37 @@
+2013-03-09  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* cygtls.h (_cygtls::signal_debugger): Change argument type.
+	(_cygtls::copy_context): Delete declaration.
+	* exceptions.cc (exception::handle): Don't call copy_context() here.
+	Move signal_handler call earlier and always call it.  
+	(_cygtls::copy_context): Delete definition.
+	(_cygtls::signal_debugger): Move copy_context logic here.  Suspend
+	thread receiving signal before gathering context information.
+
+2013-03-08  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* spawn.cc (child_info_spawn::worker): Save and restore my_wr_proc_pipe
+	around non-execing operations to avoid handle leak seen in
+	http://cygwin.com/ml/cygwin/2013-03/msg00152.html .
+
+2013-03-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* include/sys/un.h (UNIX_PATH_MAX): Rename from UNIX_PATH_LEN to
+	follow Linux.
+	* fhandler_socket.cc: Change UNIX_PATH_LEN to UNIX_PATH_MAX throughout.
+	(fhandler_socket::recv_internal): Don't return prematurely in case of
+	successful return.  For AF_LOCAL sockets, overwrite returned AF_INET
+	name with AF_LOCAL name.
+
+2013-03-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_socket.cc (fhandler_socket::bind): Fix check for AF_LOCAL
+	filename length to allow non-NUL terminated strings within namelen
+	bytes.  Copy over sun_path to local array sun_path to have a
+	NUL-terminated string for subsequent function calls.  Move path_conv
+	check before OS bind call to not bind the socket before being sure
+	the file doesn't exist.  Add and fix comments.
+
 2013-03-06  Corinna Vinschen  <corinna@vinschen.de>
 
 	* mount.cc (fs_names): Add trailing NULL element to avoid potential
