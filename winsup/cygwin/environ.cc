@@ -782,7 +782,7 @@ environ_init (char **envp, int envc)
   int sawTERM = 0;
   bool envp_passed_in;
   bool got_something_from_registry;
-  static char NO_COPY cygterm[] = "TERM=msys";
+  static char NO_COPY cygterm[] = "TERM=cygwin";
   myfault efault;
   tmp_pathbuf tp;
 
