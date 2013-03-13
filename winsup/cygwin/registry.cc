@@ -20,8 +20,6 @@ details. */
 #include "ntdll.h"
 #include <wchar.h>
 #include <alloca.h>
-#include <errno.h>
-#include "cygerrno.h"
 
 /* Opens a key under the appropriate Cygwin key.
    Do not use HKCU per MS KB 199190  */
@@ -92,7 +90,35 @@ reg_key::reg_key (bool isHKLM, REGSAM access, ...): _disposition (0)
 void
 reg_key::build_reg (HKEY top, REGSAM access, va_list av)
 {
-  set_errno(ENOSYS);
+  PWCHAR name;
+  HANDLE r;
+  UNICODE_STRING uname;
+  OBJECT_ATTRIBUTES attr;
+  NTSTATUS status;
+
+  if (top != HKEY_LOCAL_MACHINE && top != HKEY_CURRENT_USER)
+    r = (HANDLE) top;
+  else if (!NT_SUCCESS (top_key (top == HKEY_LOCAL_MACHINE, access, &r)))
+    return;
+  key_is_invalid = 0;
+  while ((name = va_arg (av, PWCHAR)) != NULL)
+    {
+      RtlInitUnicodeString (&uname, name);
+      InitializeObjectAttributes (&attr, &uname,
+				  OBJ_CASE_INSENSITIVE | OBJ_OPENIF, r, NULL);
+
+      status = NtCreateKey (&key, access, &attr, 0, NULL,
+			    REG_OPTION_NON_VOLATILE, &_disposition);
+      if (r != (HANDLE) top)
+	NtClose (r);
+      r = key;
+      if (!NT_SUCCESS (status))
+	{
+	  key_is_invalid = status;
+	  debug_printf ("failed to create key %S in the registry", &uname);
+	  break;
+	}
+    }
 }
 
 /* Given the current registry key, return the specific DWORD value
