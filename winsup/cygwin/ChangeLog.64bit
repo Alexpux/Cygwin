@@ -1,3 +1,53 @@
+2013-03-15  Corinna Vinschen  <corinna@vinschen.de>
+
+	* Revert previous patch.  For some reason perl doesn't like it.
+
+2013-03-15  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygtls.h (CYGTLS_PADSIZE): Reduce to 8000 on x86_64.
+	* tlsoffsets64.h: Regenerate.
+
+2013-03-15  Corinna Vinschen  <corinna@vinschen.de>
+
+	* dcrt0.cc (child_info_fork::handle_fork): Call
+	_pei386_runtime_relocator first thing, before copying parent data and
+	bss segment.  Tweak comment to explain why.
+
+2013-03-15  Corinna Vinschen  <corinna@vinschen.de>
+
+	* gendef (_sigfe): 16-byte align xmm0 storage and use movdqa.
+	(_sigbe): Fix alignment before calling yield.  Use movdqa to save and
+	restore xmm0.
+	(sigdelayed): Use movdqa to save and restore xmm0.
+	(_ZN7_cygtls4lockEv): Change absolute values to hex.
+	(stabilize_sig_stack): Ditto.
+	(setjmp): Add comment to explain usage of movdqu.
+	(__sjfault): Ditto.
+	(__ljfault): Ditto.
+	(longjmp): Ditto. Access return value using 32 bit opcodes only.
+	* miscfuncs.cc (thread_wrapper): Don't attempt to copy exception
+	handler list on x86_64.
+
+2013-03-15  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (.#dllname_info): Call _std_dll_init on x86_64 bit, too.
+	(INIT_WRAPPER): Change to accommodate the change of the init functions
+	from sysv_abit to ms_abi.  Fix preceeding comment accordingly.  Add
+	SEH information and comments.
+	(std_dll_init): Drop leading underscore on x86_64.  Drop sysv_abi
+	comment.
+	(wsock_init): Ditto.
+	(LoadDLLprime): Drop surrounding ifdef to accommodate above underscore
+	juggling.
+
+2013-03-15  Corinna Vinschen  <corinna@vinschen.de>
+
+	* gendef (_sigfe): Save float arguments as well before calling yield.
+	(_sigbe): Move saving %rax from prologue to just before the yield call.
+	Save %xmm0 register, too.
+	(sigdelayed): Add comment.  Save %xmm0 register, too, before calling
+	yield.
+
 2013-03-14  Corinna Vinschen  <corinna@vinschen.de>
 
 	* fhandler_tty.cc (fhandler_pty_master::setup): Add
