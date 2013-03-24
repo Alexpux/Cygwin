@@ -12,12 +12,10 @@ details. */
 
 #include "config.h"
 
-#if defined (__CYGWIN__)
-  #define __INSIDE_CYGWIN__ 1
-#endif
+#define __INSIDE_CYGWIN__
 
 #if defined (__MSYS__)
-  #define __INSIDE_MSYS__ 1
+  #define __INSIDE_MSYS__
 #endif
 
 #include "cygwin/version.h"
