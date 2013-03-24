@@ -34,7 +34,6 @@ linebuf::finish (bool cmdlenoverflow_ok)
 void
 linebuf::add (const char *what, int len)
 {
-  TRACE_IN;
   size_t newix = ix + len;
   if (newix >= alloced || !buf)
     {
@@ -49,7 +48,6 @@ linebuf::add (const char *what, int len)
 void
 linebuf::prepend (const char *what, int len)
 {
-  TRACE_IN;
   int buflen;
   size_t newix;
   if ((newix = ix + len) >= alloced)
@@ -131,7 +129,6 @@ linebuf::fromargv (av& newargv, const char *real_path, bool cmdlenoverflow_ok)
 int
 av::unshift (const char *what, int conv)
 {
-  TRACE_IN;
   char **av;
   av = (char **) crealloc (argv, (argc + 2) * sizeof (char *));
   if (!av)

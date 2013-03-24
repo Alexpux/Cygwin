@@ -177,7 +177,7 @@ cygwin_strupr (char *string)
   return string;
 }
 
-int __reg2
+int __stdcall
 check_invalid_virtual_addr (const void *s, unsigned sz)
 {
   MEMORY_BASIC_INFORMATION mbuf;

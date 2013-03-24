@@ -26,10 +26,9 @@ wininfo NO_COPY winmsg;
 
 muto NO_COPY wininfo::_lock;
 
-int __reg3
+int __stdcall
 wininfo::process (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-  TRACE_IN;
 #ifndef NOSTRACE
   strace.wm (uMsg, wParam, lParam);
 #endif
@@ -58,10 +57,9 @@ process_window_events (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 /* Handle windows events.  Inherits ownership of the wininfo lock */
-DWORD __reg1 WINAPI
+DWORD WINAPI
 wininfo::winthread ()
 {
-  TRACE_IN;
   MSG msg;
   WNDCLASSW wc;
   static NO_COPY WCHAR classname[] = L"CygwinWndClass";
@@ -127,13 +125,11 @@ HWND ()
 void
 wininfo::lock ()
 {
- TRACE_IN;
   _lock.init ("wininfo_lock")->acquire ();
 }
 
 void
 wininfo::release ()
 {
- TRACE_IN;
   _lock.release ();
 }

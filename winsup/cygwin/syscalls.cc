@@ -87,7 +87,6 @@ static int __stdcall mknod_worker (const char *, mode_t, mode_t, _major_t,
 void __stdcall
 close_all_files (bool norelease)
 {
-  TRACE_IN;
   cygheap->fdtab.lock ();
 
   semaphore::terminate ();
@@ -122,7 +121,6 @@ close_all_files (bool norelease)
 extern "C" int
 dup (int fd)
 {
-  TRACE_IN;
   int res = cygheap->fdtab.dup3 (fd, cygheap_fdnew (), 0);
   syscall_printf ("%R = dup(%d)", res, fd);
   return res;
@@ -131,7 +129,6 @@ dup (int fd)
 inline int
 dup_finish (int oldfd, int newfd, int flags)
 {
-  TRACE_IN;
   int res;
   if ((res = cygheap->fdtab.dup3 (oldfd, newfd, flags | O_EXCL)) == newfd)
     {
@@ -144,7 +141,6 @@ dup_finish (int oldfd, int newfd, int flags)
 extern "C" int
 dup2 (int oldfd, int newfd)
 {
-  TRACE_IN;
   int res;
   if (newfd >= OPEN_MAX_MAX || newfd < 0)
     {
@@ -166,7 +162,6 @@ dup2 (int oldfd, int newfd)
 extern "C" int
 dup3 (int oldfd, int newfd, int flags)
 {
-  TRACE_IN;
   int res;
   if (newfd >= OPEN_MAX_MAX)
     {
@@ -189,7 +184,6 @@ dup3 (int oldfd, int newfd, int flags)
 static inline void
 start_transaction (HANDLE &old_trans, HANDLE &trans)
 {
-  TRACE_IN;
   NTSTATUS status = NtCreateTransaction (&trans,
 				SYNCHRONIZE | TRANSACTION_ALL_ACCESS,
 				NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
@@ -208,7 +202,6 @@ start_transaction (HANDLE &old_trans, HANDLE &trans)
 static inline NTSTATUS
 stop_transaction (NTSTATUS status, HANDLE old_trans, HANDLE trans)
 {
-  TRACE_IN;
   RtlSetCurrentTransaction (old_trans);
   if (NT_SUCCESS (status))
     status = NtCommitTransaction (trans, TRUE);
@@ -242,7 +235,6 @@ enum bin_status
 static bin_status
 try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access)
 {
-  TRACE_IN;
   bin_status bin_stat = move_to_bin;
   NTSTATUS status;
   OBJECT_ATTRIBUTES attr;
@@ -572,7 +564,6 @@ out:
 static NTSTATUS
 check_dir_not_empty (HANDLE dir, path_conv &pc)
 {
-  TRACE_IN;
   IO_STATUS_BLOCK io;
   const ULONG bufsiz = 3 * sizeof (FILE_NAMES_INFORMATION)
 		       + 3 * NAME_MAX * sizeof (WCHAR);
@@ -645,7 +636,6 @@ check_dir_not_empty (HANDLE dir, path_conv &pc)
 NTSTATUS
 unlink_nt (path_conv &pc)
 {
-  TRACE_IN;
   NTSTATUS status;
   HANDLE fh, fh_ro = NULL;
   OBJECT_ATTRIBUTES attr;
@@ -976,7 +966,6 @@ out:
 extern "C" int
 unlink (const char *ourname)
 {
-  TRACE_IN;
   int res = -1;
   dev_t devn;
   NTSTATUS status;
@@ -1023,7 +1012,6 @@ unlink (const char *ourname)
 extern "C" int
 _remove_r (struct _reent *, const char *ourname)
 {
-  TRACE_IN;
   path_conv win32_name (ourname, PC_SYM_NOFOLLOW);
 
   if (win32_name.error)
@@ -1039,7 +1027,6 @@ _remove_r (struct _reent *, const char *ourname)
 extern "C" int
 remove (const char *ourname)
 {
-  TRACE_IN;
   path_conv win32_name (ourname, PC_SYM_NOFOLLOW);
 
   if (win32_name.error)
@@ -1057,7 +1044,6 @@ remove (const char *ourname)
 extern "C" pid_t
 getpid ()
 {
-  TRACE_IN;
   syscall_printf ("%d = getpid()", myself->pid);
   return myself->pid;
 }
@@ -1065,7 +1051,6 @@ getpid ()
 extern "C" pid_t
 _getpid_r (struct _reent *)
 {
-  TRACE_IN;
   return getpid ();
 }
 
@@ -1073,7 +1058,6 @@ _getpid_r (struct _reent *)
 extern "C" pid_t
 getppid ()
 {
-  TRACE_IN;
   syscall_printf ("%d = getppid()", myself->ppid);
   return myself->ppid;
 }
@@ -1082,7 +1066,6 @@ getppid ()
 extern "C" pid_t
 setsid (void)
 {
-  TRACE_IN;
 #ifdef NEWVFORK
   vfork_save *vf = vfork_storage.val ();
   /* This is a horrible, horrible kludge */
@@ -1118,7 +1101,6 @@ setsid (void)
 extern "C" pid_t
 getsid (pid_t pid)
 {
-  TRACE_IN;
   pid_t res;
   if (!pid)
     res = myself->sid;
@@ -1140,7 +1122,6 @@ getsid (pid_t pid)
 extern "C" ssize_t
 read (int fd, void *ptr, size_t len)
 {
-  TRACE_IN;
   pthread_testcancel ();
 
   myfault efault;
@@ -1176,7 +1157,6 @@ EXPORT_ALIAS (read, _read)
 extern "C" ssize_t
 readv (int fd, const struct iovec *const iov, const int iovcnt)
 {
-  TRACE_IN;
   pthread_testcancel ();
 
   myfault efault;
@@ -1217,7 +1197,6 @@ done:
 extern "C" ssize_t
 pread (int fd, void *ptr, size_t len, off_t off)
 {
-  TRACE_IN;
   pthread_testcancel ();
 
   ssize_t res;
@@ -1234,7 +1213,6 @@ pread (int fd, void *ptr, size_t len, off_t off)
 extern "C" ssize_t
 write (int fd, const void *ptr, size_t len)
 {
-  TRACE_IN;
   pthread_testcancel ();
 
   myfault efault;
@@ -1273,7 +1251,6 @@ EXPORT_ALIAS (write, _write)
 extern "C" ssize_t
 writev (const int fd, const struct iovec *const iov, const int iovcnt)
 {
-  TRACE_IN;
   pthread_testcancel ();
 
   myfault efault;
@@ -1320,7 +1297,6 @@ done:
 extern "C" ssize_t
 pwrite (int fd, void *ptr, size_t len, off_t off)
 {
-  TRACE_IN;
   pthread_testcancel ();
 
   ssize_t res;
@@ -1340,7 +1316,6 @@ pwrite (int fd, void *ptr, size_t len, off_t off)
 extern "C" int
 open (const char *unix_path, int flags, ...)
 {
-  TRACE_IN;
   int res = -1;
   va_list ap;
   mode_t mode = 0;
@@ -1423,7 +1398,6 @@ EXPORT_ALIAS (open, _open64 )
 extern "C" off_t
 lseek64 (int fd, off_t pos, int dir)
 {
-  TRACE_IN;
   off_t res;
 
   if (dir != SEEK_SET && dir != SEEK_CUR && dir != SEEK_END)
@@ -1456,7 +1430,6 @@ EXPORT_ALIAS (lseek64, _lseek)
 extern "C" _off_t
 lseek (int fd, _off_t pos, int dir)
 {
-  TRACE_IN;
   return lseek64 (fd, (off_t) pos, dir);
 }
 EXPORT_ALIAS (lseek, _lseek)
@@ -1466,7 +1439,6 @@ EXPORT_ALIAS (lseek, _lseek)
 extern "C" int
 close (int fd)
 {
-  TRACE_IN;
   int res;
 
   syscall_printf ("close(%d)", fd);
@@ -1494,7 +1466,6 @@ EXPORT_ALIAS (close, _close)
 extern "C" int
 isatty (int fd)
 {
-  TRACE_IN;
   int res;
 
   cygheap_fdget cfd (fd);
@@ -1510,7 +1481,6 @@ EXPORT_ALIAS (isatty, _isatty)
 extern "C" int
 link (const char *oldpath, const char *newpath)
 {
-  TRACE_IN;
   int res = -1;
   fhandler_base *fh;
 
@@ -1544,7 +1514,6 @@ link (const char *oldpath, const char *newpath)
 static int
 chown_worker (const char *name, unsigned fmode, uid_t uid, gid_t gid)
 {
-  TRACE_IN;
   int res = -1;
   fhandler_base *fh;
 
@@ -1569,7 +1538,6 @@ chown_worker (const char *name, unsigned fmode, uid_t uid, gid_t gid)
 extern "C" int
 chown32 (const char * name, uid_t uid, gid_t gid)
 {
-  TRACE_IN;
   return chown_worker (name, PC_SYM_FOLLOW, uid, gid);
 }
 
@@ -1579,7 +1547,6 @@ EXPORT_ALIAS (chown32, chown)
 extern "C" int
 chown (const char * name, __uid16_t uid, __gid16_t gid)
 {
-  TRACE_IN;
   return chown_worker (name, PC_SYM_FOLLOW,
 		       uid16touid32 (uid), gid16togid32 (gid));
 }
@@ -1588,7 +1555,6 @@ chown (const char * name, __uid16_t uid, __gid16_t gid)
 extern "C" int
 lchown32 (const char * name, uid_t uid, gid_t gid)
 {
-  TRACE_IN;
   return chown_worker (name, PC_SYM_NOFOLLOW, uid, gid);
 }
 
@@ -1606,7 +1572,6 @@ lchown (const char * name, __uid16_t uid, __gid16_t gid)
 extern "C" int
 fchown32 (int fd, uid_t uid, gid_t gid)
 {
-  TRACE_IN;
   cygheap_fdget cfd (fd);
   if (cfd < 0)
     {
@@ -1626,7 +1591,6 @@ EXPORT_ALIAS (fchown32, fchown)
 extern "C" int
 fchown (int fd, __uid16_t uid, __gid16_t gid)
 {
-  TRACE_IN;
   return fchown32 (fd, uid16touid32 (uid), gid16togid32 (gid));
 }
 #endif
@@ -1635,7 +1599,6 @@ fchown (int fd, __uid16_t uid, __gid16_t gid)
 extern "C" mode_t
 umask (mode_t mask)
 {
-  TRACE_IN;
   mode_t oldmask;
 
   oldmask = cygheap->umask;
@@ -1646,7 +1609,6 @@ umask (mode_t mask)
 int
 chmod_device (path_conv& pc, mode_t mode)
 {
-  TRACE_IN;
   return mknod_worker (pc.get_win32 (), pc.dev.mode & S_IFMT, mode, pc.dev.get_major (), pc.dev.get_minor ());
 }
 
@@ -1657,7 +1619,6 @@ chmod_device (path_conv& pc, mode_t mode)
 extern "C" int
 chmod (const char *path, mode_t mode)
 {
-  TRACE_IN;
   int res = -1;
   fhandler_base *fh;
   if (!(fh = build_fh_name (path, PC_SYM_FOLLOW, stat_suffixes)))
@@ -1682,7 +1643,6 @@ chmod (const char *path, mode_t mode)
 extern "C" int
 fchmod (int fd, mode_t mode)
 {
-  TRACE_IN;
   cygheap_fdget cfd (fd);
   if (cfd < 0)
     {
@@ -1697,7 +1657,6 @@ fchmod (int fd, mode_t mode)
 static void
 stat64_to_stat32 (struct stat *src, struct __stat32 *dst)
 {
-  TRACE_IN;
   dst->st_dev = ((src->st_dev >> 8) & 0xff00) | (src->st_dev & 0xff);
   dst->st_ino = ((unsigned) (src->st_ino >> 32)) | (unsigned) src->st_ino;
   dst->st_mode = src->st_mode;
@@ -1720,7 +1679,6 @@ static bool dev_st_inited;
 void
 fhandler_base::stat_fixup (struct stat *buf)
 {
-  TRACE_IN;
   /* For devices, set inode number to device number.  This gives us a valid,
      unique inode number without having to call hash_path_name. */
   if (!buf->st_ino)
@@ -1761,7 +1719,6 @@ fhandler_base::stat_fixup (struct stat *buf)
 extern "C" int
 fstat64 (int fd, struct stat *buf)
 {
-  TRACE_IN;
   int res;
 
   cygheap_fdget cfd (fd);
@@ -1782,7 +1739,6 @@ fstat64 (int fd, struct stat *buf)
 extern "C" int
 _fstat64_r (struct _reent *ptr, int fd, struct stat *buf)
 {
-  TRACE_IN;
   int ret;
 
   if ((ret = fstat64 (fd, buf)) == -1)
@@ -1797,7 +1753,6 @@ EXPORT_ALIAS (_fstat64_r, _fstat_r)
 extern "C" int
 fstat (int fd, struct stat *buf)
 {
-  TRACE_IN;
   struct stat buf64;
   int ret = fstat64 (fd, &buf64);
   if (!ret)
@@ -1808,7 +1763,6 @@ fstat (int fd, struct stat *buf)
 extern "C" int
 _fstat_r (struct _reent *ptr, int fd, struct stat *buf)
 {
-  TRACE_IN;
   int ret;
 
   if ((ret = fstat (fd, buf)) == -1)
@@ -1821,7 +1775,6 @@ _fstat_r (struct _reent *ptr, int fd, struct stat *buf)
 extern "C" int
 fsync (int fd)
 {
-  TRACE_IN;
   pthread_testcancel ();
   cygheap_fdget cfd (fd);
   if (cfd < 0)
@@ -1837,7 +1790,6 @@ EXPORT_ALIAS (fsync, fdatasync)
 static void
 sync_worker (HANDLE dir, USHORT len, LPCWSTR vol)
 {
-  TRACE_IN;
   NTSTATUS status;
   HANDLE fh;
   IO_STATUS_BLOCK io;
@@ -1862,7 +1814,6 @@ sync_worker (HANDLE dir, USHORT len, LPCWSTR vol)
 extern "C" void
 sync ()
 {
-  TRACE_IN;
   OBJECT_ATTRIBUTES attr;
   NTSTATUS status;
   HANDLE devhdl;
@@ -1896,10 +1847,9 @@ sync ()
 }
 
 /* Cygwin internal */
-int __reg2
+int __stdcall
 stat_worker (path_conv &pc, struct stat *buf)
 {
-  TRACE_IN;
   int res = -1;
 
   myfault efault;
@@ -1938,7 +1888,6 @@ stat_worker (path_conv &pc, struct stat *buf)
 extern "C" int
 stat64 (const char *name, struct stat *buf)
 {
-  TRACE_IN;
   syscall_printf ("entering");
   path_conv pc (name, PC_SYM_FOLLOW | PC_POSIX | PC_KEEP_HANDLE,
 		stat_suffixes);
@@ -1948,7 +1897,6 @@ stat64 (const char *name, struct stat *buf)
 extern "C" int
 _stat64_r (struct _reent *ptr, const char *name, struct stat *buf)
 {
-  TRACE_IN;
   int ret;
 
   if ((ret = stat64 (name, buf)) == -1)
@@ -1963,7 +1911,6 @@ EXPORT_ALIAS (_stat64_r, _stat_r)
 extern "C" int
 stat (const char *name, struct stat *buf)
 {
-  TRACE_IN;
   struct stat buf64;
   int ret = stat64 (name, &buf64);
   if (!ret)
@@ -1974,7 +1921,6 @@ stat (const char *name, struct stat *buf)
 extern "C" int
 _stat_r (struct _reent *ptr, const char *name, struct stat *buf)
 {
-  TRACE_IN;
   int ret;
 
   if ((ret = stat (name, buf)) == -1)
@@ -1987,7 +1933,6 @@ _stat_r (struct _reent *ptr, const char *name, struct stat *buf)
 extern "C" int
 lstat64 (const char *name, struct stat *buf)
 {
-  TRACE_IN;
   syscall_printf ("entering");
   path_conv pc (name, PC_SYM_NOFOLLOW | PC_POSIX | PC_KEEP_HANDLE,
 		stat_suffixes);
@@ -2001,7 +1946,6 @@ EXPORT_ALIAS (lstat64, lstat)
 extern "C" int
 lstat (const char *name, struct stat *buf)
 {
-  TRACE_IN;
   struct stat buf64;
   int ret = lstat64 (name, &buf64);
   if (!ret)
@@ -2013,7 +1957,6 @@ lstat (const char *name, struct stat *buf)
 extern "C" int
 access (const char *fn, int flags)
 {
-  TRACE_IN;
   // flags were incorrectly specified
   int res = -1;
   if (flags & ~(F_OK|R_OK|W_OK|X_OK))
@@ -2038,7 +1981,6 @@ access (const char *fn, int flags)
 extern "C" int
 euidaccess (const char *fn, int flags)
 {
-  TRACE_IN;
   // flags were incorrectly specified
   int res = -1;
   if (flags & ~(F_OK|R_OK|W_OK|X_OK))
@@ -2061,7 +2003,6 @@ static void
 rename_append_suffix (path_conv &pc, const char *path, size_t len,
 		      const char *suffix)
 {
-  TRACE_IN;
   char buf[len + 5];
 
   if (ascii_strcasematch (path + len - 4, ".lnk")
@@ -2076,7 +2017,6 @@ rename_append_suffix (path_conv &pc, const char *path, size_t len,
 static inline bool
 nt_path_has_executable_suffix (PUNICODE_STRING upath)
 {
-  TRACE_IN;
   static const PUNICODE_STRING blessed_executable_suffixes[] =
   {
     &ro_u_com,
@@ -2114,7 +2054,6 @@ nt_path_has_executable_suffix (PUNICODE_STRING upath)
 extern "C" int
 rename (const char *oldpath, const char *newpath)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   int res = -1;
   path_conv oldpc, newpc, new2pc, *dstpc, *removepc = NULL;
@@ -2609,7 +2548,6 @@ out:
 extern "C" int
 system (const char *cmdstring)
 {
-  TRACE_IN;
   pthread_testcancel ();
 
   myfault efault;
@@ -2640,7 +2578,6 @@ system (const char *cmdstring)
 extern "C" int
 setdtablesize (int size)
 {
-  TRACE_IN;
   if (size <= (int)cygheap->fdtab.size || cygheap->fdtab.extend (size - cygheap->fdtab.size))
     return 0;
 
@@ -2650,14 +2587,12 @@ setdtablesize (int size)
 extern "C" int
 getdtablesize ()
 {
-  TRACE_IN;
   return cygheap->fdtab.size > OPEN_MAX ? cygheap->fdtab.size : OPEN_MAX;
 }
 
 extern "C" int
 getpagesize ()
 {
-  TRACE_IN;
   return (size_t) wincap.allocation_granularity ();
 }
 
@@ -2665,7 +2600,6 @@ getpagesize ()
 extern "C" long int
 fpathconf (int fd, int v)
 {
-  TRACE_IN;
   cygheap_fdget cfd (fd);
   if (cfd < 0)
     return -1;
@@ -2675,7 +2609,6 @@ fpathconf (int fd, int v)
 extern "C" long int
 pathconf (const char *file, int v)
 {
-  TRACE_IN;
   fhandler_base *fh;
   long ret = -1;
 
@@ -2701,7 +2634,6 @@ pathconf (const char *file, int v)
 extern "C" int
 ttyname_r (int fd, char *buf, size_t buflen)
 {
-  TRACE_IN;
   int ret = 0;
   myfault efault;
   if (efault.faulted ())
@@ -2725,7 +2657,6 @@ ttyname_r (int fd, char *buf, size_t buflen)
 extern "C" char *
 ttyname (int fd)
 {
-  TRACE_IN;
   static char name[TTY_NAME_MAX];
   int ret = ttyname_r (fd, name, TTY_NAME_MAX);
   if (ret)
@@ -2739,7 +2670,6 @@ ttyname (int fd)
 extern "C" char *
 ctermid (char *str)
 {
-  TRACE_IN;
   if (str == NULL)
     str = _my_tls.locals.ttybuf;
   if (myself->ctty < 0)
@@ -2757,7 +2687,6 @@ ctermid (char *str)
 extern "C" int
 _cygwin_istext_for_stdio (int fd)
 {
-  TRACE_IN;
   if (CYGWIN_VERSION_OLD_STDIO_CRLF_HANDLING)
     {
       syscall_printf ("fd %d: old API", fd);
@@ -2795,7 +2724,6 @@ extern "C" int _fwalk (struct _reent *ptr, int (*function) (FILE *));
 static int
 setmode_helper (FILE *f)
 {
-  TRACE_IN;
   if (fileno (f) != _my_tls.locals.setmode_file)
     {
       syscall_printf ("improbable, but %d != %d", fileno (f), _my_tls.locals.setmode_file);
@@ -2813,7 +2741,6 @@ setmode_helper (FILE *f)
 extern "C" int
 getmode (int fd)
 {
-  TRACE_IN;
   cygheap_fdget cfd (fd);
   if (cfd < 0)
     return -1;
@@ -2827,7 +2754,6 @@ getmode (int fd)
 extern "C" int
 _setmode (int fd, int mode)
 {
-  TRACE_IN;
   cygheap_fdget cfd (fd);
   if (cfd < 0)
     return -1;
@@ -2864,7 +2790,6 @@ _setmode (int fd, int mode)
 extern "C" int
 cygwin_setmode (int fd, int mode)
 {
-  TRACE_IN;
   int res = _setmode (fd, mode);
   if (res != -1)
     {
@@ -2881,7 +2806,6 @@ cygwin_setmode (int fd, int mode)
 extern "C" int
 posix_fadvise (int fd, off_t offset, off_t len, int advice)
 {
-  TRACE_IN;
   int res = -1;
   cygheap_fdget cfd (fd);
   if (cfd >= 0)
@@ -2896,7 +2820,6 @@ posix_fadvise (int fd, off_t offset, off_t len, int advice)
 extern "C" int
 posix_fallocate (int fd, off_t offset, off_t len)
 {
-  TRACE_IN;
   int res = -1;
   if (offset < 0 || len == 0)
     set_errno (EINVAL);
@@ -2915,7 +2838,6 @@ posix_fallocate (int fd, off_t offset, off_t len)
 extern "C" int
 ftruncate64 (int fd, off_t length)
 {
-  TRACE_IN;
   int res = -1;
   cygheap_fdget cfd (fd);
   if (cfd >= 0)
@@ -2933,7 +2855,6 @@ EXPORT_ALIAS (ftruncate64, ftruncate)
 extern "C" int
 ftruncate (int fd, _off_t length)
 {
-  TRACE_IN;
   return ftruncate64 (fd, (off_t)length);
 }
 #endif
@@ -2942,7 +2863,6 @@ ftruncate (int fd, _off_t length)
 extern "C" int
 truncate64 (const char *pathname, off_t length)
 {
-  TRACE_IN;
   int fd;
   int res = -1;
 
@@ -2965,7 +2885,6 @@ EXPORT_ALIAS (truncate64, truncate)
 extern "C" int
 truncate (const char *pathname, _off_t length)
 {
-  TRACE_IN;
   return truncate64 (pathname, (off_t)length);
 }
 #endif
@@ -2973,7 +2892,6 @@ truncate (const char *pathname, _off_t length)
 extern "C" long
 _get_osfhandle (int fd)
 {
-  TRACE_IN;
   long res;
 
   cygheap_fdget cfd (fd);
@@ -2989,7 +2907,6 @@ _get_osfhandle (int fd)
 extern "C" int
 fstatvfs (int fd, struct statvfs *sfs)
 {
-  TRACE_IN;
   myfault efault;
   if (efault.faulted (EFAULT))
     return -1;
@@ -3003,7 +2920,6 @@ fstatvfs (int fd, struct statvfs *sfs)
 extern "C" int
 statvfs (const char *name, struct statvfs *sfs)
 {
-  TRACE_IN;
   int res = -1;
   fhandler_base *fh = NULL;
 
@@ -3037,7 +2953,6 @@ statvfs (const char *name, struct statvfs *sfs)
 extern "C" int
 fstatfs (int fd, struct statfs *sfs)
 {
-  TRACE_IN;
   struct statvfs vfs;
   int ret = fstatvfs (fd, &vfs);
   if (!ret)
@@ -3058,7 +2973,6 @@ fstatfs (int fd, struct statfs *sfs)
 extern "C" int
 statfs (const char *fname, struct statfs *sfs)
 {
-  TRACE_IN;
   struct statvfs vfs;
   int ret = statvfs (fname, &vfs);
   if (!ret)
@@ -3080,7 +2994,6 @@ statfs (const char *fname, struct statfs *sfs)
 extern "C" int
 setpgid (pid_t pid, pid_t pgid)
 {
-  TRACE_IN;
   int res = -1;
   if (pid == 0)
     pid = getpid ();
@@ -3115,7 +3028,6 @@ setpgid (pid_t pid, pid_t pgid)
 extern "C" pid_t
 getpgid (pid_t pid)
 {
-  TRACE_IN;
   if (pid == 0)
     pid = getpid ();
 
@@ -3131,21 +3043,18 @@ getpgid (pid_t pid)
 extern "C" int
 setpgrp (void)
 {
-  TRACE_IN;
   return setpgid (0, 0);
 }
 
 extern "C" pid_t
 getpgrp (void)
 {
-  TRACE_IN;
   return getpgid (0);
 }
 
 extern "C" char *
 ptsname (int fd)
 {
-  TRACE_IN;
   static char buf[TTY_NAME_MAX];
   return ptsname_r (fd, buf, sizeof (buf)) == 0 ? buf : NULL;
 }
@@ -3153,7 +3062,6 @@ ptsname (int fd)
 extern "C" int
 ptsname_r (int fd, char *buf, size_t buflen)
 {
-  TRACE_IN;
   if (!buf)
     {
       set_errno (EINVAL);
@@ -3170,7 +3078,6 @@ static int __stdcall
 mknod_worker (const char *path, mode_t type, mode_t mode, _major_t major,
 	      _minor_t minor)
 {
-  TRACE_IN;
   char buf[sizeof (":\\00000000:00000000:00000000") + PATH_MAX];
   sprintf (buf, ":\\%x:%x:%x", major, minor,
 	   type | (mode & (S_IRWXU | S_IRWXG | S_IRWXO)));
@@ -3180,7 +3087,6 @@ mknod_worker (const char *path, mode_t type, mode_t mode, _major_t major,
 extern "C" int
 mknod32 (const char *path, mode_t mode, dev_t dev)
 {
-  TRACE_IN;
   myfault efault;
   if (efault.faulted (EFAULT))
     return -1;
@@ -3235,14 +3141,12 @@ mknod32 (const char *path, mode_t mode, dev_t dev)
 extern "C" int
 mknod (const char *_path, mode_t mode, __dev16_t dev)
 {
-  TRACE_IN;
   return mknod32 (_path, mode, (dev_t) dev);
 }
 
 extern "C" int
 mkfifo (const char *path, mode_t mode)
 {
-  TRACE_IN;
   return mknod32 (path, (mode & ~S_IFMT) | S_IFIFO, 0);
 }
 
@@ -3250,7 +3154,6 @@ mkfifo (const char *path, mode_t mode)
 extern "C" int
 seteuid32 (uid_t uid)
 {
-  TRACE_IN;
   debug_printf ("uid: %u myself->uid: %u myself->gid: %u",
 		uid, myself->uid, myself->gid);
 
@@ -3475,7 +3378,6 @@ EXPORT_ALIAS (seteuid32, seteuid)
 extern "C" int
 seteuid (__uid16_t uid)
 {
-  TRACE_IN;
   return seteuid32 (uid16touid32 (uid));
 }
 #endif
@@ -3484,7 +3386,6 @@ seteuid (__uid16_t uid)
 extern "C" int
 setuid32 (uid_t uid)
 {
-  TRACE_IN;
   int ret = seteuid32 (uid);
   if (!ret)
     {
@@ -3502,7 +3403,6 @@ EXPORT_ALIAS (setuid32, setuid)
 extern "C" int
 setuid (__uid16_t uid)
 {
-  TRACE_IN;
   return setuid32 (uid16touid32 (uid));
 }
 #endif
@@ -3510,7 +3410,6 @@ setuid (__uid16_t uid)
 extern "C" int
 setreuid32 (uid_t ruid, uid_t euid)
 {
-  TRACE_IN;
   int ret = 0;
   bool tried = false;
   uid_t old_euid = myself->uid;
@@ -3533,7 +3432,6 @@ EXPORT_ALIAS (setreuid32, setreuid)
 extern "C" int
 setreuid (__uid16_t ruid, __uid16_t euid)
 {
-  TRACE_IN;
   return setreuid32 (uid16touid32 (ruid), uid16touid32 (euid));
 }
 #endif
@@ -3542,7 +3440,6 @@ setreuid (__uid16_t ruid, __uid16_t euid)
 extern "C" int
 setegid32 (gid_t gid)
 {
-  TRACE_IN;
   debug_printf ("new egid: %u current: %u", gid, myself->gid);
 
   if (gid == myself->gid)
@@ -3595,7 +3492,6 @@ EXPORT_ALIAS (setegid32, setegid)
 extern "C" int
 setegid (__gid16_t gid)
 {
-  TRACE_IN;
   return setegid32 (gid16togid32 (gid));
 }
 #endif
@@ -3604,7 +3500,6 @@ setegid (__gid16_t gid)
 extern "C" int
 setgid32 (gid_t gid)
 {
-  TRACE_IN;
   int ret = setegid32 (gid);
   if (!ret)
     cygheap->user.real_gid = myself->gid;
@@ -3617,7 +3512,6 @@ EXPORT_ALIAS (setgid32, setgid)
 extern "C" int
 setgid (__gid16_t gid)
 {
-  TRACE_IN;
   int ret = setegid32 (gid16togid32 (gid));
   if (!ret)
     cygheap->user.real_gid = myself->gid;
@@ -3628,7 +3522,6 @@ setgid (__gid16_t gid)
 extern "C" int
 setregid32 (gid_t rgid, gid_t egid)
 {
-  TRACE_IN;
   int ret = 0;
   bool tried = false;
   gid_t old_egid = myself->gid;
@@ -3651,7 +3544,6 @@ EXPORT_ALIAS (setregid32, setregid)
 extern "C" int
 setregid (__gid16_t rgid, __gid16_t egid)
 {
-  TRACE_IN;
   return setregid32 (gid16togid32 (rgid), gid16togid32 (egid));
 }
 #endif
@@ -3661,7 +3553,6 @@ setregid (__gid16_t rgid, __gid16_t egid)
 extern "C" int
 chroot (const char *newroot)
 {
-  TRACE_IN;
   path_conv path (newroot, PC_SYM_FOLLOW | PC_POSIX);
 
   int ret = -1;
@@ -3688,21 +3579,18 @@ chroot (const char *newroot)
 extern "C" int
 creat (const char *path, mode_t mode)
 {
-  TRACE_IN;
   return open (path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
 extern "C" void
 __assertfail ()
 {
-  TRACE_IN;
   exit (99);
 }
 
 extern "C" int
 vhangup ()
 {
-  TRACE_IN;
   set_errno (ENOSYS);
   return -1;
 }
@@ -3710,7 +3598,6 @@ vhangup ()
 extern "C" int
 setpriority (int which, id_t who, int value)
 {
-  TRACE_IN;
   DWORD prio = nice_to_winprio (value);
   int error = 0;
 
@@ -3790,7 +3677,6 @@ setpriority (int which, id_t who, int value)
 extern "C" int
 getpriority (int which, id_t who)
 {
-  TRACE_IN;
   int nice = NZERO * 2; /* Illegal value */
 
   switch (which)
@@ -3850,7 +3736,6 @@ out:
 extern "C" int
 nice (int incr)
 {
-  TRACE_IN;
   return setpriority (PRIO_PROCESS, myself->pid, myself->nice + incr);
 }
 
@@ -3861,7 +3746,6 @@ nice (int incr)
 extern "C" int
 ffs (int i)
 {
-  TRACE_IN;
   static const unsigned char table[] =
     {
       0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
@@ -3884,7 +3768,6 @@ ffs (int i)
 static void
 locked_append (int fd, const void * buf, size_t size)
 {
-  TRACE_IN;
   struct flock lock_buffer = {F_WRLCK, SEEK_SET, 0, 0, 0};
   int count = 0;
 
@@ -3906,7 +3789,6 @@ locked_append (int fd, const void * buf, size_t size)
 extern "C" void
 updwtmp (const char *wtmp_file, const struct utmp *ut)
 {
-  TRACE_IN;
   int fd;
 
   if ((fd = open (wtmp_file, O_WRONLY | O_BINARY, 0)) >= 0)
@@ -3923,7 +3805,6 @@ static char *utmp_file = (char *) _PATH_UTMP;
 static void
 internal_setutent (bool force_readwrite)
 {
-  TRACE_IN;
   if (force_readwrite && utmp_readonly)
     endutent ();
   if (utmp_fd < 0)
@@ -3946,14 +3827,12 @@ internal_setutent (bool force_readwrite)
 extern "C" void
 setutent ()
 {
-  TRACE_IN;
   internal_setutent (false);
 }
 
 extern "C" void
 endutent ()
 {
-  TRACE_IN;
   if (utmp_fd >= 0)
     {
       close (utmp_fd);
@@ -3965,7 +3844,6 @@ endutent ()
 extern "C" void
 utmpname (const char *file)
 {
-  TRACE_IN;
   myfault efault;
   if (efault.faulted () || !*file)
     {
@@ -3992,7 +3870,6 @@ static unsigned utix = 0;
 static struct utmpx *
 copy_ut_to_utx (struct utmp *ut, struct utmpx *utx)
 {
-  TRACE_IN;
   if (!ut)
     return NULL;
   memcpy (utx, ut, sizeof *ut);
@@ -4004,7 +3881,6 @@ copy_ut_to_utx (struct utmp *ut, struct utmpx *utx)
 extern "C" struct utmp *
 getutent ()
 {
-  TRACE_IN;
   if (utmp_fd < 0)
     {
       internal_setutent (false);
@@ -4021,7 +3897,6 @@ getutent ()
 extern "C" struct utmp *
 getutid (const struct utmp *id)
 {
-  TRACE_IN;
   myfault efault;
   if (efault.faulted (EFAULT))
     return NULL;
@@ -4061,7 +3936,6 @@ getutid (const struct utmp *id)
 extern "C" struct utmp *
 getutline (const struct utmp *line)
 {
-  TRACE_IN;
   myfault efault;
   if (efault.faulted (EFAULT))
     return NULL;
@@ -4085,7 +3959,6 @@ getutline (const struct utmp *line)
 extern "C" struct utmp *
 pututline (const struct utmp *ut)
 {
-  TRACE_IN;
   myfault efault;
   if (efault.faulted (EFAULT))
     return NULL;
@@ -4117,21 +3990,18 @@ pututline (const struct utmp *ut)
 extern "C" void
 setutxent ()
 {
-  TRACE_IN;
   internal_setutent (false);
 }
 
 extern "C" void
 endutxent ()
 {
-  TRACE_IN;
   endutent ();
 }
 
 extern "C" struct utmpx *
 getutxent ()
 {
-  TRACE_IN;
   /* UGH.  Not thread safe. */
   static struct utmpx utx;
   return copy_ut_to_utx (getutent (), &utx);
@@ -4140,7 +4010,6 @@ getutxent ()
 extern "C" struct utmpx *
 getutxid (const struct utmpx *id)
 {
-  TRACE_IN;
   /* UGH.  Not thread safe. */
   static struct utmpx utx;
 
@@ -4154,7 +4023,6 @@ getutxid (const struct utmpx *id)
 extern "C" struct utmpx *
 getutxline (const struct utmpx *line)
 {
-  TRACE_IN;
   /* UGH.  Not thread safe. */
   static struct utmpx utx;
 
@@ -4168,7 +4036,6 @@ getutxline (const struct utmpx *line)
 extern "C" struct utmpx *
 pututxline (const struct utmpx *utmpx)
 {
-  TRACE_IN;
   /* UGH.  Not thread safe. */
   static struct utmpx utx;
 
@@ -4182,7 +4049,6 @@ pututxline (const struct utmpx *utmpx)
 extern "C" void
 updwtmpx (const char *wtmpx_file, const struct utmpx *utmpx)
 {
-  TRACE_IN;
   ((struct utmpx *)utmpx)->ut_time = utmpx->ut_tv.tv_sec;
   updwtmp (wtmpx_file, (const struct utmp *) utmpx);
 }
@@ -4190,7 +4056,6 @@ updwtmpx (const char *wtmpx_file, const struct utmpx *utmpx)
 extern "C" long
 gethostid (void)
 {
-  TRACE_IN;
   /* Fetch the globally unique MachineGuid value from
      HKLM/Software/Microsoft/Cryptography and hash it. */
 
@@ -4219,7 +4084,6 @@ static struct __sFILE64 *shell_fp;
 extern "C" char *
 getusershell ()
 {
-  TRACE_IN;
   /* List of default shells if no /etc/shells exists, defined as on Linux.
      FIXME: SunOS has a far longer list, containing all shells which
      might be shipped with the OS.  Should we do the same for the Cygwin
@@ -4264,7 +4128,6 @@ getusershell ()
 extern "C" void
 setusershell ()
 {
-  TRACE_IN;
   if (shell_fp)
     fseek (shell_fp, 0L, SEEK_SET);
   shell_index = 0;
@@ -4273,7 +4136,6 @@ setusershell ()
 extern "C" void
 endusershell ()
 {
-  TRACE_IN;
   if (shell_fp)
     {
       fclose (shell_fp);
@@ -4285,28 +4147,24 @@ endusershell ()
 extern "C" void
 flockfile (FILE *file)
 {
-  TRACE_IN;
   _flockfile (file);
 }
 
 extern "C" int
 ftrylockfile (FILE *file)
 {
-  TRACE_IN;
   return _ftrylockfile (file);
 }
 
 extern "C" void
 funlockfile (FILE *file)
 {
-  TRACE_IN;
   _funlockfile (file);
 }
 
 extern "C" FILE *
 popen (const char *command, const char *in_type)
 {
-  TRACE_IN;
   const char *type = in_type;
   char rw = *type++;
 
@@ -4410,7 +4268,6 @@ popen (const char *command, const char *in_type)
 int
 pclose (FILE *fp)
 {
-  TRACE_IN;
   fhandler_pipe *fh = (fhandler_pipe *) cygheap->fdtab[fileno(fp)];
 
   if (fh->get_device () != FH_PIPEW && fh->get_device () != FH_PIPER)
@@ -4447,7 +4304,6 @@ static int
 gen_full_path_at (char *path_ret, int dirfd, const char *pathname,
 		  bool null_pathname_allowed = false)
 {
-  TRACE_IN;
   /* Set null_pathname_allowed to true to allow GLIBC compatible behaviour
      for NULL pathname.  Only used by futimesat. */
   if (!pathname && !null_pathname_allowed)
@@ -4510,7 +4366,6 @@ gen_full_path_at (char *path_ret, int dirfd, const char *pathname,
 extern "C" int
 openat (int dirfd, const char *pathname, int flags, ...)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4531,7 +4386,6 @@ openat (int dirfd, const char *pathname, int flags, ...)
 extern "C" int
 faccessat (int dirfd, const char *pathname, int mode, int flags)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4565,7 +4419,6 @@ faccessat (int dirfd, const char *pathname, int mode, int flags)
 extern "C" int
 fchmodat (int dirfd, const char *pathname, mode_t mode, int flags)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4587,7 +4440,6 @@ fchmodat (int dirfd, const char *pathname, mode_t mode, int flags)
 extern "C" int
 fchownat (int dirfd, const char *pathname, uid_t uid, gid_t gid, int flags)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4607,7 +4459,6 @@ fchownat (int dirfd, const char *pathname, uid_t uid, gid_t gid, int flags)
 extern "C" int
 fstatat (int dirfd, const char *pathname, struct stat *st, int flags)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4632,7 +4483,6 @@ extern "C" int
 utimensat (int dirfd, const char *pathname, const struct timespec *times,
 	   int flags)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4654,7 +4504,6 @@ utimensat (int dirfd, const char *pathname, const struct timespec *times,
 extern "C" int
 futimesat (int dirfd, const char *pathname, const struct timeval *times)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4670,7 +4519,6 @@ linkat (int olddirfd, const char *oldpathname,
 	int newdirfd, const char *newpathname,
 	int flags)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4702,7 +4550,6 @@ linkat (int olddirfd, const char *oldpathname,
 extern "C" int
 mkdirat (int dirfd, const char *pathname, mode_t mode)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4716,7 +4563,6 @@ mkdirat (int dirfd, const char *pathname, mode_t mode)
 extern "C" int
 mkfifoat (int dirfd, const char *pathname, mode_t mode)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4730,7 +4576,6 @@ mkfifoat (int dirfd, const char *pathname, mode_t mode)
 extern "C" int
 mknodat (int dirfd, const char *pathname, mode_t mode, dev_t dev)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4744,7 +4589,6 @@ mknodat (int dirfd, const char *pathname, mode_t mode, dev_t dev)
 extern "C" ssize_t
 readlinkat (int dirfd, const char *pathname, char *buf, size_t bufsize)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4759,7 +4603,6 @@ extern "C" int
 renameat (int olddirfd, const char *oldpathname,
 	  int newdirfd, const char *newpathname)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4778,7 +4621,6 @@ scandirat (int dirfd, const char *pathname, struct dirent ***namelist,
 	   int (*select) (const struct dirent *),
 	   int (*compar) (const struct dirent **, const struct dirent **))
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4792,7 +4634,6 @@ scandirat (int dirfd, const char *pathname, struct dirent ***namelist,
 extern "C" int
 symlinkat (const char *oldpath, int newdirfd, const char *newpathname)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -4806,7 +4647,6 @@ symlinkat (const char *oldpath, int newdirfd, const char *newpathname)
 extern "C" int
 unlinkat (int dirfd, const char *pathname, int flags)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))

@@ -25,7 +25,6 @@
 extern "C" int
 poll (struct pollfd *fds, nfds_t nfds, int timeout)
 {
-  TRACE_IN;
   int max_fd = 0;
   int invalid_fds = 0;
   fd_set *read_fds, *write_fds, *except_fds;

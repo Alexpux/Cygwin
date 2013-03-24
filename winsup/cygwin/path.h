@@ -8,8 +8,6 @@ This file is part of Cygwin.
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
-#ifndef PATH_H
-#define PATH_H 1
 
 #include "devices.h"
 #include "mount.h"
@@ -502,4 +500,3 @@ public:
 };
 
 //extern "C" int msys_symlink(const char *, const char *);
-#endif /* PATH_H */

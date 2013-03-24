@@ -160,7 +160,7 @@ fhandler_dev_mem::write (const void *ptr, size_t ulen)
   return ulen;
 }
 
-void __reg3
+void __stdcall
 fhandler_dev_mem::read (void *ptr, size_t& ulen)
 {
   if (!ulen || pos >= (off_t) mem_size)
