@@ -30,7 +30,6 @@ class av
   av (): argv (NULL) {}
   av (int ac_in, const char * const *av_in) : calloced (0), argc (ac_in), win16_exe (false)
   {
-    TRACE_IN;
     argv = (char **) cmalloc_abort (HEAP_1_ARGV, (argc + 5) * sizeof (char *));
     memcpy (argv, av_in, (argc + 1) * sizeof (char *));
   }
@@ -38,22 +37,19 @@ class av
   void set (int ac_in, const char * const *av_in) {new (this) av (ac_in, av_in);}
   ~av ()
   {
-    TRACE_IN;
     if (argv)
       {
 	for (int i = 0; i < calloced; i++)
 	  if (argv[i])
 	    cfree (argv[i]);
-	if (argv)
-      cfree (argv);
+	cfree (argv);
       }
   }
   int unshift (const char *what, int conv = 0);
-  operator char **() {TRACE_IN; return argv;}
-  void all_calloced () {TRACE_IN; calloced = argc;}
+  operator char **() {return argv;}
+  void all_calloced () {calloced = argc;}
   void replace0_maybe (const char *arg0)
   {
-    TRACE_IN; 
     /* Note: Assumes that argv array has not yet been "unshifted" */
     if (!calloced)
       {
@@ -62,19 +58,16 @@ class av
       }
   }
   void replace (int i, const char *arg)
-    {
-  TRACE_IN;
-      argv[i] = cstrdup1 (arg);
-    }
+  {
+    argv[i] = cstrdup1 (arg);
+  }
   void dup_maybe (int i)
   {
-    TRACE_IN;
     if (i >= calloced)
       argv[i] = cstrdup1 (argv[i]);
   }
   void dup_all ()
   {
-    TRACE_IN;
     for (int i = calloced; i < argc; i++)
       argv[i] = cstrdup1 (argv[i]);
   }

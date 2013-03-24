@@ -97,7 +97,6 @@ extern "C" int
 cygwin_select (int maxfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	       struct timeval *to)
 {
-  TRACE_IN;
   select_printf ("select(%d, %p, %p, %p, %p)", maxfds, readfds, writefds, exceptfds, to);
 
   pthread_testcancel ();
@@ -135,7 +134,6 @@ static int
 select (int maxfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	DWORD ms)
 {
-  TRACE_IN;
   int res = select_stuff::select_loop;
 
   LONGLONG start_time = gtod.msecs ();	/* Record the current time for later use. */
@@ -229,7 +227,6 @@ extern "C" int
 pselect(int maxfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	const struct timespec *ts, const sigset_t *set)
 {
-  TRACE_IN;
   struct timeval tv;
   sigset_t oldset = _my_tls.sigmask;
 
@@ -255,7 +252,6 @@ pselect(int maxfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 void
 select_stuff::cleanup ()
 {
-  TRACE_IN;
   select_record *s = &start;
 
   select_printf ("calling cleanup routines");
@@ -271,7 +267,6 @@ select_stuff::cleanup ()
 inline void
 select_stuff::destroy ()
 {
-  TRACE_IN;
   select_record *s;
   select_record *snext = start.next;
 
@@ -286,7 +281,6 @@ select_stuff::destroy ()
 
 select_stuff::~select_stuff ()
 {
-  TRACE_IN;
   cleanup ();
   destroy ();
 }
@@ -312,7 +306,6 @@ bool
 select_stuff::test_and_set (int i, fd_set *readfds, fd_set *writefds,
 			    fd_set *exceptfds)
 {
-  TRACE_IN;
   if (!UNIX_FD_ISSET (i, readfds) && !UNIX_FD_ISSET (i, writefds)
       && ! UNIX_FD_ISSET (i, exceptfds))
     return true;
@@ -353,7 +346,6 @@ select_stuff::wait_states
 select_stuff::wait (fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 		    DWORD ms)
 {
-  TRACE_IN;
   HANDLE w4[MAXIMUM_WAIT_OBJECTS];
   select_record *s = &start;
   DWORD m = 0;
@@ -472,7 +464,6 @@ static int
 set_bits (select_record *me, fd_set *readfds, fd_set *writefds,
 	  fd_set *exceptfds)
 {
-  TRACE_IN;
   int ready = 0;
   fhandler_socket *sock;
   select_printf ("me %p, testing fd %d (%s)", me, me->fd, me->fh->get_name ());
@@ -512,7 +503,6 @@ set_bits (select_record *me, fd_set *readfds, fd_set *writefds,
 int
 select_stuff::poll (fd_set *readfds, fd_set *writefds, fd_set *exceptfds)
 {
-  TRACE_IN;
   int n = 0;
   select_record *s = &start;
   while ((s = s->next))
@@ -524,7 +514,6 @@ select_stuff::poll (fd_set *readfds, fd_set *writefds, fd_set *exceptfds)
 static int
 verify_true (select_record *, fd_set *, fd_set *, fd_set *)
 {
-  TRACE_IN;
   return 1;
 }
 
@@ -532,28 +521,24 @@ static int
 verify_ok (select_record *me, fd_set *readfds, fd_set *writefds,
 	   fd_set *exceptfds)
 {
-  TRACE_IN;
   return set_bits (me, readfds, writefds, exceptfds);
 }
 
 static int
 no_startup (select_record *, select_stuff *)
 {
-  TRACE_IN;
   return 1;
 }
 
 static int
 no_verify (select_record *, fd_set *, fd_set *, fd_set *)
 {
-  TRACE_IN;
   return 0;
 }
 
 static int
 pipe_data_available (int fd, fhandler_base *fh, HANDLE h, bool writing)
 {
-  TRACE_IN;
   IO_STATUS_BLOCK iosb = {0};
   FILE_PIPE_LOCAL_INFORMATION fpli = {0};
 
@@ -600,7 +585,6 @@ pipe_data_available (int fd, fhandler_base *fh, HANDLE h, bool writing)
 static int
 peek_pipe (select_record *s, bool from_select)
 {
-  TRACE_IN;
   HANDLE h;
   set_handle_or_return_if_not_open (h, s);
 
@@ -683,7 +667,6 @@ static int start_thread_pipe (select_record *me, select_stuff *stuff);
 static DWORD WINAPI
 thread_pipe (void *arg)
 {
-  TRACE_IN;
   select_pipe_info *pi = (select_pipe_info *) arg;
   DWORD sleep_time = 0;
   bool looping = true;
@@ -734,7 +717,6 @@ start_thread_pipe (select_record *me, select_stuff *stuff)
 static void
 pipe_cleanup (select_record *, select_stuff *stuff)
 {
-  TRACE_IN;
   select_pipe_info *pi = (select_pipe_info *) stuff->device_specific_pipe;
   if (!pi)
     return;
@@ -750,7 +732,6 @@ pipe_cleanup (select_record *, select_stuff *stuff)
 select_record *
 fhandler_pipe::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   if (!ss->device_specific_pipe
       && (ss->device_specific_pipe = new select_pipe_info) == NULL)
     return NULL;
@@ -768,7 +749,6 @@ fhandler_pipe::select_read (select_stuff *ss)
 select_record *
 fhandler_pipe::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   if (!ss->device_specific_pipe
       && (ss->device_specific_pipe = new select_pipe_info) == NULL)
     return NULL;
@@ -785,7 +765,6 @@ fhandler_pipe::select_write (select_stuff *ss)
 select_record *
 fhandler_pipe::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   if (!ss->device_specific_pipe
       && (ss->device_specific_pipe = new select_pipe_info) == NULL)
     return NULL;
@@ -850,7 +829,6 @@ fhandler_fifo::select_except (select_stuff *ss)
 static int
 peek_console (select_record *me, bool)
 {
-  TRACE_IN;
   extern const char * get_nonascii_key (INPUT_RECORD& input_rec, char *);
   fhandler_console *fh = (fhandler_console *) me->fh;
 
@@ -910,7 +888,6 @@ static int
 verify_console (select_record *me, fd_set *rfds, fd_set *wfds,
 	      fd_set *efds)
 {
-  TRACE_IN;
   return peek_console (me, true);
 }
 
@@ -918,7 +895,6 @@ verify_console (select_record *me, fd_set *rfds, fd_set *wfds,
 select_record *
 fhandler_console::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -937,7 +913,6 @@ fhandler_console::select_read (select_stuff *ss)
 select_record *
 fhandler_console::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -955,7 +930,6 @@ fhandler_console::select_write (select_stuff *ss)
 select_record *
 fhandler_console::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -973,7 +947,6 @@ fhandler_console::select_except (select_stuff *ss)
 select_record *
 fhandler_pty_common::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   if (!ss->device_specific_pipe
       && (ss->device_specific_pipe = new select_pipe_info) == NULL)
     return NULL;
@@ -991,7 +964,6 @@ fhandler_pty_common::select_read (select_stuff *ss)
 select_record *
 fhandler_pty_common::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   if (!ss->device_specific_pipe
       && (ss->device_specific_pipe = new select_pipe_info) == NULL)
     return NULL;
@@ -1008,7 +980,6 @@ fhandler_pty_common::select_write (select_stuff *ss)
 select_record *
 fhandler_pty_common::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   if (!ss->device_specific_pipe
       && (ss->device_specific_pipe = new select_pipe_info) == NULL)
     return NULL;
@@ -1026,7 +997,6 @@ static int
 verify_tty_slave (select_record *me, fd_set *readfds, fd_set *writefds,
 	   fd_set *exceptfds)
 {
-  TRACE_IN;
   if (IsEventSignalled (me->h))
     me->read_ready = true;
   return set_bits (me, readfds, writefds, exceptfds);
@@ -1035,7 +1005,6 @@ verify_tty_slave (select_record *me, fd_set *readfds, fd_set *writefds,
 select_record *
 fhandler_pty_slave::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   s->h = input_available_event;
   s->startup = no_startup;
@@ -1050,7 +1019,6 @@ fhandler_pty_slave::select_read (select_stuff *ss)
 select_record *
 fhandler_dev_null::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1066,7 +1034,6 @@ fhandler_dev_null::select_read (select_stuff *ss)
 select_record *
 fhandler_dev_null::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1082,7 +1049,6 @@ fhandler_dev_null::select_write (select_stuff *ss)
 select_record *
 fhandler_dev_null::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1100,7 +1066,6 @@ static int start_thread_serial (select_record *me, select_stuff *stuff);
 static int
 peek_serial (select_record *s, bool)
 {
-  TRACE_IN;
   COMSTAT st;
 
   fhandler_serial *fh = (fhandler_serial *) s->fh;
@@ -1192,7 +1157,6 @@ err:
 static DWORD WINAPI
 thread_serial (void *arg)
 {
-  TRACE_IN;
   select_serial_info *si = (select_serial_info *) arg;
   bool looping = true;
 
@@ -1219,7 +1183,6 @@ thread_serial (void *arg)
 static int
 start_thread_serial (select_record *me, select_stuff *stuff)
 {
-  TRACE_IN;
   if (stuff->device_specific_serial)
     me->h = *((select_serial_info *) stuff->device_specific_serial)->thread;
   else
@@ -1237,7 +1200,6 @@ start_thread_serial (select_record *me, select_stuff *stuff)
 static void
 serial_cleanup (select_record *, select_stuff *stuff)
 {
-  TRACE_IN;
   select_serial_info *si = (select_serial_info *) stuff->device_specific_serial;
   if (!si)
     return;
@@ -1253,7 +1215,6 @@ serial_cleanup (select_record *, select_stuff *stuff)
 select_record *
 fhandler_serial::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1270,7 +1231,6 @@ fhandler_serial::select_read (select_stuff *ss)
 select_record *
 fhandler_serial::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1287,7 +1247,6 @@ fhandler_serial::select_write (select_stuff *ss)
 select_record *
 fhandler_serial::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1304,7 +1263,6 @@ fhandler_serial::select_except (select_stuff *ss)
 select_record *
 fhandler_base::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1320,7 +1278,6 @@ fhandler_base::select_read (select_stuff *ss)
 select_record *
 fhandler_base::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1336,7 +1293,6 @@ fhandler_base::select_write (select_stuff *ss)
 select_record *
 fhandler_base::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1352,7 +1308,6 @@ fhandler_base::select_except (select_stuff *ss)
 static int
 peek_socket (select_record *me, bool)
 {
-  TRACE_IN;
   fhandler_socket *fh = (fhandler_socket *) me->fh;
   long events;
   /* Don't play with the settings again, unless having taken a deep look into
@@ -1378,7 +1333,6 @@ static int start_thread_socket (select_record *, select_stuff *);
 static DWORD WINAPI
 thread_socket (void *arg)
 {
-  TRACE_IN;
   select_socket_info *si = (select_socket_info *) arg;
   DWORD timeout = (si->num_w4 <= MAXIMUM_WAIT_OBJECTS)
 		  ? INFINITE
@@ -1420,7 +1374,6 @@ static inline bool init_tls_select_info () __attribute__ ((always_inline));
 static inline bool
 init_tls_select_info ()
 {
-  TRACE_IN;
   if (!_my_tls.locals.select.sockevt)
     {
       _my_tls.locals.select.sockevt = CreateEvent (&sec_none_nih, TRUE, FALSE,
@@ -1450,7 +1403,6 @@ init_tls_select_info ()
 static int
 start_thread_socket (select_record *me, select_stuff *stuff)
 {
-  TRACE_IN;
   select_socket_info *si;
 
   if ((si = (select_socket_info *) stuff->device_specific_socket))
@@ -1515,7 +1467,6 @@ start_thread_socket (select_record *me, select_stuff *stuff)
 void
 socket_cleanup (select_record *, select_stuff *stuff)
 {
-  TRACE_IN;
   select_socket_info *si = (select_socket_info *) stuff->device_specific_socket;
   select_printf ("si %p si->thread %p", si, si ? si->thread : NULL);
   if (!si)
@@ -1535,7 +1486,6 @@ socket_cleanup (select_record *, select_stuff *stuff)
 select_record *
 fhandler_socket::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1552,7 +1502,6 @@ fhandler_socket::select_read (select_stuff *ss)
 select_record *
 fhandler_socket::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1574,7 +1523,6 @@ fhandler_socket::select_write (select_stuff *ss)
 select_record *
 fhandler_socket::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1592,7 +1540,6 @@ fhandler_socket::select_except (select_stuff *ss)
 static int
 peek_windows (select_record *me, bool)
 {
-  TRACE_IN;
   MSG m;
   HANDLE h;
   set_handle_or_return_if_not_open (h, me);
@@ -1615,14 +1562,12 @@ static int
 verify_windows (select_record *me, fd_set *rfds, fd_set *wfds,
 		fd_set *efds)
 {
-  TRACE_IN;
   return peek_windows (me, true);
 }
 
 select_record *
 fhandler_windows::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1640,7 +1585,6 @@ fhandler_windows::select_read (select_stuff *ss)
 select_record *
 fhandler_windows::select_write (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1658,7 +1602,6 @@ fhandler_windows::select_write (select_stuff *ss)
 select_record *
 fhandler_windows::select_except (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   if (!s->startup)
     {
@@ -1676,7 +1619,6 @@ fhandler_windows::select_except (select_stuff *ss)
 static int
 peek_mailslot (select_record *me, bool)
 {
-  TRACE_IN;
   HANDLE h;
   set_handle_or_return_if_not_open (h, me);
 
@@ -1702,7 +1644,6 @@ static int
 verify_mailslot (select_record *me, fd_set *rfds, fd_set *wfds,
 		 fd_set *efds)
 {
-  TRACE_IN;
   return peek_mailslot (me, true);
 }
 
@@ -1711,7 +1652,6 @@ static int start_thread_mailslot (select_record *me, select_stuff *stuff);
 static DWORD WINAPI
 thread_mailslot (void *arg)
 {
-  TRACE_IN;
   select_mailslot_info *mi = (select_mailslot_info *) arg;
   bool gotone = false;
   DWORD sleep_time = 0;
@@ -1749,7 +1689,6 @@ out:
 static int
 start_thread_mailslot (select_record *me, select_stuff *stuff)
 {
-  TRACE_IN;
   if (stuff->device_specific_mailslot)
     {
       me->h = *((select_mailslot_info *) stuff->device_specific_mailslot)->thread;
@@ -1769,7 +1708,6 @@ start_thread_mailslot (select_record *me, select_stuff *stuff)
 static void
 mailslot_cleanup (select_record *, select_stuff *stuff)
 {
-  TRACE_IN;
   select_mailslot_info *mi = (select_mailslot_info *) stuff->device_specific_mailslot;
   if (!mi)
     return;
@@ -1785,7 +1723,6 @@ mailslot_cleanup (select_record *, select_stuff *stuff)
 select_record *
 fhandler_mailslot::select_read (select_stuff *ss)
 {
-  TRACE_IN;
   select_record *s = ss->start.next;
   s->startup = start_thread_mailslot;
   s->peek = peek_mailslot;

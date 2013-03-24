@@ -1240,7 +1240,7 @@ fhandler_dev_tape::close ()
   return ret ? -1 : cret;
 }
 
-void __reg3
+void __stdcall
 fhandler_dev_tape::raw_read (void *ptr, size_t &ulen)
 {
   char *buf = (char *) ptr;
@@ -1341,7 +1341,7 @@ fhandler_dev_tape::raw_read (void *ptr, size_t &ulen)
   unlock ();
 }
 
-ssize_t __reg3
+ssize_t __stdcall
 fhandler_dev_tape::raw_write (const void *ptr, size_t len)
 {
   if (!_lock (true))

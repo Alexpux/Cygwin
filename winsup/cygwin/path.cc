@@ -162,7 +162,6 @@ int
 path_prefix_p (const char *path1, const char *path2, int len1,
 	       bool caseinsensitive)
 {
-  TRACE_IN;
   /* Handle case where PATH1 has trailing '/' and when it doesn't.  */
   if (len1 > 0 && isdirsep (path1[len1 - 1]))
     len1--;
@@ -181,8 +180,6 @@ path_prefix_p (const char *path1, const char *path2, int len1,
 int
 pathnmatch (const char *path1, const char *path2, int len, bool caseinsensitive)
 {
-  TRACE_IN;
-  debug_printf("pathnmatch(%s, %s, %d))", path1, path2, caseinsensitive);
   return caseinsensitive
 	 ? strncasematch (path1, path2, len) : !strncmp (path1, path2, len);
 }
@@ -191,8 +188,6 @@ pathnmatch (const char *path1, const char *path2, int len, bool caseinsensitive)
 int
 pathmatch (const char *path1, const char *path2, bool caseinsensitive)
 {
-  TRACE_IN;
-  debug_printf("pathmatch(path1=%s, path2=%s, %d))", path1, path2, caseinsensitive);
   return caseinsensitive
 	 ? strcasematch (path1, path2) : !strcmp (path1, path2);
 }
@@ -242,7 +237,6 @@ has_dot_last_component (const char *dir, bool test_dot_dot)
 int
 normalize_posix_path (const char *src, char *dst, char *&tail)
 {
-  TRACE_IN;
   const char *in_src = src;
   char *dst_start = dst;
   syscall_printf ("src %s", src);
@@ -255,8 +249,6 @@ normalize_posix_path (const char *src, char *dst, char *&tail)
     {
       if (!cygheap->cwd.get (dst))
 	return get_errno ();
-	  syscall_printf("src %s", src);
-      syscall_printf("dst %s", dst);
       tail = strchr (tail, '\0');
       if (isslash (dst[0]) && isslash (dst[1]))
 	++dst_start;
@@ -268,7 +260,6 @@ normalize_posix_path (const char *src, char *dst, char *&tail)
 	}
       if (tail > dst && !isslash (tail[-1]))
 	*tail++ = '/';
-	  syscall_printf("dst %s", dst);
     }
   /* Two leading /'s?  If so, preserve them.  */
   else if (isslash (src[1]) && !isslash (src[2]))
@@ -341,7 +332,6 @@ win32_path:
 inline void
 path_conv::add_ext_from_sym (symlink_info &sym)
 {
-  TRACE_IN;
   if (sym.ext_here && *sym.ext_here)
     {
       known_suffix = path + sym.extn;
@@ -352,13 +342,11 @@ path_conv::add_ext_from_sym (symlink_info &sym)
 
 static void __reg2 mkrelpath (char *dst, bool caseinsensitive);
 
-static void __reg2
+static void __stdcall
 mkrelpath (char *path, bool caseinsensitive)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   char *cwd_win32 = tp.c_get ();
-  debug_printf("entr %s", path);
   if (!cygheap->cwd.get (cwd_win32, 0))
     return;
 
@@ -379,13 +367,11 @@ mkrelpath (char *path, bool caseinsensitive)
   memmove (path, tail, strlen (tail) + 1);
   if (!*path)
     strcpy (path, ".");
-  debug_printf("exit %s", path);
 }
 
 void
 path_conv::set_normalized_path (const char *path_copy)
 {
-  TRACE_IN;
   if (path_copy)
     {
       size_t n = strlen (path_copy) + 1;
@@ -397,7 +383,6 @@ path_conv::set_normalized_path (const char *path_copy)
 static inline void
 str2uni_cat (UNICODE_STRING &tgt, const char *srcstr)
 {
-  TRACE_IN;
   int len = sys_mbstowcs (tgt.Buffer + tgt.Length / sizeof (WCHAR),
 			  (tgt.MaximumLength - tgt.Length) / sizeof (WCHAR),
 			  srcstr);
@@ -408,7 +393,6 @@ str2uni_cat (UNICODE_STRING &tgt, const char *srcstr)
 PUNICODE_STRING
 get_nt_native_path (const char *path, UNICODE_STRING& upath, bool dos)
 {
-  TRACE_IN;
   upath.Length = 0;
   if (path[0] == '/')		/* special path w/o NT path representation. */
     str2uni_cat (upath, path);
@@ -465,7 +449,6 @@ get_nt_native_path (const char *path, UNICODE_STRING& upath, bool dos)
 PUNICODE_STRING
 path_conv::get_nt_native_path ()
 {
-  TRACE_IN;
   PUNICODE_STRING res;
   if (wide_path)
     res = &uni_path;
@@ -486,7 +469,6 @@ path_conv::get_nt_native_path ()
 PWCHAR
 path_conv::get_wide_win32_path (PWCHAR wc)
 {
-  TRACE_IN;
   get_nt_native_path ();
   if (!wide_path)
     return NULL;
@@ -605,7 +587,6 @@ void
 path_conv::check (const char *src, unsigned opt,
 		  const suffix_info *suffixes)
 {
-  TRACE_IN;
   /* The tmp_buf array is used when expanding symlinks.  It is NT_MAX_PATH * 2
      in length so that we can hold the expanded symlink plus a trailer.  */
   tmp_pathbuf tp;
@@ -1199,7 +1180,6 @@ out:
 
 path_conv::~path_conv ()
 {
-  TRACE_IN;
   if (normalized_path)
     {
       cfree ((void *) normalized_path);
@@ -1221,7 +1201,6 @@ path_conv::~path_conv ()
 bool
 path_conv::is_binary ()
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   PWCHAR bintest = tp.w_get ();
   DWORD bin;
@@ -1235,7 +1214,6 @@ NTSTATUS
 file_get_fnoi (HANDLE h, bool skip_network_open_inf,
 	       PFILE_NETWORK_OPEN_INFORMATION pfnoi)
 {
-  TRACE_IN;
   NTSTATUS status;
   IO_STATUS_BLOCK io;
 
@@ -1282,7 +1260,6 @@ file_get_fnoi (HANDLE h, bool skip_network_open_inf,
 int
 normalize_win32_path (const char *src, char *dst, char *&tail)
 {
-  TRACE_IN;
   const char *src_start = src;
   bool beg_src_slash = isdirsep (src[0]);
 
@@ -1394,10 +1371,9 @@ normalize_win32_path (const char *src, char *dst, char *&tail)
 /* nofinalslash: Remove trailing / and \ from SRC (except for the
    first one).  It is ok for src == dst.  */
 
-void __reg2
+void __stdcall
 nofinalslash (const char *src, char *dst)
 {
-  TRACE_IN;
   int len = strlen (src);
   if (src != dst)
     memcpy (dst, src, len + 1);
@@ -1411,7 +1387,6 @@ static int
 conv_path_list (const char *src, char *dst, size_t size,
 		cygwin_conv_path_t what)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   char src_delim, dst_delim;
   size_t len;
@@ -1589,8 +1564,6 @@ done:
 extern "C" int
 symlink (const char *oldpath, const char *newpath)
 {
-  TRACE_IN;
-  debug_printf("symlink (%s, %s)", newpath, oldpath);
   return symlink_worker (oldpath, newpath, allow_winsymlinks, false);
 }
 
@@ -1598,7 +1571,6 @@ int
 symlink_worker (const char *oldpath, const char *newpath, bool use_winsym,
 		bool isdevice)
 {
-  TRACE_IN;
   int res = -1;
   size_t len;
   path_conv win32_newpath, win32_oldpath;
@@ -1988,7 +1960,6 @@ done:
 static bool
 cmp_shortcut_header (win_shortcut_hdr *file_header)
 {
-  TRACE_IN;
   /* A Cygwin or U/Win shortcut only contains a description and a relpath.
      Cygwin shortcuts also might contain an ITEMIDLIST. The run type is
      always set to SW_NORMAL. */
@@ -2002,7 +1973,6 @@ cmp_shortcut_header (win_shortcut_hdr *file_header)
 int
 symlink_info::check_shortcut (HANDLE h)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   win_shortcut_hdr *file_header;
   char *buf, *cp;
@@ -2082,7 +2052,6 @@ symlink_info::check_shortcut (HANDLE h)
 int
 symlink_info::check_sysfile (HANDLE h)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   char cookie_buf[sizeof (SYMLINK_COOKIE) - 1];
   char *srcbuf = tp.c_get ();
@@ -2160,7 +2129,6 @@ symlink_info::check_sysfile (HANDLE h)
 int
 symlink_info::check_reparse_point (HANDLE h, bool remote)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   NTSTATUS status;
   IO_STATUS_BLOCK io;
@@ -2236,7 +2204,6 @@ symlink_info::check_reparse_point (HANDLE h, bool remote)
 int
 symlink_info::check_nfs_symlink (HANDLE h)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   NTSTATUS status;
   IO_STATUS_BLOCK io;
@@ -2269,7 +2236,6 @@ symlink_info::check_nfs_symlink (HANDLE h)
 int
 symlink_info::posixify (char *srcbuf)
 {
-  TRACE_IN;
   /* The definition for a path in a native symlink is a bit weird.  The Flags
      value seem to contain 0 for absolute paths (stored as NT native path)
      and 1 for relative paths.  Relative paths are paths not starting with a
@@ -2319,7 +2285,6 @@ symlink_info::posixify (char *srcbuf)
 char *
 suffix_scan::has (const char *in_path, const suffix_info *in_suffixes)
 {
-  TRACE_IN;
   nextstate = SCAN_BEG;
   suffixes = suffixes_start = in_suffixes;
 
@@ -2366,7 +2331,6 @@ suffix_scan::has (const char *in_path, const suffix_info *in_suffixes)
 int
 suffix_scan::next ()
 {
-  TRACE_IN;
   for (;;)
     {
       if (!suffixes)
@@ -2423,7 +2387,6 @@ suffix_scan::next ()
 bool
 symlink_info::set_error (int in_errno)
 {
-  TRACE_IN;
   bool res;
   if (!(pflags & PATH_NO_ACCESS_CHECK) || in_errno == ENAMETOOLONG || in_errno == EIO)
     {
@@ -2443,7 +2406,6 @@ symlink_info::set_error (int in_errno)
 bool
 symlink_info::parse_device (const char *contents)
 {
-  TRACE_IN;
   char *endptr;
   _major_t mymajor;
   _major_t myminor;
@@ -2496,7 +2458,6 @@ int
 symlink_info::check (char *path, const suffix_info *suffixes, fs_info &fs,
 		     path_conv_handle &conv_hdl)
 {
-  TRACE_IN;
   int res;
   HANDLE h;
   NTSTATUS status;
@@ -2521,7 +2482,6 @@ restart:
   h = NULL;
   res = 0;
   contents[0] = '\0';
-  debug_printf("path: %s", path);
   issymlink = true;
   isdevice = false;
   major = 0;
@@ -2924,7 +2884,6 @@ restart:
 int
 symlink_info::set (char *path)
 {
-  TRACE_IN;
   strcpy (contents, path);
   pflags = PATH_SYMLINK;
   fileattr = FILE_ATTRIBUTE_NORMAL;
@@ -2985,7 +2944,7 @@ readlink (const char *path, char *buf, size_t buflen)
    done during the opendir call and the hash or the filename within
    the directory.  FIXME: Not bullet-proof. */
 /* Cygwin internal */
-__ino64_t __reg2
+__ino64_t __stdcall
 hash_path_name (__ino64_t hash, PUNICODE_STRING name)
 {
   if (name->Length == 0)
@@ -2999,7 +2958,7 @@ hash_path_name (__ino64_t hash, PUNICODE_STRING name)
   return hash;
 }
 
-__ino64_t __reg2
+__ino64_t __stdcall
 hash_path_name (__ino64_t hash, PCWSTR name)
 {
   UNICODE_STRING uname;
@@ -3007,7 +2966,7 @@ hash_path_name (__ino64_t hash, PCWSTR name)
   return hash_path_name (hash, &uname);
 }
 
-__ino64_t __reg2
+__ino64_t __stdcall
 hash_path_name (__ino64_t hash, const char *name)
 {
   UNICODE_STRING uname;
@@ -3020,7 +2979,6 @@ hash_path_name (__ino64_t hash, const char *name)
 extern "C" char *
 getcwd (char *buf, size_t ulen)
 {
-  TRACE_IN;
   char* res = NULL;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -3036,14 +2994,12 @@ getcwd (char *buf, size_t ulen)
 extern "C" char *
 getwd (char *buf)
 {
-  TRACE_IN;
   return getcwd (buf, PATH_MAX + 1);  /*Per SuSv3!*/
 }
 
 extern "C" char *
 get_current_dir_name (void)
 {
-  TRACE_IN;
   const char *pwd = getenv ("PWD");
   char *cwd = getcwd (NULL, 0);
   struct __stat64 pwdbuf, cwdbuf;
@@ -3065,7 +3021,6 @@ get_current_dir_name (void)
 extern "C" int
 chdir (const char *in_dir)
 {
-  TRACE_IN;
   myfault efault;
   if (efault.faulted (EFAULT))
     return -1;
@@ -3125,7 +3080,6 @@ chdir (const char *in_dir)
 extern "C" int
 fchdir (int fd)
 {
-  TRACE_IN;
   int res;
   cygheap_fdget cfd (fd);
   if (cfd >= 0)
@@ -3236,7 +3190,6 @@ extern "C" ssize_t
 cygwin_conv_path (cygwin_conv_path_t what, const void *from, void *to,
 		  size_t size)
 {
-  TRACE_IN;
   tmp_pathbuf tp;
   myfault efault;
   if (efault.faulted (EFAULT))
@@ -3412,7 +3365,6 @@ cygwin_create_path (cygwin_conv_path_t what, const void *from)
 extern "C" int
 cygwin_conv_to_win32_path (const char *path, char *win32_path)
 {
-  TRACE_IN;
   return cygwin_conv_path (CCP_POSIX_TO_WIN_A | CCP_RELATIVE, path, win32_path,
 			   MAX_PATH);
 }
@@ -3420,7 +3372,6 @@ cygwin_conv_to_win32_path (const char *path, char *win32_path)
 extern "C" int
 cygwin_conv_to_full_win32_path (const char *path, char *win32_path)
 {
-  TRACE_IN;
   return cygwin_conv_path (CCP_POSIX_TO_WIN_A | CCP_ABSOLUTE, path, win32_path,
 			   MAX_PATH);
 }
@@ -3430,7 +3381,6 @@ cygwin_conv_to_full_win32_path (const char *path, char *win32_path)
 extern "C" int
 cygwin_conv_to_posix_path (const char *path, char *posix_path)
 {
-  TRACE_IN;
   return cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_RELATIVE, path, posix_path,
 			   MAX_PATH);
 }
@@ -3438,7 +3388,6 @@ cygwin_conv_to_posix_path (const char *path, char *posix_path)
 extern "C" int
 cygwin_conv_to_full_posix_path (const char *path, char *posix_path)
 {
-  TRACE_IN;
   return cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE, path, posix_path,
 			   MAX_PATH);
 }
@@ -3448,7 +3397,6 @@ cygwin_conv_to_full_posix_path (const char *path, char *posix_path)
 extern "C" char *
 realpath (const char *path, char *resolved)
 {
-  TRACE_IN;
   /* Make sure the right errno is returned if path is NULL. */
   if (!path)
     {
@@ -3509,7 +3457,6 @@ realpath (const char *path, char *resolved)
 extern "C" char *
 canonicalize_file_name (const char *path)
 {
-  TRACE_IN;
   return realpath (path, NULL);
 }
 
@@ -3532,7 +3479,6 @@ DOCTOOL-END
 extern "C" int
 cygwin_posix_path_list_p (const char *path)
 {
-  TRACE_IN;
   int posix_p = !(strchr (path, ';') || isdrive (path));
   return posix_p;
 }
@@ -3545,7 +3491,6 @@ cygwin_posix_path_list_p (const char *path)
 static int
 conv_path_list_buf_size (const char *path_list, bool to_posix)
 {
-  TRACE_IN;
   int i, num_elms, max_mount_path_len, size;
   const char *p;
 
@@ -3587,14 +3532,12 @@ conv_path_list_buf_size (const char *path_list, bool to_posix)
 extern "C" int
 cygwin_win32_to_posix_path_list_buf_size (const char *path_list)
 {
-  TRACE_IN;
   return conv_path_list_buf_size (path_list, true);
 }
 
 extern "C" int
 cygwin_posix_to_win32_path_list_buf_size (const char *path_list)
 {
-  TRACE_IN;
   return conv_path_list_buf_size (path_list, false);
 }
 
@@ -3609,7 +3552,6 @@ env_PATH_to_posix (const void *win32, void *posix, size_t size)
 extern "C" int
 cygwin_win32_to_posix_path_list (const char *win32, char *posix)
 {
-  TRACE_IN;
   return_with_errno (conv_path_list (win32, posix, MAX_PATH,
 		     CCP_WIN_A_TO_POSIX | CCP_RELATIVE));
 }
@@ -3617,7 +3559,6 @@ cygwin_win32_to_posix_path_list (const char *win32, char *posix)
 extern "C" int
 cygwin_posix_to_win32_path_list (const char *posix, char *win32)
 {
-  TRACE_IN;
   return_with_errno (conv_path_list (posix, win32, MAX_PATH,
 		     CCP_POSIX_TO_WIN_A | CCP_RELATIVE));
 }
@@ -3626,7 +3567,6 @@ extern "C" ssize_t
 cygwin_conv_path_list (cygwin_conv_path_t what, const void *from, void *to,
 		       size_t size)
 {
-  TRACE_IN;
   int ret;
   char *winp = NULL;
   void *orig_to = NULL;
@@ -3699,7 +3639,6 @@ cygwin_conv_path_list (cygwin_conv_path_t what, const void *from, void *to,
 extern "C" void
 cygwin_split_path (const char *path, char *dir, char *file)
 {
-  TRACE_IN;
   int dir_started_p = 0;
 
   /* Deal with drives.
@@ -3762,7 +3701,6 @@ cygwin_split_path (const char *path, char *dir, char *file)
 static inline void
 copy_cwd_str (PUNICODE_STRING tgt, PUNICODE_STRING src)
 {
-  TRACE_IN;
   RtlCopyUnicodeString (tgt, src);
   if (tgt->Buffer[tgt->Length / sizeof (WCHAR) - 1] != L'\\')
     {
@@ -4078,7 +4016,6 @@ find_fast_cwd ()
 void
 cwdstuff::override_win32_cwd (bool init, ULONG old_dismount_count)
 {
-  TRACE_IN;
   HANDLE h = NULL;
 
   PEB &peb = *NtCurrentTeb ()->Peb;
@@ -4199,7 +4136,6 @@ cwdstuff::override_win32_cwd (bool init, ULONG old_dismount_count)
 void
 cwdstuff::init ()
 {
-  TRACE_IN;
   cwd_lock.init ("cwd_lock");
 
   /* Cygwin processes inherit the cwd from their parent.  If the win32 path
@@ -4221,7 +4157,6 @@ cwdstuff::init ()
 int
 cwdstuff::set (path_conv *nat_cwd, const char *posix_cwd)
 {
-  TRACE_IN;
   NTSTATUS status;
   UNICODE_STRING upath;
   PEB &peb = *NtCurrentTeb ()->Peb;
@@ -4451,7 +4386,6 @@ cwdstuff::set (path_conv *nat_cwd, const char *posix_cwd)
 const char *
 cwdstuff::get_error_desc () const
 {
-  TRACE_IN;
   switch (cygheap->cwd.get_error ())
     {
     case EACCES:
@@ -4476,7 +4410,6 @@ cwdstuff::get_error_desc () const
 void
 cwdstuff::reset_posix (wchar_t *w_cwd)
 {
-  TRACE_IN;
   size_t len = sys_wcstombs (NULL, (size_t) -1, w_cwd);
   posix = (char *) crealloc_abort (posix, len + 1);
   sys_wcstombs (posix, len + 1, w_cwd);

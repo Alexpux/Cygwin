@@ -1270,7 +1270,7 @@ are unable to find another msys DLL.",
 }
 
 #ifdef DEBUGGING
-void __reg1
+void __stdcall
 cygbench (const char *s)
 {
   if (GetEnvironmentVariableA ("MSYS_BENCH", NULL, 0))

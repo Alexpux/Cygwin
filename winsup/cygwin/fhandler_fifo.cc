@@ -274,7 +274,7 @@ fhandler_fifo::wait (HANDLE h)
    }
 }
 
-void __reg3
+void __stdcall
 fhandler_fifo::raw_read (void *in_ptr, size_t& len)
 {
   size_t orig_len = len;

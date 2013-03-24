@@ -391,7 +391,7 @@ fhandler_procsys::closedir (DIR *dir)
   return fhandler_virtual::closedir (dir);
 }
 
-void __reg3
+void __stdcall
 fhandler_procsys::read (void *ptr, size_t& len)
 {
   NTSTATUS status;

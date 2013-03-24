@@ -829,7 +829,7 @@ fhandler_socket::fstat (struct __stat64 *buf)
   return res;
 }
 
-int __reg2
+int __stdcall
 fhandler_socket::fstatvfs (struct statvfs *sfs)
 {
   if (get_device () == FH_UNIX)
@@ -842,7 +842,7 @@ fhandler_socket::fstatvfs (struct statvfs *sfs)
   return -1;
 }
 
-int __reg1
+int
 fhandler_socket::fchmod (mode_t mode)
 {
   if (get_device () == FH_UNIX)
@@ -856,7 +856,7 @@ fhandler_socket::fchmod (mode_t mode)
   return -1;
 }
 
-int __reg2
+int
 fhandler_socket::fchown (__uid32_t uid, __gid32_t gid)
 {
   if (get_device () == FH_UNIX)
@@ -868,7 +868,7 @@ fhandler_socket::fchown (__uid32_t uid, __gid32_t gid)
   return -1;
 }
 
-int __reg3
+int
 fhandler_socket::facl (int cmd, int nentries, __aclent32_t *aclbufp)
 {
   if (get_device () == FH_UNIX)
@@ -880,7 +880,7 @@ fhandler_socket::facl (int cmd, int nentries, __aclent32_t *aclbufp)
   return -1;
 }
 
-int __reg2
+int
 fhandler_socket::link (const char *newpath)
 {
   if (get_device () == FH_UNIX)
@@ -1340,7 +1340,7 @@ fhandler_socket::getpeername (struct sockaddr *name, int *namelen)
   return res;
 }
 
-void __reg3
+void
 fhandler_socket::read (void *in_ptr, size_t& len)
 {
   WSABUF wsabuf = { len, (char *) in_ptr };
@@ -1378,7 +1378,7 @@ get_ext_funcptr (SOCKET sock, void *funcptr)
 		   &bret, NULL, NULL);
 }
 
-inline ssize_t __reg3
+inline ssize_t
 fhandler_socket::recv_internal (LPWSAMSG wsamsg, bool use_recvmsg)
 {
   ssize_t res = 0;

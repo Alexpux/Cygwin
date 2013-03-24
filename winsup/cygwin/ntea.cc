@@ -30,7 +30,7 @@ details. */
 #define NEXT_FEA(p) ((PFILE_FULL_EA_INFORMATION) (p->NextEntryOffset \
 		     ? (char *) p + p->NextEntryOffset : NULL))
 
-ssize_t __reg3
+ssize_t __stdcall
 read_ea (HANDLE hdl, path_conv &pc, const char *name, char *value, size_t size)
 {
   OBJECT_ATTRIBUTES attr;
@@ -216,7 +216,7 @@ out:
   return ret;
 }
 
-int __reg3
+int __stdcall
 write_ea (HANDLE hdl, path_conv &pc, const char *name, const char *value,
 	  size_t size, int flags)
 {
