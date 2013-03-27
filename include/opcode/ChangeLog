@@ -1,3 +1,36 @@
+2013-03-27  Alexis Deruelle  <alexis.deruelle@gmail.com>
+
+	PR binutils/15068
+	* tic6xc-insn-formats.h (FLD): Add use of bitfield array.
+	Add 16-bit opcodes.
+	* tic6xc-opcode-table.h: Add 16-bit insns.
+	* tic6x.h: Add support for 16-bit insns.
+
+2013-03-21  Michael Schewe  <michael.schewe@gmx.net>
+
+	* h8300.h: Add MEMRELAX flag for mov.b/w/l @(d:32,ERs),Rd
+	and mov.b/w/l Rs,@(d:32,ERd).
+
+2013-03-20  Alexis Deruelle  <alexis.deruelle@gmail.com>
+
+	PR gas/15082
+	* tic6x-opcode-table.h: Rename mpydp's specific operand type macro
+	from ORREGD1324 to ORXREGD1324 and make it cross-path-able through
+	tic6x_operand_xregpair operand coding type.
+	Make mpydp instruction cross-path-able, ie: remove the FIXed 'x'
+	opcode field, usu ORXREGD1324 for the src2 operand and remove the
+	TIC6X_FLAG_NO_CROSS.
+
+2013-03-20  Alexis Deruelle  <alexis.deruelle@gmail.com>
+
+	PR gas/15095
+	* tic6x.h (enum tic6x_coding_method): Add
+	tic6x_coding_dreg_(msb|lsb) field coding type in order to encode
+	separately the msb and lsb of a register pair.  This is needed to
+	encode the opcodes in the same way as TI assembler does.
+	* tic6x-opcode-table.h: Modify absdp, dpint, dpsp, dptrunc, rcpdp
+	and rsqrdp opcodes to use the new field coding types.
+
 2013-03-11  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
 
 	* arm.h (CRC_EXT_ARMV8): New constant.
