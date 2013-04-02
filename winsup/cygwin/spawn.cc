@@ -1,7 +1,7 @@
 /* spawn.cc
 
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009, 2010, 2011, 2012 Red Hat, Inc.
+   2007, 2008, 2009, 2010, 2011, 2012, 2013 Red Hat, Inc.
 
 This file is part of Cygwin.
 
@@ -371,7 +371,6 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       res = -1;
       goto out;
     }
-
 
   wascygexec = real_path.iscygexec ();
   res = newargv.fixup (prog_arg, real_path, ext, p_type_exec);
