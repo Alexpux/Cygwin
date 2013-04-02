@@ -14,10 +14,6 @@ details. */
 
 #define __INSIDE_CYGWIN__
 
-#if defined (__MSYS__)
-  #define __INSIDE_MSYS__ 1
-#endif
-
 #include "cygwin/version.h"
 
 #define HMMM(HUM) debug_printf("%s-%d: %s", "HMMM", __LINE__, (HUM))
