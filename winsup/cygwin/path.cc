@@ -1504,6 +1504,86 @@ conv_path_list (const char *src, char *dst, size_t size,
 
 /********************** Symbolic Link Support **************************/
 
+/*
+  Create a deep copy of src as dst, while avoiding descending in origpath.
+*/
+static int
+recursiveCopy (char * src, char * dst, const char * origpath)
+{
+  WIN32_FIND_DATA dHfile;
+  HANDLE dH;
+  BOOL findfiles;
+  int srcpos = strlen (src);
+  int dstpos = strlen (dst);
+  int res = -1;
+
+  debug_printf("recursiveCopy (%s, %s)", src, dst);
+
+  /* Create the destination directory */
+  if (!CreateDirectoryEx (src, dst, NULL))
+    {
+      debug_printf("CreateDirectoryEx(%s, %s, 0) failed", src, dst);
+      __seterrno ();
+      goto done;
+    }
+  /* Descend into the source directory */
+  if (srcpos + 2 >= MAX_PATH || dstpos + 1 >= MAX_PATH)
+    {
+      set_errno (ENAMETOOLONG);
+      goto done;
+    }
+  strcat (src, "\\*");
+  strcat (dst, "\\");
+  dH = FindFirstFile (src, &dHfile);
+  debug_printf("dHfile(1): %s", dHfile.cFileName);
+  findfiles = FindNextFile (dH, &dHfile);
+  debug_printf("dHfile(2): %s", dHfile.cFileName);
+  findfiles = FindNextFile (dH, &dHfile);
+  while (findfiles)
+    {
+      /* Append the directory item filename to both source and destination */
+      int filelen = strlen (dHfile.cFileName);
+      debug_printf("dHfile(3): %s", dHfile.cFileName);
+      if (srcpos + 1 + filelen >= MAX_PATH ||
+          dstpos + 1 + filelen >= MAX_PATH)
+        {
+          set_errno (ENAMETOOLONG);
+          goto done;
+        }
+      strcpy (&src[srcpos+1], dHfile.cFileName);
+      strcpy (&dst[dstpos+1], dHfile.cFileName);
+      debug_printf("%s -> %s", src, dst);
+      if (dHfile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+          /* Recurse into the child directory */
+          debug_printf("%s <-> %s", src, origpath);
+          if (strcmp (src, origpath)) // avoids endless recursion
+            if (recursiveCopy (src, dst, origpath))
+              goto done;
+        }
+      else
+        {
+          /* Just copy the file */
+          if (!CopyFile (src, dst, FALSE))
+            {
+              __seterrno ();
+              goto done;
+            }
+        }
+      findfiles = FindNextFile (dH, &dHfile);
+    }
+  if (GetLastError() != ERROR_NO_MORE_FILES)
+    {
+      __seterrno ();
+      goto done;
+    }
+  res = 0;
+
+done:
+
+  return res;
+}
+
 /* Create a symlink from FROMPATH to TOPATH. */
 
 extern "C" int
@@ -1512,7 +1592,6 @@ symlink (const char *oldpath, const char *newpath)
   TRACE_IN;
   debug_printf("symlink (%s, %s)", newpath, oldpath);
   return symlink_worker (oldpath, newpath, allow_winsymlinks, false);
-  /*return msys_symlink (newpath, oldpath);*/
 }
 
 int
@@ -1759,6 +1838,70 @@ symlink_worker (const char *oldpath, const char *newpath, bool use_winsym,
     }
   else
     {
+      win32_oldpath.check (oldpath, PC_SYM_NOFOLLOW, stat_suffixes);
+      if (win32_oldpath.error)
+        {
+           set_errno (win32_oldpath.error);
+           goto done;
+        }
+      if (!win32_oldpath.is_auto_device ())
+        {
+           /* MSYS copy file instead make symlink */
+
+           /* As a MSYS limitation, the source path must exist. */
+           if (!win32_oldpath.exists ())
+             {
+                set_errno (ENOENT);
+                goto done;
+             }
+
+           char * real_newpath;
+           if (isabspath (newpath))
+             strcpy (real_newpath = tp.c_get (), newpath);
+           else
+              /* Find the real source path, relative
+                 to the directory of the destination */
+             {
+                /* Determine the character position of the last path component */
+                int pos = strlen (oldpath);
+                while (--pos >= 0)
+                  if (isdirsep (oldpath[pos]))
+                    break;
+                /* Append the source path to the directory
+                   component of the destination */
+                if (pos+1+strlen(newpath) >= MAX_PATH)
+                  {
+                     set_errno(ENAMETOOLONG);
+                     goto done;
+                  }
+                strcpy (real_newpath = tp.c_get (), oldpath);
+                strcpy (&real_newpath[pos+1], newpath);
+             }
+
+           char *w_newpath;
+           char *w_oldpath;
+           stpcpy (w_newpath = tp.c_get (), win32_newpath.get_win32());
+           stpcpy (w_oldpath = tp.c_get (), win32_oldpath.get_win32());
+           if (win32_oldpath.isdir())
+             {
+                char *origpath;
+                strcpy (origpath = tp.c_get (), w_oldpath);
+                res = recursiveCopy (w_oldpath, w_newpath, origpath);
+             }
+           else
+             {
+                if (!CopyFile (w_oldpath, w_newpath, FALSE))
+                  {
+                     __seterrno ();
+                  }
+                else
+                  {
+                     res = 0;
+                  }
+             }
+           goto done;
+        }
+
       /* Default technique creating a symlink. */
       buf = (char *) tp.w_get ();
       cp = stpcpy (buf, SYMLINK_COOKIE);
