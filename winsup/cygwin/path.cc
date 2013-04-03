@@ -176,7 +176,8 @@ path_prefix_p (const char *path1, const char *path2, int len1,
   return 0;
 }
 
-/* Return non-zero if paths match in first len chars. */
+/* Return non-zero if paths match in first len chars.
+   Check is dependent of the case sensitivity setting. */
 int
 pathnmatch (const char *path1, const char *path2, int len, bool caseinsensitive)
 {
@@ -184,7 +185,8 @@ pathnmatch (const char *path1, const char *path2, int len, bool caseinsensitive)
 	 ? strncasematch (path1, path2, len) : !strncmp (path1, path2, len);
 }
 
-/* Return non-zero if paths match. */
+/* Return non-zero if paths match. Check is dependent of the case
+   sensitivity setting. */
 int
 pathmatch (const char *path1, const char *path2, bool caseinsensitive)
 {
@@ -1169,6 +1171,7 @@ out:
       if (is_msdos && !(opt & PC_NOWARN))
 	warn_msdos (src);
     }
+
 #if 0
   if (!error)
     {
@@ -2282,6 +2285,32 @@ symlink_info::posixify (char *srcbuf)
   return strlen (contents);
 }
 
+enum
+{
+  SCAN_BEG,
+  SCAN_LNK,
+  SCAN_HASLNK,
+  SCAN_JUSTCHECK,
+  SCAN_JUSTCHECKTHIS, /* Never try to append a suffix. */
+  SCAN_APPENDLNK,
+  SCAN_EXTRALNK,
+  SCAN_DONE,
+};
+
+class suffix_scan
+{
+  const suffix_info *suffixes, *suffixes_start;
+  int nextstate;
+  char *eopath;
+  size_t namelen;
+public:
+  const char *path;
+  char *has (const char *, const suffix_info *);
+  int next ();
+  int lnk_match () {return nextstate >= SCAN_APPENDLNK;}
+  size_t name_len () {return namelen;}
+};
+
 char *
 suffix_scan::has (const char *in_path, const suffix_info *in_suffixes)
 {
@@ -2319,8 +2348,15 @@ suffix_scan::has (const char *in_path, const suffix_info *in_suffixes)
   ext_here = eopath;
 
  done:
-  /* Avoid attaching suffixes if the resulting filename would be invalid. */
-  if (eopath - fname > NAME_MAX - 4)
+  namelen = eopath - fname;
+  /* Avoid attaching suffixes if the resulting filename would be invalid.
+     For performance reasons we don't check the length of a suffix, since
+     we know that all suffixes are 4 chars in length.
+     
+     FIXME: This is not really correct.  A fully functional test should
+            work on wide character paths.  This would probably also speed
+	    up symlink_info::check. */
+  if (namelen > NAME_MAX - 4)
     {
       nextstate = SCAN_JUSTCHECKTHIS;
       suffixes = NULL;
@@ -2343,7 +2379,7 @@ suffix_scan::next ()
 		nextstate = SCAN_LNK;
 		return 1;
 	      }
-	    nextstate = SCAN_DONE;
+	    nextstate = SCAN_EXTRALNK;
 	    /* fall through to suffix checking below */
 	    break;
 	  case SCAN_HASLNK:
@@ -2361,8 +2397,13 @@ suffix_scan::next ()
 	    return 1;
 	  case SCAN_LNK:
 	  case SCAN_APPENDLNK:
-	    strcat (eopath, ".lnk");
 	    nextstate = SCAN_DONE;
+	    if (namelen + (*eopath ? 8 : 4) > NAME_MAX)
+	      {
+		*eopath = '\0';
+		return 0;
+	      }
+	    strcat (eopath, ".lnk");
 	    return 1;
 	  default:
 	    *eopath = '\0';
@@ -2370,7 +2411,8 @@ suffix_scan::next ()
 	  }
 
       while (suffixes && suffixes->name)
-	if (nextstate == SCAN_EXTRALNK && !suffixes->addon)
+	if (nextstate == SCAN_EXTRALNK
+	    && (!suffixes->addon || namelen > NAME_MAX - 8))
 	  suffixes++;
 	else
 	  {
@@ -2489,13 +2531,20 @@ restart:
   mode = 0;
   pflags &= ~(PATH_SYMLINK | PATH_LNK | PATH_REP);
 
-  ext_here = suffix.has (path, suffixes);
-  extn = ext_here - path;
-
   PVOID eabuf = &nfs_aol_ffei;
   ULONG easize = sizeof nfs_aol_ffei;
 
+  ext_here = suffix.has (path, suffixes);
+  extn = ext_here - path;
   bool had_ext = !!*ext_here;
+
+  /* If the filename is too long, don't even try. */
+  if (suffix.name_len () > NAME_MAX)
+    {
+      set_error (ENAMETOOLONG);
+      goto file_not_symlink;
+    }
+
   while (suffix.next ())
     {
       error = 0;
@@ -3544,7 +3593,6 @@ cygwin_posix_to_win32_path_list_buf_size (const char *path_list)
 extern "C" ssize_t
 env_PATH_to_posix (const void *win32, void *posix, size_t size)
 {
-  TRACE_IN;
   return_with_errno (conv_path_list ((const char *) win32, (char *) posix,
 				     size, ENV_CVT));
 }

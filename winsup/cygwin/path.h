@@ -453,29 +453,3 @@ class etc
   static bool test_file_change (int);
   friend class pwdgrp;
 };
-
-enum
-{
-  SCAN_BEG,
-  SCAN_LNK,
-  SCAN_HASLNK,
-  SCAN_JUSTCHECK,
-  SCAN_JUSTCHECKTHIS, /* Never try to append a suffix. */
-  SCAN_APPENDLNK,
-  SCAN_EXTRALNK,
-  SCAN_DONE,
-};
-
-class suffix_scan
-{
-  const suffix_info *suffixes, *suffixes_start;
-  int nextstate;
-  char *eopath;
-public:
-  const char *path;
-  char *has (const char *, const suffix_info *);
-  int next ();
-  int lnk_match () {return nextstate >= SCAN_APPENDLNK;}
-};
-
-//extern "C" int msys_symlink(const char *, const char *);
