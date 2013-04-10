@@ -311,7 +311,6 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
 #define MINIMAL_WIN_NTFS_FLAGS (FILE_CASE_SENSITIVE_SEARCH \
 				| FILE_CASE_PRESERVED_NAMES \
 				| FILE_UNICODE_ON_DISK \
-				| FILE_PERSISTENT_ACLS \
 				| FILE_FILE_COMPRESSION)
 #define FS_IS_WINDOWS_NTFS TEST_GVI(flags () & MINIMAL_WIN_NTFS_FLAGS, \
 				    MINIMAL_WIN_NTFS_FLAGS)
@@ -448,13 +447,13 @@ mount_info::create_root_entry (const PWCHAR root)
   sys_wcstombs (native_root, PATH_MAX, root);
   assert (*native_root != '\0');
   if (add_item (native_root, "/",
-		MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_IMMUTABLE | MOUNT_AUTOMATIC)
+		MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_IMMUTABLE | MOUNT_AUTOMATIC | MOUNT_NOACL)
       < 0)
     api_fatal ("add_item (\"%s\", \"/\", ...) failed, errno %d", native_root, errno);
   /* Create a default cygdrive entry.  Note that this is a user entry.
      This allows to override it with mount, unless the sysadmin created
      a cygdrive entry in /etc/fstab. */
-  cygdrive_flags = MOUNT_BINARY | MOUNT_NOPOSIX | MOUNT_CYGDRIVE;
+  cygdrive_flags = MOUNT_BINARY | MOUNT_NOPOSIX | MOUNT_CYGDRIVE | MOUNT_NOACL;
   strcpy (cygdrive, CYGWIN_INFO_CYGDRIVE_DEFAULT_PREFIX "/");
   cygdrive_len = strlen (cygdrive);
 }
@@ -484,7 +483,7 @@ mount_info::init ()
       if (!root_mnt)
         {
           stpcpy (p, "\\");
-          add_item (native, "/usr", MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC);
+          add_item (native, "/usr", MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC | MOUNT_NOACL);
         }
     }
 }
