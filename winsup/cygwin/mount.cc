@@ -1097,7 +1097,10 @@ fstab_list_flags ()
 bool
 mount_info::from_fstab_line (char *line, bool user)
 {
-  char *native_path, *posix_path, *fs_type;
+  char *native_path, *posix_path;
+#ifndef __MSYS__
+  char *fs_type;
+#endif
 
   /* First field: Native path. */
   char *c = skip_ws (line);
@@ -1116,6 +1119,13 @@ mount_info::from_fstab_line (char *line, bool user)
   cend = find_ws (c);
   *cend = '\0';
   posix_path = conv_fstab_spaces (c);
+#ifdef __MSYS__
+  unsigned mount_flags = MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_NOPOSIX | MOUNT_NOACL;
+
+  int res = mount_table->add_item (native_path, posix_path, mount_flags);
+  if (res && get_errno () == EMFILE)
+     return false;
+#else
   /* Third field: FS type. */
   c = skip_ws (cend + 1);
   if (!*c)
@@ -1162,6 +1172,7 @@ mount_info::from_fstab_line (char *line, bool user)
       if (res && get_errno () == EMFILE)
 	return false;
     }
+#endif
   return true;
 }
 
