@@ -415,7 +415,7 @@ uninstall-man:
 	done
 
 clean:
-	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc winver_stamp *.exe *.d *stamp* *_magic.h sigfe.s cygwin.def globals.h $(srcdir)/tlsoffsets.h $(srcdir)/devices.cc
+	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc winver_stamp *.exe *.d *stamp* *_magic.h sigfe.s msys.def globals.h $(srcdir)/$(TLSOFFSETS_H) $(srcdir)/devices.cc
 	-@$(MAKE) -C ${cygserver_blddir} libclean
 
 maintainer-clean realclean: clean
@@ -439,7 +439,7 @@ $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIB
 
 # Rule to build libmsys-2.0.a
 $(LIB_NAME): $(DEF_FILE) $(LIBCOS) | $(TEST_DLL_NAME)
-	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ cygdll.a $^
+	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ msysdll.a $(wordlist 2,99,$^)
 
 ${STATIC_LIB_NAME}: mkstatic ${TEST_DLL_NAME}
 	perl -d $< -x ${EXCLUDE_STATIC_OFILES} --library=${LIBC} --library=${LIBM} --ar=${AR} $@ msys.map

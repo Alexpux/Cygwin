@@ -508,7 +508,7 @@ fhandler_pty_slave::open (int flags, mode_t)
       DWORD len;
 
       __small_sprintf (buf, "\\\\.\\pipe\\msys-%S-pty%d-master-ctl",
-		       &cygheap->installation_key, get_unit ());
+		       &cygheap->installation_key, get_minor ());
       termios_printf ("dup handles via master control pipe %s", buf);
       if (!CallNamedPipe (buf, &req, sizeof req, &repl, sizeof repl,
 			  &len, 500))
@@ -1292,7 +1292,7 @@ fhandler_pty_master::close ()
 	  DWORD len;
 
 	  __small_sprintf (buf, "\\\\.\\pipe\\msys-%S-pty%d-master-ctl",
-			   &cygheap->installation_key, get_unit ());
+			   &cygheap->installation_key, get_minor ());
 	  CallNamedPipe (buf, &req, sizeof req, &repl, sizeof repl, &len, 500);
 	  CloseHandle (master_ctl);
 	  master_thread->detach ();

@@ -31,7 +31,7 @@ AC_LANG(C++)
 
 AC_CYGWIN_INCLUDES
 
-AC_CONFIG_SUBDIRS(cygwin utils cygserver lsaauth)
+AC_CONFIG_SUBDIRS(cygwin utils cygserver lsaauth doc)
 INSTALL_LICENSE="install-license"
 
 AC_SUBST(INSTALL_LICENSE)

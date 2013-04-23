@@ -13,6 +13,28 @@ details. */
 
 #define __INSIDE_CYGWIN__
 
+#include "cygwin/version.h"
+
+#define HMMM(HUM) debug_printf("%s-%d: %s", "HMMM", __LINE__, (HUM))
+#if DEBUGGING
+# define FIXME debug_printf("FIXME - %s (%s): %d", __FILE__, __FUNCTION__, __LINE__)
+#else
+# define FIXME
+#endif
+#if TRACING
+# define TRACE_IN {char TrcInBuf[256]; __small_sprintf(TrcInBuf, "TRACE_IN: %s, %d, %s", __FILE__, __LINE__, __PRETTY_FUNCTION__); OutputDebugString (TrcInBuf);}
+#else
+# define TRACE_IN
+#endif
+
+#ifdef TRACETTY
+# undef TRACETTY
+# define TRACETTY {char TrcInBuf[256]; __small_sprintf(TrcInBuf, "TRACETTY: %s, %d, %s", __FILE__, __LINE__, __PRETTY_FUNCTION__); OutputDebugString (TrcInBuf);}
+#else
+# undef TRACETTY
+# define TRACETTY
+#endif
+
 #define NO_COPY_RO __attribute__((nocommon)) __attribute__((section(".rdata_cygwin_nocopy")))
 #define NO_COPY __attribute__((nocommon)) __attribute__((section(".data_cygwin_nocopy")))
 #define NO_COPY_INIT __attribute__((section(".data_cygwin_nocopy")))
@@ -151,7 +173,7 @@ extern int cygserver_running;
 /******************** Initialization/Termination **********************/
 
 class per_process;
-/* cygwin .dll initialization */
+/* msys .dll initialization */
 void dll_crt0 (per_process *) __asm__ (_SYMSTR (dll_crt0__FP11per_process));
 extern "C" void __stdcall _dll_crt0 ();
 void dll_crt0_1 (void *);
@@ -165,6 +187,8 @@ extern "C" void _pei386_runtime_relocator (per_process *);
 #ifndef __x86_64__
 /* dynamically loaded dll initialization for non-cygwin apps */
 extern "C" int dll_nonmsys_dllcrt0 (HMODULE, per_process *);
+#endif /* !__x86_64__ */
+
 void __reg1 do_exit (int) __attribute__ ((noreturn));
 
 /* libstdc++ malloc operator wrapper support.  */

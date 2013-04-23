@@ -57,7 +57,7 @@ int WINAPI _msys_dll_entry (HINSTANCE h, DWORD reason, void *ptr)	      \
       storedReason = reason;						      \
       storedPtr = ptr;							      \
       __dynamically_loaded = (ptr == NULL);				      \
-      dll_index =msys_attach_dll (h, &__dllMain);			      \
+      dll_index = msys_attach_dll (h, &__dllMain);			      \
       if (dll_index == (PVOID) -1)					      \
 	ret = 0;							      \
     }									      \

@@ -390,7 +390,7 @@ check_sanity_and_sync (per_process *p)
     api_fatal ("msys DLL and APP are out of sync -- API version mismatch %d > %d",
 	       p->api_major, cygwin_version.api_major);
 
-  /* This is a kludge to work around a version of _cygwin_common_crt0
+  /* This is a kludge to work around a version of _msys_common_crt0
      which overwrote the cxx_malloc field with the local DLL copy.
      Hilarity ensues if the DLL is not loaded while the process
      is forking. */
