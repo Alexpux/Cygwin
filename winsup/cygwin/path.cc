@@ -944,7 +944,6 @@ is_virtual_symlink:
 		{
 		  set_symlink (symlen); // last component of path is a symlink.
 		  if (opt & PC_SYM_CONTENTS)
-
 		    {
 		      strcpy (THIS_path, sym.contents);
 		      goto out;
@@ -2335,6 +2334,7 @@ suffix_scan::has (const char *in_path, const suffix_info *in_suffixes)
 	    goto done;
 	  }
     }
+
   /* Didn't match.  Use last resort -- .lnk. */
   if (ascii_strcasematch (ext_here, ".lnk"))
     {

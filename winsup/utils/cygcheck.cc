@@ -77,7 +77,6 @@ static const char *known_env_vars[] = {
   "compiler_path",
   "cxx_include_path",
   "msys",
-  "msys32",
   "dejagnu",
   "expect",
   "gcc_default_options",

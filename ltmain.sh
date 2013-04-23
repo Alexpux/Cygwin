@@ -2460,7 +2460,7 @@ func_mode_install ()
 	# remove .exe since cygwin /usr/bin/install will append another
 	# one anyway
 	case $install_prog,$host in
-	*/usr/bin/install*,*cygwin*,*msys*)
+	*/usr/bin/install*,*cygwin*|*/usr/bin/install*,*msys*)
 	  case $file:$destfile in
 	  *.exe:*.exe)
 	    # this is ok

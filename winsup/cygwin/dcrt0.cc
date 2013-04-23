@@ -1016,7 +1016,7 @@ dll_crt0_1 (void *)
     }
   else
     {
-      /* Create a copy of mSYS's version of __argv so that, if the user makes
+      /* Create a copy of MSYS's version of __argv so that, if the user makes
 	 a change to an element of argv[] it does not affect Msys's argv.
 	 Changing the the contents of what argv[n] points to will still
 	 affect Msys.  This is similar (but not exactly like) Linux. */

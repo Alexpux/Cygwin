@@ -13,7 +13,7 @@ details. */
 #ifndef _TRANSPORT_PIPES_H
 #define _TRANSPORT_PIPES_H
 
-#define PIPE_NAME_PREFIX	L"\\\\.\\pipe\\msys2-"
+#define PIPE_NAME_PREFIX	L"\\\\.\\pipe\\msys-"
 #define PIPE_NAME_SUFFIX	L"-lpc"
 
 /* Named pipes based transport, for security on NT */
