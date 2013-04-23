@@ -1,6 +1,6 @@
 /* nlsfuncs.cc: NLS helper functions
 
-   Copyright 2010, 2011, 2012 Red Hat, Inc.
+   Copyright 2010, 2011, 2012, 2013 Red Hat, Inc.
 
 This file is part of Cygwin.
 
@@ -41,11 +41,6 @@ details. */
 
 #define has_modifier(x)	((x)[0] && !strcmp (modifier, (x)))
 
-/* Vista and later.  Not defined in w32api yet. */
-extern "C" {
-WINBASEAPI LCID WINAPI LocaleNameToLCID (LPCWSTR, DWORD);
-};
-
 static char last_locale[ENCODING_LEN + 1];
 static LCID last_lcid;
 
@@ -66,7 +61,7 @@ __get_lcid_from_locale (const char *name)
   /* Speed up reusing the same locale as before, for instance in LC_ALL case. */
   if (!strcmp (name, last_locale))
     {
-      debug_printf ("LCID=0x%04x", last_lcid);
+      debug_printf ("LCID=%04y", last_lcid);
       return last_lcid;
     }
   stpcpy (last_locale, name);
@@ -145,7 +140,7 @@ __get_lcid_from_locale (const char *name)
 	      }
 	}
       last_lcid = lcid ?: (LCID) -1;
-      debug_printf ("LCID=0x%04x", last_lcid);
+      debug_printf ("LCID=%04y", last_lcid);
       return last_lcid;
     }
   /* Pre-Vista we have to loop through the LCID values and see if they
@@ -230,7 +225,7 @@ __get_lcid_from_locale (const char *name)
 	lcid = MAKELANGID (lcid & 0x3ff, (lcid >> 10) + 1);
     }
   last_lcid = lcid ?: (LCID) -1;
-  debug_printf ("LCID=0x%04x", last_lcid);
+  debug_printf ("LCID=%04y", last_lcid);
   return last_lcid;
 }
 

@@ -187,7 +187,7 @@ parse_options (const char *inbuf)
 		  *k->setting.x = k->values[istrue].i;
 		else
 		  *k->setting.x = strtol (eq, NULL, 0);
-		debug_printf ("%s %d", k->name, *k->setting.x);
+		debug_printf ("%s %u", k->name, *k->setting.x);
 		break;
 	      case setbool:
 		if (!istrue || !eq)
@@ -1062,7 +1062,7 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
   else
     {
       *pass_dstp = NULL;
-      debug_printf ("env count %d, bytes %d", pass_envc, tl);
+      debug_printf ("env count %ld, bytes %d", pass_envc, tl);
       win_env temp;
       temp.reset ();
 
@@ -1132,7 +1132,8 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
   return newenv;
 }
 
-/* This idiocy is necessary because the early implementers of msys
+#ifndef __x86_64__
+/* This idiocy is necessary because the early implementers of cygwin
    did not seem to know about importing data variables from the DLL.
    So, we have to synchronize msys's idea of the environment with the
    main program's with each reference to the environment. */
@@ -1147,3 +1148,4 @@ cur_environ ()
 
   return __cygwin_environ;
 }
+#endif

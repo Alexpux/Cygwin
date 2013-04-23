@@ -528,7 +528,7 @@ getfileattr (const char *path, bool caseinsensitive) /* path has to be always ab
 	 directory query. */
       UNICODE_STRING dirname, basename;
       HANDLE dir;
-      FILE_BOTH_DIRECTORY_INFORMATION fdi;
+      FILE_BOTH_DIR_INFORMATION fdi;
 
       RtlSplitUnicodePath (&upath, &dirname, &basename);
       InitializeObjectAttributes (&attr, &dirname,
@@ -1224,11 +1224,10 @@ file_get_fnoi (HANDLE h, bool skip_network_open_inf,
   status = skip_network_open_inf ? STATUS_INVALID_PARAMETER
 	   : NtQueryInformationFile (h, &io, pfnoi, sizeof *pfnoi,
 				     FileNetworkOpenInformation);
-  if (status == STATUS_INVALID_PARAMETER || status == STATUS_NOT_IMPLEMENTED)
+  if (status == STATUS_INVALID_PARAMETER)
     {
       /* Apart from accessing Netapps, this also occurs when accessing SMB
-	 share root dirs hosted on NT4 (STATUS_INVALID_PARAMETER), or when
-	 accessing SMB share root dirs from NT4 (STATUS_NOT_IMPLEMENTED). */
+	 share root dirs hosted on NT4. */
       FILE_BASIC_INFORMATION fbi;
       FILE_STANDARD_INFORMATION fsi;
 
@@ -1741,12 +1740,11 @@ symlink_worker (const char *oldpath, const char *newpath, bool use_winsym,
 	full_len += sizeof (unsigned short) + pidl_len;
       oldpath_len = strlen (oldpath);
       /* Unfortunately the length of the description is restricted to a
-	 length of MAX_PATH up to NT4, and to a length of 2000 bytes
-	 since W2K.  We don't want to add considerations for the different
-	 lengths and even 2000 bytes is not enough for long path names.
-	 So what we do here is to set the description to the POSIX path
-	 only if the path is not longer than MAX_PATH characters.  We
-	 append the full path name after the regular shortcut data
+	 length of 2000 bytes.  We don't want to add considerations for
+	 the different lengths and even 2000 bytes is not enough for long
+	 path names.  So what we do here is to set the description to the
+	 POSIX path only if the path is not longer than MAX_PATH characters.
+	 We append the full path name after the regular shortcut data
 	 (see below), which works fine with Windows Explorer as well
 	 as older Cygwin versions (as long as the whole file isn't bigger
 	 than 8K).  The description field is only used for backward
@@ -1938,7 +1936,7 @@ symlink_worker (const char *oldpath, const char *newpath, bool use_winsym,
       status = NtSetAttributesFile (fh, mk_winsym ? FILE_ATTRIBUTE_READONLY
 						  : FILE_ATTRIBUTE_SYSTEM);
       if (!NT_SUCCESS (status))
-	debug_printf ("Setting attributes failed, status = %p", status);
+	debug_printf ("Setting attributes failed, status = %y", status);
       res = 0;
     }
   else
@@ -1948,7 +1946,7 @@ symlink_worker (const char *oldpath, const char *newpath, bool use_winsym,
       status = NtSetInformationFile (fh, &io, &fdi, sizeof fdi,
 				     FileDispositionInformation);
       if (!NT_SUCCESS (status))
-	debug_printf ("Setting delete dispostion failed, status = %p", status);
+	debug_printf ("Setting delete dispostion failed, status = %y", status);
     }
   NtClose (fh);
 
@@ -1993,7 +1991,7 @@ symlink_info::check_shortcut (HANDLE h)
       set_error (EIO);
       return 0;
     }
-  if (fsi.EndOfFile.QuadPart <= sizeof (win_shortcut_hdr)
+  if (fsi.EndOfFile.QuadPart <= (LONGLONG) sizeof (win_shortcut_hdr)
       || fsi.EndOfFile.QuadPart > 4 * 65536)
     return 0;
   if (fsi.EndOfFile.LowPart < NT_MAX_PATH * sizeof (WCHAR))
@@ -2068,7 +2066,7 @@ symlink_info::check_sysfile (HANDLE h)
 		       sizeof (cookie_buf), &off, NULL);
   if (!NT_SUCCESS (status))
     {
-      debug_printf ("ReadFile1 failed %p", status);
+      debug_printf ("ReadFile1 failed %y", status);
       if (status != STATUS_END_OF_FILE)
 	set_error (EIO);
       return 0;
@@ -2155,7 +2153,7 @@ symlink_info::check_reparse_point (HANDLE h, bool remote)
     }
   if (!NT_SUCCESS (status))
     {
-      debug_printf ("NtFsControlFile(FSCTL_GET_REPARSE_POINT) failed, %p",
+      debug_printf ("NtFsControlFile(FSCTL_GET_REPARSE_POINT) failed, %y",
 		    status);
       set_error (EIO);
       return 0;
@@ -2566,7 +2564,7 @@ restart:
 			     FILE_OPEN_REPARSE_POINT
 			     | FILE_OPEN_FOR_BACKUP_INTENT,
 			     eabuf, easize);
-      debug_printf ("%p = NtCreateFile (%S)", status, &upath);
+      debug_printf ("%y = NtCreateFile (%S)", status, &upath);
       /* No right to access EAs or EAs not supported? */
       if (!NT_SUCCESS (status)
 	  && (status == STATUS_ACCESS_DENIED
@@ -2589,7 +2587,7 @@ restart:
 			       &attr, &io, FILE_SHARE_VALID_FLAGS,
 			       FILE_OPEN_REPARSE_POINT
 			       | FILE_OPEN_FOR_BACKUP_INTENT);
-	  debug_printf ("%p = NtOpenFile (no-EAs %S)", status, &upath);
+	  debug_printf ("%y = NtOpenFile (no-EAs %S)", status, &upath);
 	}
       if (status == STATUS_OBJECT_NAME_NOT_FOUND)
 	{
@@ -2605,7 +2603,7 @@ restart:
 				   &attr, &io, FILE_SHARE_VALID_FLAGS,
 				   FILE_OPEN_REPARSE_POINT
 				   | FILE_OPEN_FOR_BACKUP_INTENT);
-	      debug_printf ("%p = NtOpenFile (broken-UDF, %S)", status, &upath);
+	      debug_printf ("%y = NtOpenFile (broken-UDF, %S)", status, &upath);
 	      attr.Attributes = 0;
 	      if (NT_SUCCESS (status))
 		{
@@ -2658,6 +2656,22 @@ restart:
 		}
 	    }
 	}
+      else if (status == STATUS_NETWORK_OPEN_RESTRICTION
+	       || status == STATUS_SYMLINK_CLASS_DISABLED)
+	{
+	  /* These status codes are returned if you try to open a native
+	     symlink and the usage of this kind of symlink is forbidden
+	     (see fsutil).  Since we can't open them at all, not even for
+	     stat purposes, we have to return a POSIX error code which is
+	     at least a bit helpful.
+
+	     Additionally Windows 8 introduces a bug in NFS: If you have
+	     a symlink to a directory, with symlinks underneath, resolving
+	     the second level of symlinks fails if remote->remote symlinks
+	     are disabled in fsutil.  Unfortunately that's the default. */
+	  set_error (ELOOP);
+	  break;
+	}
 
       if (NT_SUCCESS (status)
 	  /* Check file system while we're having the file open anyway.
@@ -2680,7 +2694,7 @@ restart:
 	}
       if (!NT_SUCCESS (status))
 	{
-	  debug_printf ("%p = NtQueryInformationFile (%S)", status, &upath);
+	  debug_printf ("%y = NtQueryInformationFile (%S)", status, &upath);
 	  fileattr = INVALID_FILE_ATTRIBUTES;
 
 	  /* One of the inner path components is invalid, or the path contains
@@ -2713,7 +2727,7 @@ restart:
 	      OBJECT_ATTRIBUTES dattr;
 	      HANDLE dir;
 	      struct {
-		FILE_BOTH_DIRECTORY_INFORMATION fdi;
+		FILE_BOTH_DIR_INFORMATION fdi;
 		WCHAR dummy_buf[NAME_MAX + 1];
 	      } fdi_buf;
 
@@ -2727,7 +2741,7 @@ restart:
 				   | FILE_DIRECTORY_FILE);
 	      if (!NT_SUCCESS (status))
 		{
-		  debug_printf ("%p = NtOpenFile(%S)", status, &dirname);
+		  debug_printf ("%y = NtOpenFile(%S)", status, &dirname);
 		  /* There's a special case if the file is itself the root
 		     of a drive which is not accessible by the current user.
 		     This case is only recognized by the length of the
@@ -2747,7 +2761,7 @@ restart:
 		  NtClose (dir);
 		  if (!NT_SUCCESS (status))
 		    {
-		      debug_printf ("%p = NtQueryDirectoryFile(%S)",
+		      debug_printf ("%y = NtQueryDirectoryFile(%S)",
 				    status, &dirname);
 		      if (status == STATUS_NO_SUCH_FILE)
 			{
@@ -2925,7 +2939,7 @@ restart:
 	NtClose (h);
     }
 
-  syscall_printf ("%d = symlink.check(%s, %p) (%p)",
+  syscall_printf ("%d = symlink.check(%s, %p) (%y)",
 		  res, suffix.path, contents, pflags);
   return res;
 }
@@ -2963,7 +2977,7 @@ readlink (const char *path, char *buf, size_t buflen)
   if (pathbuf.error)
     {
       set_errno (pathbuf.error);
-      syscall_printf ("-1 = readlink (%s, %p, %d)", path, buf, buflen);
+      syscall_printf ("-1 = readlink (%s, %p, %lu)", path, buf, buflen);
       return -1;
     }
 
@@ -2995,8 +3009,8 @@ readlink (const char *path, char *buf, size_t buflen)
    done during the opendir call and the hash or the filename within
    the directory.  FIXME: Not bullet-proof. */
 /* Cygwin internal */
-__ino64_t __stdcall
-hash_path_name (__ino64_t hash, PUNICODE_STRING name)
+ino_t __stdcall
+hash_path_name (ino_t hash, PUNICODE_STRING name)
 {
   if (name->Length == 0)
     return hash;
@@ -3009,20 +3023,20 @@ hash_path_name (__ino64_t hash, PUNICODE_STRING name)
   return hash;
 }
 
-__ino64_t __stdcall
-hash_path_name (__ino64_t hash, PCWSTR name)
+ino_t __stdcall
+hash_path_name (ino_t hash, PCWSTR name)
 {
   UNICODE_STRING uname;
   RtlInitUnicodeString (&uname, name);
   return hash_path_name (hash, &uname);
 }
 
-__ino64_t __stdcall
-hash_path_name (__ino64_t hash, const char *name)
+ino_t __stdcall
+hash_path_name (ino_t hash, const char *name)
 {
   UNICODE_STRING uname;
   RtlCreateUnicodeStringFromAsciiz (&uname, name);
-  __ino64_t ret = hash_path_name (hash, &uname);
+  ino_t ret = hash_path_name (hash, &uname);
   RtlFreeUnicodeString (&uname);
   return ret;
 }
@@ -3053,7 +3067,7 @@ get_current_dir_name (void)
 {
   const char *pwd = getenv ("PWD");
   char *cwd = getcwd (NULL, 0);
-  struct __stat64 pwdbuf, cwdbuf;
+  struct stat pwdbuf, cwdbuf;
 
   if (pwd && strcmp (pwd, cwd) != 0
       && stat64 (pwd, &pwdbuf) == 0
@@ -3095,7 +3109,7 @@ chdir (const char *in_dir)
 
   int res = -1;
   const char *posix_cwd = NULL;
-  int devn = path.get_devn ();
+  dev_t devn = path.get_device ();
   if (!path.exists ())
     set_errno (ENOENT);
   else if (!path.isdir ())
@@ -3412,6 +3426,7 @@ cygwin_create_path (cygwin_conv_path_t what, const void *from)
   return to;
 }
 
+#ifndef __x86_64__	/* Disable deprecated functions on x86_64. */
 
 extern "C" int
 cygwin_conv_to_win32_path (const char *path, char *win32_path)
@@ -3442,6 +3457,8 @@ cygwin_conv_to_full_posix_path (const char *path, char *posix_path)
   return cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE, path, posix_path,
 			   MAX_PATH);
 }
+
+#endif /* !__x86_64__ */
 
 /* The realpath function is required by POSIX:2008.  */
 
@@ -3579,6 +3596,14 @@ conv_path_list_buf_size (const char *path_list, bool to_posix)
   return size;
 }
 
+extern "C" ssize_t
+env_PATH_to_posix (const void *win32, void *posix, size_t size)
+{
+  return_with_errno (conv_path_list ((const char *) win32, (char *) posix,
+				     size, ENV_CVT));
+}
+
+#ifndef __x86_64__	/* Disable deprecated functions on x86_64. */
 
 extern "C" int
 cygwin_win32_to_posix_path_list_buf_size (const char *path_list)
@@ -3590,13 +3615,6 @@ extern "C" int
 cygwin_posix_to_win32_path_list_buf_size (const char *path_list)
 {
   return conv_path_list_buf_size (path_list, false);
-}
-
-extern "C" ssize_t
-env_PATH_to_posix (const void *win32, void *posix, size_t size)
-{
-  return_with_errno (conv_path_list ((const char *) win32, (char *) posix,
-				     size, ENV_CVT));
 }
 
 extern "C" int
@@ -3613,6 +3631,8 @@ cygwin_posix_to_win32_path_list (const char *posix, char *win32)
 		     CCP_POSIX_TO_WIN_A | CCP_RELATIVE));
 }
 
+#endif /* !__x86_64__ */
+
 extern "C" ssize_t
 cygwin_conv_path_list (cygwin_conv_path_t what, const void *from, void *to,
 		       size_t size)
@@ -3620,7 +3640,6 @@ cygwin_conv_path_list (cygwin_conv_path_t what, const void *from, void *to,
   int ret;
   char *winp = NULL;
   void *orig_to = NULL;
-  size_t orig_size = (size_t) -1;
   tmp_pathbuf tp;
 
   switch (what & CCP_CONVTYPE_MASK)
@@ -3638,7 +3657,6 @@ cygwin_conv_path_list (cygwin_conv_path_t what, const void *from, void *to,
 	       * sizeof (WCHAR);
       what = (what & ~CCP_CONVTYPE_MASK) | CCP_POSIX_TO_WIN_A;
       orig_to = to;
-      orig_size = size;
       to = (void *) tp.w_get ();
       size = 65536;
       break;
@@ -3920,8 +3938,6 @@ fcwd_access_t::SetVersionFromPointer (PBYTE buf_p, bool is_buffer)
     fast_cwd_version () = FCWD_OLD;
 }
 
-#define peek32(x)	(*(uint32_t *)(x))
-
 /* This function scans the code in ntdll.dll to find the address of the
    global variable used to access the CWD starting with Vista.  While the
    pointer is global, it's not exported from the DLL, unfortunately.
@@ -3931,6 +3947,99 @@ fcwd_access_t::SetVersionFromPointer (PBYTE buf_p, bool is_buffer)
    Windows 7 32/64 bit, Server 2008 R2 (which is only 64 bit anyway),
    and W8CP 32/64 bit.  There's some hope this will still work for
    Windows 8 RTM... */
+
+#ifdef __x86_64__
+
+#define peek32(x)	(*(int32_t *)(x))
+
+static fcwd_access_t **
+find_fast_cwd_pointer ()
+{
+  /* Fetch entry points of relevant functions in ntdll.dll. */
+  HMODULE ntdll = GetModuleHandle ("ntdll.dll");
+  if (!ntdll)
+    return NULL;
+  const uint8_t *get_dir = (const uint8_t *)
+			   GetProcAddress (ntdll, "RtlGetCurrentDirectory_U");
+  const uint8_t *ent_crit = (const uint8_t *)
+			    GetProcAddress (ntdll, "RtlEnterCriticalSection");
+  if (!get_dir || !ent_crit)
+    return NULL;
+  /* Search first relative call instruction in RtlGetCurrentDirectory_U. */
+  const uint8_t *rcall = (const uint8_t *) memchr (get_dir, 0xe8, 40);
+  if (!rcall)
+    return NULL;
+  /* Fetch offset from instruction and compute address of called function.
+     This function actually fetches the current FAST_CWD instance and
+     performs some other actions, not important to us. */
+  const uint8_t *use_cwd = rcall + 5 + peek32 (rcall + 1);
+  /* Next we search for the locking mechanism and perform a sanity check.
+     On Pre-Windows 8 we basically look for the RtlEnterCriticalSection call.
+     Windows 8 does not call RtlEnterCriticalSection.  The code manipulates
+     the FastPebLock manually, probably because RtlEnterCriticalSection has
+     been converted to an inline function.  Either way, we test if the code
+     uses the FastPebLock. */
+  const uint8_t *movrbx;
+  const uint8_t *lock = (const uint8_t *)
+                        memmem ((const char *) use_cwd, 80,
+                                "\xf0\x0f\xba\x35", 4);
+  if (lock)
+    {
+      /* The lock instruction tweaks the LockCount member, which is not at
+      	 the start of the PRTL_CRITICAL_SECTION structure.  So we have to
+	 subtract the offset of LockCount to get the real address. */
+      PRTL_CRITICAL_SECTION lockaddr =
+        (PRTL_CRITICAL_SECTION) (lock + 9 + peek32 (lock + 4)
+                                 - offsetof (RTL_CRITICAL_SECTION, LockCount));
+      /* Test if lock address is FastPebLock. */
+      if (lockaddr != NtCurrentTeb ()->Peb->FastPebLock)
+        return NULL;
+      /* Search `mov rbx, rel(rip)'.  This is the instruction fetching the
+         address of the current fcwd_access_t pointer, and it should be pretty
+	 near to the locking stuff. */
+      movrbx = (const uint8_t *) memmem ((const char *) lock, 40,
+                                         "\x48\x8b\x1d", 3);
+    }
+  else
+    {
+      /* Search lea rcx, rel(rip).  This loads the address of the lock into
+         $rcx for the subsequent RtlEnterCriticalSection call. */
+      lock = (const uint8_t *) memmem ((const char *) use_cwd, 80,
+                                       "\x48\x8d\x0d", 3);
+      if (!lock)
+        return NULL;
+      PRTL_CRITICAL_SECTION lockaddr =
+        (PRTL_CRITICAL_SECTION) (lock + 7 + peek32 (lock + 3));
+      /* Test if lock address is FastPebLock. */
+      if (lockaddr != NtCurrentTeb ()->Peb->FastPebLock)
+        return NULL;
+      /* Next is the call RtlEnterCriticalSection. */
+      lock += 7;
+      if (lock[0] != 0xe8)
+        return NULL;
+      const uint8_t *call_addr = (const uint8_t *)
+                                 (lock + 5 + peek32 (lock + 1));
+      if (call_addr != ent_crit)
+        return NULL;
+      /* In contrast to the above Windows 8 code, we don't have to search
+	 for the `mov rbx, rel(rip)' instruction.  It follows right after
+	 the call to RtlEnterCriticalSection. */
+      movrbx = lock + 5;
+    }
+  if (!movrbx)
+    return NULL;
+  /* Check that the next instruction tests if the fetched value is NULL. */
+  const uint8_t *testrbx = (const uint8_t *)
+			   memmem (movrbx + 7, 3, "\x48\x85\xdb", 3);
+  if (!testrbx)
+    return NULL;
+  /* Compute address of the fcwd_access_t ** pointer. */
+  return (fcwd_access_t **) (testrbx + peek32 (movrbx + 3));
+}
+#else
+
+#define peek32(x)	(*(uint32_t *)(x))
+
 static fcwd_access_t **
 find_fast_cwd_pointer ()
 {
@@ -3961,9 +4070,8 @@ find_fast_cwd_pointer ()
   const uint8_t *mov_pfast_cwd;
   if (movedi[0] == 0x8b && movedi[1] == 0xff)	/* mov edi,edi -> W8 */
     {
-      /* Windows 8 CP 32 bit (after a Windows Update?) does not call
-	 RtlEnterCriticalSection.  For some reason the function manipulates
-	 the FastPebLock manually, kind of like RtlEnterCriticalSection has
+      /* Windows 8 does not call RtlEnterCriticalSection.  The code manipulates
+      	 the FastPebLock manually, probably because RtlEnterCriticalSection has
 	 been converted to an inline function.
 
 	 Next we search for a `mov eax, some address'.  This address points
@@ -4017,6 +4125,7 @@ find_fast_cwd_pointer ()
     return NULL;
   return (fcwd_access_t **) peek32 (mov_pfast_cwd + 2);
 }
+#endif
 
 static fcwd_access_t **
 find_fast_cwd ()
@@ -4141,7 +4250,7 @@ cwdstuff::override_win32_cwd (bool init, ULONG old_dismount_count)
 		RtlSetCurrentDirectory_U (error ? &ro_u_pipedir : &win32);
 	      if (!NT_SUCCESS (status))
 		{
-		  debug_printf ("RtlSetCurrentDirectory_U(%S) failed, %p",
+		  debug_printf ("RtlSetCurrentDirectory_U(%S) failed, %y",
 				error ? &ro_u_pipedir : &win32, status);
 		  return;
 		}
@@ -4520,7 +4629,7 @@ cwdstuff::get (char *buf, int need_posix, int with_chroot, unsigned ulen)
   cwd_lock.release ();
 
 out:
-  syscall_printf ("(%s) = cwdstuff::get (%p, %d, %d, %d), errno %d",
+  syscall_printf ("(%s) = cwdstuff::get (%p, %u, %d, %d), errno %d",
 		  buf, buf, ulen, need_posix, with_chroot, errno);
   MALLOC_CHECK;
   return buf;
@@ -4561,7 +4670,7 @@ etc::test_file_change (int n)
     {
       res = true;
       memset (last_modified + n, 0, sizeof (last_modified[n]));
-      debug_printf ("NtQueryFullAttributesFile (%S) failed, %p",
+      debug_printf ("NtQueryFullAttributesFile (%S) failed, %y",
 		    fn[n].ObjectName, status);
     }
   else
@@ -4599,7 +4708,7 @@ etc::dir_changed (int n)
 	  if (!NT_SUCCESS (status))
 	    {
 #ifdef DEBUGGING
-	      system_printf ("NtOpenFile (%S) failed, %p",
+	      system_printf ("NtOpenFile (%S) failed, %y",
 			     dir.get_nt_native_path (), status);
 #endif
 	      changed_h = INVALID_HANDLE_VALUE;
@@ -4614,7 +4723,7 @@ etc::dir_changed (int n)
 	      if (!NT_SUCCESS (status))
 		{
 #ifdef DEBUGGING
-		  system_printf ("NtNotifyChangeDirectoryFile (1) failed, %p",
+		  system_printf ("NtNotifyChangeDirectoryFile (1) failed, %y",
 				 status);
 #endif
 		  NtClose (changed_h);
@@ -4636,7 +4745,7 @@ etc::dir_changed (int n)
 	  if (!NT_SUCCESS (status))
 	    {
 #ifdef DEBUGGING
-	      system_printf ("NtNotifyChangeDirectoryFile (2) failed, %p",
+	      system_printf ("NtNotifyChangeDirectoryFile (2) failed, %y",
 			     status);
 #endif
 	      NtClose (changed_h);
