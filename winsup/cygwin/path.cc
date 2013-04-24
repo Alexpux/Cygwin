@@ -1898,6 +1898,7 @@ symlink_worker (const char *oldpath, const char *newpath, bool isdevice)
     }
   else
     {
+      path_conv win32_oldpath;
       win32_oldpath.check (oldpath, PC_SYM_NOFOLLOW, stat_suffixes);
       if (win32_oldpath.error)
         {
