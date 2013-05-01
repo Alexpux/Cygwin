@@ -1,3 +1,56 @@
+2013-04-30  Yaakov Selkowitz  <yselkowitz@users.sourceforge.net>
+
+	Throughout, (mainly in fhandler*) fix remaining gcc 4.7 mismatch
+	warnings between regparm definitions and declarations.
+	* smallprint.cc (__small_vswprintf): Conditionalize declaration and
+	setting of l_opt for only x86_64.
+	* spawn.cc (child_info_spawn::worker): Remove unused 'pid' variable.
+	* thread.cc (verifyable_object_isvalid): Temporarily define as
+	non-inline with gcc 4.7+, regardless of target.
+
+2013-04-30  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* gendef: Fix sigfe.s typo.
+
+2013-04-30  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* spawn.cc (system_call_cleanup): Rename from pthread_cleanup.  Extend
+	functionality.
+	(system_call_cleanup::system_call_cleanup): Set up signals like
+	system() requires.  Unblock previously-blocked signal handling.
+	(system_call_cleanup::~system_call_cleanup): Restore signal handling
+	after system().
+	(child_info_spawn::worker): Put signals on hold and use
+	system_call_cleanup class to set and restore signals rather than doing
+	it prior to to running the program.  Remove the ill-conceived
+	pthread_cleanup stuff.
+
+2013-04-30  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* exceptions.cc (cygwin_exception::dumpstack): Guard against wild
+	pointer dereference.
+	(CYG_EXC_CONTINUE_EXECUTION): Define based on standard Windows
+	definition.
+	(CYG_EXC_CONTINUE_SEARCH): Ditto.
+	(exception::handle): Move andreas detection earlier.  Make comment
+	clearer.
+	(signal_exit): Set core-dumped flag.
+
+2013-04-30  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* i686.din: New file.
+	* x86_64.din: New file.
+	* common.din: New file.
+	* cygwin.din: Delete.
+	* cygwin64.din: Delete.
+	* gendef: Rework to take options rather than using positional
+	parameters.  Accept multiple files as input.
+	* Makefile.in: Rework to allow multiple .din files as input to gendef.
+	* configure.in: Change names of .din files to be expressively target
+	specific.
+	* aclocal.m4: Regenerate.
+	* configure: Ditto.
+
 2013-04-29  Christopher Faylor  <me.cygwin2013@cgf.cx>
 
 	* autoload.cc (CreateSymbolicLinkW): Rename from CreateSymbolicLink.

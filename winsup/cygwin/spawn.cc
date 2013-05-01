@@ -85,7 +85,7 @@ perhaps_suffix (const char *prog, path_conv& buf, int& err, unsigned opt)
    of name is placed in buf and returned.  Otherwise the contents of buf
    is undefined and NULL is returned.  */
 
-const char * __stdcall
+const char * __reg3
 find_exec (const char *name, path_conv& buf, const char *mywinenv,
 	   unsigned opt, const char **known_suffix)
 {
@@ -234,26 +234,37 @@ iscmd (const char *argv0, const char *what)
 	 (n == 0 || isdirsep (argv0[n - 1]));
 }
 
-struct pthread_cleanup
+struct system_call_cleanup
 {
   _sig_func_ptr oldint;
   _sig_func_ptr oldquit;
   sigset_t oldmask;
-  pthread_cleanup (): oldint (NULL), oldquit (NULL), oldmask ((sigset_t) -1) {}
-};
-
-static void
-do_cleanup (void *args)
-{
-# define cleanup ((pthread_cleanup *) args)
-  if (cleanup->oldmask != (sigset_t) -1)
-    {
-      signal (SIGINT, cleanup->oldint);
-      signal (SIGQUIT, cleanup->oldquit);
-      sigprocmask (SIG_SETMASK, &(cleanup->oldmask), NULL);
-    }
+  system_call_cleanup (bool issystem)
+  {
+    if (!issystem)
+      oldint = (_sig_func_ptr) -1;
+    else
+      {
+	sigset_t child_block;
+	oldint = signal (SIGINT,  SIG_IGN);
+	oldquit = signal (SIGQUIT, SIG_IGN);
+	sigemptyset (&child_block);
+	sigaddset (&child_block, SIGCHLD);
+	sigprocmask (SIG_BLOCK, &child_block, &oldmask);
+	sig_send (NULL, __SIGNOHOLD);
+      }
+  }
+  ~system_call_cleanup ()
+  {
+    if (oldmask != (sigset_t) -1)
+      {
+	signal (SIGINT, oldint);
+	signal (SIGQUIT, oldquit);
+	sigprocmask (SIG_SETMASK, &oldmask, NULL);
+      }
+  }
 # undef cleanup
-}
+};
 
 child_info_spawn NO_COPY ch_spawn;
 
@@ -295,17 +306,8 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
     }
 
   /* FIXME: There is a small race here and FIXME: not thread safe! */
-  pthread_cleanup cleanup;
   if (mode == _P_SYSTEM)
-    {
-      sigset_t child_block;
-      cleanup.oldint = signal (SIGINT, SIG_IGN);
-      cleanup.oldquit = signal (SIGQUIT, SIG_IGN);
-      sigemptyset (&child_block);
-      sigaddset (&child_block, SIGCHLD);
-      sigprocmask (SIG_BLOCK, &child_block, &cleanup.oldmask);
-    }
-  pthread_cleanup_push (do_cleanup, (void *) &cleanup);
+    sig_send (NULL, __SIGHOLD);
   av newargv;
   linebuf one_line;
   PWCHAR envblock = NULL;
@@ -739,6 +741,8 @@ loop:
       goto out;
     }
 
+  system_call_cleanup (mode == _P_SYSTEM);
+
   /* The CREATE_SUSPENDED case is handled below */
   if (ismsys () && !(c_flags & CREATE_SUSPENDED))
     strace.write_childpid (pi.dwProcessId);
@@ -760,7 +764,6 @@ loop:
   /* Name the handle similarly to proc_subproc. */
   ProtectHandle1 (pi.hProcess, childhProc);
 
-  pid_t pid;
   if (mode == _P_OVERLAY)
     {
       myself->dwProcessId = pi.dwProcessId;
@@ -768,7 +771,6 @@ loop:
       myself.hProcess = hExeced = pi.hProcess;
       real_path.get_wide_win32_path (myself->progname); // FIXME: race?
       sigproc_printf ("new process name %W", myself->progname);
-      pid = myself->pid;
       if (!ismsys ())
 	close_all_files ();
     }
@@ -808,7 +810,6 @@ loop:
 	  res = -1;
 	  goto out;
 	}
-      pid = child->pid;
     }
 
   /* Start the child running */
@@ -880,7 +881,6 @@ out:
   this->cleanup ();
   if (envblock)
     free (envblock);
-  pthread_cleanup_pop (1);
   return (int) res;
 }
 
