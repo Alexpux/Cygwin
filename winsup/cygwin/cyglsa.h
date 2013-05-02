@@ -16,7 +16,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for details. */
 extern "C" {
 #endif
 
-#define CYG_LSA_PKGNAME "CygwinLsa"
+#define CYG_LSA_PKGNAME "MSYSLsa"
 
 #define CYG_LSA_MAGIC_OLD1 0x0379f014LU
 /* First change to cyglsa_t.

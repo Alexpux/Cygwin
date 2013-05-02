@@ -88,7 +88,7 @@ __report_error (const char *msg, ...)
   WCHAR module[MAX_PATH];
   char * posix_module = NULL;
   static const char UNKNOWN_MODULE[] = "<unknown module>: ";
-  static const char CYGWIN_FAILURE_MSG[] = "Cygwin runtime failure: ";
+  static const char CYGWIN_FAILURE_MSG[] = "MSYS runtime failure: ";
   HANDLE errh = GetStdHandle (STD_ERROR_HANDLE);
   ssize_t modulelen = GetModuleFileNameW (NULL, module, sizeof (module));
   va_list args;

@@ -487,7 +487,7 @@ warn_msdos (const char *src)
     return;
   tmp_pathbuf tp;
   char *posix_path = tp.c_get ();
-  small_printf ("cygwin warning:\n");
+  small_printf ("MSYS warning:\n");
   if (cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_RELATIVE, src,
 			posix_path, NT_MAX_PATH))
     small_printf ("  MS-DOS style path detected: %ls\n  POSIX equivalent preferred.\n",
@@ -495,9 +495,8 @@ warn_msdos (const char *src)
   else
     small_printf ("  MS-DOS style path detected: %ls\n  Preferred POSIX equivalent is: %ls\n",
 		  src, posix_path);
-  small_printf ("  CYGWIN environment variable option \"nodosfilewarning\" turns off this warning.\n"
-		"  Consult the user's guide for more details about POSIX paths:\n"
-		"    http://cygwin.com/cygwin-ug-net/using.html#using-pathnames\n");
+  small_printf ("  MSYS environment variable option \"nodosfilewarning\" turns off this warning.\n"
+		"  Consult the user's guide for more details about POSIX paths:\n");
   user_shared->warned_msdos = true;
 }
 
@@ -4234,7 +4233,7 @@ find_fast_cwd ()
   if (!f_cwd_ptr)
     system_printf ("WARNING: Couldn't compute FAST_CWD pointer.  "
 		   "Please report this problem to\nthe public mailing "
-		   "list cygwin@cygwin.com");
+		   "list mingw-users@lists.sourceforge.net");
   if (f_cwd_ptr && *f_cwd_ptr)
     {
       /* Just evaluate structure version. */
