@@ -67,7 +67,7 @@ int NO_COPY dynamically_loaded;
 /* Some CYGWIN environment variable variables. */
 bool allow_glob = true;
 bool ignore_case_with_glob = false;
-bool dos_file_warning = true;
+bool dos_file_warning = false;
 winsym_t allow_winsymlinks = WSYM_sysfile;
 bool reset_com = false;
 bool pipe_byte = false;
