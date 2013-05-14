@@ -438,43 +438,33 @@ getgroups (int gidsetsize, __gid16_t *grouplist)
 #endif
 
 /* Core functionality of initgroups and getgrouplist. */
-static int
+static void
 get_groups (const char *user, gid_t gid, cygsidlist &gsids)
 {
-  int ret = -1;
-
   cygheap->user.deimpersonate ();
   struct passwd *pw = internal_getpwnam (user);
   struct group *gr = internal_getgrgid (gid);
   cygsid usersid, grpsid;
-  if (!usersid.getfrompw (pw) || !grpsid.getfromgr (gr))
-    set_errno (EINVAL);
-  else if (get_server_groups (gsids, usersid, pw))
-    {
-      gsids += grpsid;
-      ret = 0;
-    }
+  if (usersid.getfrompw (pw))
+    get_server_groups (gsids, usersid, pw);
+  if (grpsid.getfromgr (gr))
+    gsids += grpsid;
   cygheap->user.reimpersonate ();
-  return ret;
 }
 
 extern "C" int
 initgroups32 (const char *user, gid_t gid)
 {
-  int ret;
-
   assert (user != NULL);
   cygsidlist tmp_gsids (cygsidlist_auto, 12);
-  if (!(ret = get_groups (user, gid, tmp_gsids)))
-    {
-      cygsidlist new_gsids (cygsidlist_alloc, tmp_gsids.count ());
-      for (int i = 0; i < tmp_gsids.count (); i++)
-	new_gsids.sids[i] = tmp_gsids.sids[i];
-      new_gsids.count (tmp_gsids.count ());
-      cygheap->user.groups.update_supp (new_gsids);
-    }
-  syscall_printf ( "%d = initgroups(%s, %u)", ret, user, gid);
-  return ret;
+  get_groups (user, gid, tmp_gsids);
+  cygsidlist new_gsids (cygsidlist_alloc, tmp_gsids.count ());
+  for (int i = 0; i < tmp_gsids.count (); i++)
+    new_gsids.sids[i] = tmp_gsids.sids[i];
+  new_gsids.count (tmp_gsids.count ());
+  cygheap->user.groups.update_supp (new_gsids);
+  syscall_printf ( "0 = initgroups(%s, %u)", user, gid);
+  return 0;
 }
 
 #ifdef __x86_64__
@@ -490,7 +480,9 @@ initgroups (const char *user, __gid16_t gid)
 extern "C" int
 getgrouplist (const char *user, gid_t gid, gid_t *groups, int *ngroups)
 {
-  int ret;
+  int ret = 0;
+  int cnt = 0;
+  struct group *gr;
 
   /* Note that it's not defined if groups or ngroups may be NULL!
      GLibc does not check the pointers on entry and just uses them.
@@ -501,23 +493,18 @@ getgrouplist (const char *user, gid_t gid, gid_t *groups, int *ngroups)
   assert (ngroups != NULL);
 
   cygsidlist tmp_gsids (cygsidlist_auto, 12);
-  if (!(ret = get_groups (user, gid, tmp_gsids)))
-    {
-      int cnt = 0;
-      for (int i = 0; i < tmp_gsids.count (); i++)
-	{
-	  struct group *gr = internal_getgrsid (tmp_gsids.sids[i]);
-	  if (gr)
-	    {
-	      if (groups && cnt < *ngroups)
-		groups[cnt] = gr->gr_gid;
-	      ++cnt;
-	    }
-	}
-      if (cnt > *ngroups)
-	ret = -1;
-      *ngroups = cnt;
-    }
+  get_groups (user, gid, tmp_gsids);
+  for (int i = 0; i < tmp_gsids.count (); i++)
+    if ((gr = internal_getgrsid (tmp_gsids.sids[i])) != NULL)
+      {
+	if (groups && cnt < *ngroups)
+	  groups[cnt] = gr->gr_gid;
+	++cnt;
+      }
+  if (cnt > *ngroups)
+    ret = -1;
+  *ngroups = cnt;
+
   syscall_printf ( "%d = getgrouplist(%s, %u, %p, %d)",
 		  ret, user, gid, groups, *ngroups);
   return ret;
