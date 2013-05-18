@@ -355,6 +355,7 @@ install-libs: $(TARGET_LIBS)
 	for i in $^; do \
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/lib/`basename $$i` ; \
 	done
+	$(INSTALL_DATA) msys-2.0.dbg $(DESTDIR)$(bindir)/msys-2.0.dbg
 	cd $(DESTDIR)$(tooldir)/lib && ln -sf libmsys-2.0.a libg.a
 
 install-headers:
