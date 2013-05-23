@@ -1,163 +1,228 @@
 /*
- * Copyright (C) 2013  Earnie Boyd  <earnie@users.sf.net>
+ * Copyright (C) 2002  Earnie Boyd  <earnie@users.sf.net>
+ * Copyright (C) 2013  niXman  <i.nixman@gmail.com>
+ * Copyright (C) 2013  Alexey Pavlov  <alexey.pawlow@gmail.com>
  * This file is a part of MSYS
  */
 
 /*
- * bool IsMsys (const char * File)
+ * int is_msys_exec (const char * File)
  *
  * This function returns true or false based on the import section data of
  * the File containing the name msys-2.0.dll.
  */
 
+#include "winsup.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include "winsup.h"
+#include <assert.h>
 
-#define FILEERROR(A) fprintf (stderr, (A))
+#define RETURN_FALSE_IF_EXPRESSION_IS_FALSE(expr, postop) \
+	if ( !(expr) ) { \
+		postop; \
+		return 0; \
+	}
 
-struct SectionData
-{
-    char SectionName[8];
-    int VA_Size;
-    int VA_Ptr;
-    int RD_Size;
-    int RD_Ptr;
+#define NOOP_OP \
+	do {} while(0)
+
+/***************************************************************************/
+
+typedef struct {
+	char foo1[8];
+	unsigned vasize;
+	unsigned vaptr;
+	unsigned foo2;
+	unsigned rdptr;
+} sections_t;
+
+typedef struct {
+	unsigned foo1;
+	unsigned foo2;
+	unsigned foo3;
+	unsigned name;
+	unsigned foo4;
+} import_t;
+
+/***************************************************************************/
+
+template<typename T>
+struct is_int_or_short {
+	enum { value = 0 };
 };
 
-typedef SectionData SD;
-
-struct ImportData
-{
-    unsigned attr;
-    unsigned ts;
-    unsigned chain;
-    unsigned name;
-    unsigned iat;
+template<>
+struct is_int_or_short<int> {
+	enum { value = 1 };
 };
 
-typedef ImportData ID;
+template<>
+struct is_int_or_short<unsigned int> {
+	enum { value = 1 };
+};
+
+template<>
+struct is_int_or_short<short> {
+	enum { value = 1 };
+};
+
+/***************************************************************************/
+
+template<typename T>
+int read_integral(HANDLE fh, int offset, T *ptr) {
+	DWORD rd;
+	
+	assert(0 != is_int_or_short<T>::value);
+	
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 INVALID_SET_FILE_POINTER != SetFilePointer(fh, offset, 0, FILE_BEGIN)
+		,NOOP_OP
+	);
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 ReadFile(fh, ptr, sizeof(T), &rd, 0)
+		,NOOP_OP
+	);
+
+	return 1;
+}
 
 static int
-GetFileData(HANDLE fh, int offset, short bytes2get)
-{
-    TRACE_IN;
-    int FileData;
-    unsigned bytesread;
+read_buffer(HANDLE fh, int offset, char *ptr, int size) {
+	DWORD rd;
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 INVALID_SET_FILE_POINTER != SetFilePointer(fh, offset, 0, FILE_BEGIN)
+		,NOOP_OP
+	);
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 ReadFile(fh, ptr, size, &rd, 0)
+		,NOOP_OP
+	);
 
-    if (SetFilePointer (fh, offset, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER
-	&& GetLastError () != NO_ERROR)
-      {
-	FILEERROR("int GetFileData: SetFilePointer");
-	exit (1);
-      }
-
-    if (!ReadFile (fh, &FileData, bytes2get, (DWORD *) & bytesread, 0))
-      {
-	FILEERROR("int GetFileData: ReadFile");
-	exit (1);
-      }
-
-    return FileData;
+	return 1;
 }
 
-static char *
-GetFileDataStr(HANDLE fh, int offset, unsigned long bytes2get)
-{
-    TRACE_IN;
-    char *FileData = new char [bytes2get+1];
-    unsigned bytesread;
+/***************************************************************************/
 
-    if (SetFilePointer (fh, offset, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER
-	&& GetLastError () != NO_ERROR)
-      {
-	FILEERROR("GetFileData: SetFilePointer");
-	exit (1);
-      }
+int
+is_msys_exec(const char *filename) {
+	HANDLE fh = CreateFile(
+		 fname
+		,GENERIC_READ
+		,FILE_SHARE_READ
+		,NULL
+		,OPEN_EXISTING
+		,FILE_ATTRIBUTE_NORMAL
+		,NULL
+	);
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 INVALID_HANDLE_VALUE != fh
+		,debug_printf("file \"%s\" is not exists\n", fname);
+	);
+	
+	int i, retval = 0;
+	int pe_offset = 0;
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 read_integral(fh, 0x3c, &pe_offset)
+		,CloseHandle(fh)
+	);
+	debug_printf("pe_offset: 0x%x\n", pe_offset);
+	
+	char pe_sig[4] = {0};
+	char msys2_sig[] = "msys-2.0.dll";
 
-    if (!ReadFile (fh, FileData, bytes2get, (DWORD *) & bytesread, 0))
-      {
-	FILEERROR("GetFileData: ReadFile");
-	exit (1);
-      }
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 read_buffer(fh, pe_offset, pe_sig, sizeof(pe_sig))
+		,CloseHandle(fh)
+	);
+	
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 0 == memcmp(pe_sig, "PE\0\0", sizeof(pe_sig))
+		,CloseHandle(fh)
+	);
 
-    FileData[bytes2get] = 0;
-      
-    return FileData;
-}
-
-bool
-IsMsys (const char *File)
-{
-    TRACE_IN;
-    debug_printf("%s", File);
-    HANDLE fh =
-      CreateFile (File
-		 , GENERIC_READ
-		 , FILE_SHARE_READ
-		 , NULL
-		 , OPEN_EXISTING
-		 , FILE_ATTRIBUTE_NORMAL
-		 , NULL
-		 );
-    if (fh == INVALID_HANDLE_VALUE)
-      {
-	fprintf (stderr, " - Cannot open");
-	exit (1);
-      }
-    bool retval = false;
-    int PE_Offset = GetFileData (fh, 0x3c, 4);
-    char *PE_Signature = GetFileDataStr (fh, PE_Offset, 4);
-    if (memcmp (PE_Signature, "PE\0\0", 4) != 0)
-      {
-	TRACE_IN;
-	delete[] PE_Signature;
-	CloseHandle (fh);
-	return false;
-      }
-    delete[] PE_Signature;
-    int PE_Option = PE_Offset + 4 + 20;
-    int PE_ImportRva = GetFileData (fh, PE_Option + 104, 4);
-    int PE_ImportBase = 0;
-    int PE_ImportDataSz = 0;
-    short PE_SectionCnt = GetFileData (fh, PE_Offset + 4 + 2, 2);
-    short PE_SectionOfs = GetFileData (fh, PE_Offset + 4 + 16, 2) + PE_Option;
-    char * PE_Sections = GetFileDataStr (fh, PE_SectionOfs, PE_SectionCnt * 40);
-    for (int I=0; I < PE_SectionCnt; I++)
-      {
-	SD *sec = (SD *) (PE_Sections + (I * 40));
-	if (PE_ImportRva >= sec->VA_Ptr &&
-	    PE_ImportRva < sec->VA_Ptr + sec->VA_Size)
-	  {
-	    PE_ImportBase = PE_ImportRva - sec->VA_Ptr + sec->RD_Ptr;
-	    PE_ImportDataSz = sec->VA_Ptr + sec->VA_Size - PE_ImportRva;
-	    break;
-	  }
-      }
-    if (PE_ImportBase && PE_ImportDataSz)
-      {
-	unsigned char *PE_Import = 
-	  (unsigned char *)GetFileDataStr (fh, PE_ImportBase, PE_ImportDataSz);
-	ID *impdata = (ID *)PE_Import;
-	for (int I=0; impdata[I].name; I++)
-	  {
-	    if (impdata[I].name < PE_ImportRva ||
-	        impdata[I].name - PE_ImportRva >= PE_ImportDataSz)
-	      {
-		debug_printf("Unrecognized PE format");
-		break;
+	int optional = pe_offset+4+20;
+	debug_printf("optional: 0x%x\n", optional);
+	
+	short magic = 0;
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 read_integral(fh, optional, &magic)
+		,CloseHandle(fh)
+	);
+	debug_printf("magic: 0x%x\n", magic);
+	
+	unsigned int import_rva = 0;
+	if ( IMAGE_NT_OPTIONAL_HDR32_MAGIC == magic ) {
+		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+			 read_integral(fh, optional+104, &import_rva)
+			,CloseHandle(fh)
+		);
+	} else if ( IMAGE_NT_OPTIONAL_HDR64_MAGIC == magic ) {
+		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+			 read_integral(fh, optional+120, &import_rva)
+			,CloseHandle(fh)
+		);
+	} else {
+		debug_printf("is_msys(): unknown optional header: 0x%x\n", magic);
+	}
+	
+	int import_base = 0;
+	unsigned int import_data_size = 0;
+	
+	short section_count = 0;
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 read_integral(fh, pe_offset+4+2, &section_count)
+		,CloseHandle(fh)
+	);
+	debug_printf("section_count: 0x%x\n", section_count);
+	
+	short section_offset = 0;
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 read_integral(fh, pe_offset+4+16, &section_offset)
+		,CloseHandle(fh)
+	)
+	section_offset += optional;
+	debug_printf("section_offset: 0x%x\n", section_offset);
+	
+	char *sections = (char*)malloc((section_count*40)+1);
+	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+		 read_buffer(fh, section_offset, sections, section_count*40)
+		,free(sections);CloseHandle(fh)
+	);
+	
+	for ( i = 0; i < section_count; ++i ) {
+		sections_t *sec = (sections_t *)(sections + (i*40));
+		if ( import_rva >= sec->vaptr && import_rva < sec->vaptr + sec->vasize ) {
+			import_base = import_rva - sec->vaptr + sec->rdptr;
+			import_data_size = sec->vaptr + sec->vasize - import_rva;
+			break;
+		}
+	}
+	if ( import_base && import_data_size ) {
+		unsigned char *imports = (unsigned char*)malloc(import_data_size+1);
+		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+			 read_buffer(fh, import_base, (char*)imports, import_data_size)
+			,free(sections);free(imports);CloseHandle(fh)
+		);
+		imports[import_data_size] = 0;
+		import_t *impdata = (import_t *)imports;
+		for ( i = 0; impdata[i].name; ++i ) {
+			if ( impdata[i].name < import_rva || impdata[i].name - import_rva >= import_data_size ) {
+				debug_printf("Unrecognized PE format\n");
+				break;
 	      }
-	    if (!strcmp((char *) PE_Import + impdata[I].name - PE_ImportRva,
-		  "msys-2.0.dll"))
-	      {
-		retval = true;
-		break;
+			const char *name = (const char*)imports + impdata[i].name - import_rva;
+			debug_printf("name: %s\n", name);
+			if ( 0 == strncmp(name, msys2_sig, sizeof(msys2_sig)) ) {
+				retval = 1;
+				break;
 	      }
-	  }
-	delete[] PE_Import;
-      }
-    delete[] PE_Sections;
-    CloseHandle (fh);
-    debug_printf("%d", retval);
-    return retval;
+		}
+		free(imports);
+	}
+
+	free(sections);
+	CloseHandle(fh);
+	
+	//system_printf("progname:%s, is msys:%s\n", fname, "false\0true"+6*retval);
+	return retval;
 }
