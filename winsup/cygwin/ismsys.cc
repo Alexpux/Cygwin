@@ -106,7 +106,7 @@ read_buffer(HANDLE fh, int offset, char *ptr, int size) {
 int
 is_msys_exec(const char *filename) {
 	HANDLE fh = CreateFile(
-		 fname
+		 filename
 		,GENERIC_READ
 		,FILE_SHARE_READ
 		,NULL
@@ -116,7 +116,7 @@ is_msys_exec(const char *filename) {
 	);
 	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
 		 INVALID_HANDLE_VALUE != fh
-		,debug_printf("file \"%s\" is not exists\n", fname);
+		,debug_printf("file \"%s\" is not exists\n", filename);
 	);
 	
 	int i, retval = 0;
@@ -223,6 +223,6 @@ is_msys_exec(const char *filename) {
 	free(sections);
 	CloseHandle(fh);
 	
-	//system_printf("progname:%s, is msys:%s\n", fname, "false\0true"+6*retval);
+	//system_printf("progname:%s, is msys:%s\n", filename, "false\0true"+6*retval);
 	return retval;
 }
