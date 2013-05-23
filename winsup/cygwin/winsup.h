@@ -298,7 +298,7 @@ int cygwin_select (int , fd_set *, fd_set *, fd_set *,
 int cygwin_gethostname (char *__name, size_t __len);
 };
 
-extern int is_msys_exec (char const * const);*/
+extern int is_msys_exec (char const * const);
 
 /*************************** Unsorted ******************************/
 
