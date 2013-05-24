@@ -506,12 +506,11 @@ initial_env ()
     _cygwin_testing = 1;
 
 #ifdef DEBUGGING
-  DWORD len;
   char buf[NT_MAX_PATH];
   if (GetEnvironmentVariableA ("MSYS_DEBUG", buf, sizeof (buf) - 1))
     {
       char buf1[NT_MAX_PATH];
-      len = GetModuleFileName (NULL, buf1, NT_MAX_PATH);
+      GetModuleFileName (NULL, buf1, NT_MAX_PATH);
       strlwr (buf1);
       strlwr (buf);
       char *p = strpbrk (buf, ":=");
