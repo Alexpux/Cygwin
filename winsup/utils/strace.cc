@@ -459,7 +459,7 @@ handle_output_debug_string (DWORD id, LPVOID p, unsigned mask, FILE *ofile)
 
   if (strncmp (alen, "cYg", 3))
     return;
-  len = (int) strtoul (alen + 4, NULL, 16);
+  len = (int) strtoul (alen + 3, NULL, 16);
   if (!len)
     return;
 
