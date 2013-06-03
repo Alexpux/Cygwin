@@ -106,24 +106,6 @@ char * __stdcall
 shared_name (char *ret_buf, const char *str, int num)
 {
   __small_sprintf (ret_buf, "%s.%d", str, num);
-
-  static NO_COPY char buf2[MAX_PATH] = {0};
-  unsigned long ulModuleHash = 0;
-  char *tptr = buf2;
-
-  AbsDllPath("msys-2.0.dll", buf2, sizeof (buf2));
-  do {
-       ulModuleHash = ulModuleHash + *tptr++;
-  } while (*tptr);
-
-  debug_printf("%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
-  __small_sprintf (buf2, "%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
-/* This code was removed because cygwin_version.dll_build_date is invalid.
- * This should be put back into service once we discover the culprit.
- */
-  debug_printf("ret_buf = %s", ret_buf);
-  debug_printf("dll_build_date = %s", cygwin_version.dll_build_date);
-
   return ret_buf;
 }
 
@@ -131,23 +113,6 @@ WCHAR * __stdcall
 shared_name (WCHAR *ret_buf, const WCHAR *str, int num)
 {
   __small_swprintf (ret_buf, L"%W.%d", str, num);
-
-  static NO_COPY char buf2[MAX_PATH] = {0};
-  unsigned long ulModuleHash = 0;
-  char *tptr = buf2;
-
-  AbsDllPath("msys-2.0.dll", buf2, sizeof (buf2));
-  do {
-       ulModuleHash = ulModuleHash + *tptr++;
-  } while (*tptr);
-
-  debug_printf("%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
-  __small_sprintf (buf2, "%d.%s.%s.%d", ulModuleHash, cygwin_version.shared_id, str, num);
-/* This code was removed because cygwin_version.dll_build_date is invalid.
- * This should be put back into service once we discover the culprit.
- */
-  debug_printf("ret_buf = %s", ret_buf);
-  debug_printf("dll_build_date = %s", cygwin_version.dll_build_date);
   return ret_buf;
 }
 
