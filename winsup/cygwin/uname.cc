@@ -30,9 +30,8 @@ uname (struct utsname *name)
 
   memset (name, 0, sizeof (*name));
   char* msystem = getenv("MSYSTEM");
-  if (!msystem)
-    strcpy (msystem, "MINGW32");
-  __small_sprintf (name->sysname, "%s_%s", msystem, wincap.osname ());
+  const char *msystem_msys = "MSYS";
+  __small_sprintf (name->sysname, "%s_%s", msystem ? msystem : msystem_msys, wincap.osname ());
 
 #if 0
   /* Recognition of the real 64 bit CPU inside of a WOW64 system, irritates
