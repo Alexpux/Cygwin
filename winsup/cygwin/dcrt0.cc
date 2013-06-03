@@ -377,17 +377,17 @@ check_sanity_and_sync (per_process *p)
 
   /* Complain if older than last incompatible change */
   if (p->dll_major < CYGWIN_VERSION_DLL_EPOCH)
-    api_fatal ("msys DLL and APP are out of sync -- DLL version mismatch %d < %d",
+    api_fatal ("msys DLL and APP are out of sync -- DLL version mismatch %u < %u",
 	       p->dll_major, CYGWIN_VERSION_DLL_EPOCH);
 
   /* magic_biscuit != 0 if using the old style version numbering scheme.  */
   if (p->magic_biscuit != SIZEOF_PER_PROCESS)
-    api_fatal ("Incompatible msys .dll -- incompatible per_process info %d != %d",
+    api_fatal ("Incompatible msys .dll -- incompatible per_process info %u != %u",
 	       p->magic_biscuit, SIZEOF_PER_PROCESS);
 
   /* Complain if incompatible API changes made */
   if (p->api_major > cygwin_version.api_major)
-    api_fatal ("msys DLL and APP are out of sync -- API version mismatch %d > %d",
+    api_fatal ("msys DLL and APP are out of sync -- API version mismatch %u > %u",
 	       p->api_major, cygwin_version.api_major);
 
   /* This is a kludge to work around a version of _msys_common_crt0
