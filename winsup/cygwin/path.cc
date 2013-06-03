@@ -642,13 +642,6 @@ path_conv::check (const char *src, unsigned opt,
     }
   int component = 0;		// Number of translated components
 
-  //MSYS - See if this works
-  //FIXME: If it does work then what can we remove from this function
-  //
-  //opt |= PC_SYM_IGNORE;
-  //OK, it doesn't work and the reason is that foo is treated as a symlink for
-  //foo.exe.  So, now maybe we can go clean this up.
-
   if (!(opt & PC_NULLEMPTY))
     error = 0;
   else if (!*src)
@@ -661,7 +654,6 @@ path_conv::check (const char *src, unsigned opt,
   /* This loop handles symlink expansion.  */
   for (;;)
     {
-      //What's this macro do?
       MALLOC_CHECK;
       assert (src);
 
@@ -841,9 +833,8 @@ path_conv::check (const char *src, unsigned opt,
 
 	  /* If path is only a drivename, Windows interprets it as the
 	     current working directory on this drive instead of the root
-	     dir which is what we want.
-	     So we need the trailing backslash in this case.
-      */
+	     dir which is what we want. So we need the trailing backslash
+	     in this case. */
 	  if (full_path[0] && full_path[1] == ':' && full_path[2] == '\0')
 	    {
 	      full_path[2] = '\\';

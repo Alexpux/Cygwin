@@ -17,14 +17,12 @@ extern "C"
 void
 AbsDllPath (const char * DllName, char * AbsDllPath, int AbsDllPathLen)
 {
-    TRACE_IN;
     __AbsDllPath(DllName, AbsDllPath, AbsDllPathLen);
 }
 
 void
 __AbsDllPath(const char * DllName, char * AbsDllPath, int AbsDllPathLen)
 {
-    TRACE_IN;
     HMODULE mn;
     mn = GetModuleHandle (DllName);
     if (GetModuleFileName (mn, AbsDllPath, AbsDllPathLen) == 0)

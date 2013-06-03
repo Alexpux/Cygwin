@@ -13,28 +13,6 @@ details. */
 
 #define __INSIDE_CYGWIN__
 
-#include "cygwin/version.h"
-
-#define HMMM(HUM) debug_printf("%s-%d: %s", "HMMM", __LINE__, (HUM))
-#if DEBUGGING
-# define FIXME debug_printf("FIXME - %s (%s): %d", __FILE__, __FUNCTION__, __LINE__)
-#else
-# define FIXME
-#endif
-#if TRACING
-# define TRACE_IN {char TrcInBuf[256]; __small_sprintf(TrcInBuf, "TRACE_IN: %s, %d, %s", __FILE__, __LINE__, __PRETTY_FUNCTION__); OutputDebugString (TrcInBuf);}
-#else
-# define TRACE_IN
-#endif
-
-#ifdef TRACETTY
-# undef TRACETTY
-# define TRACETTY {char TrcInBuf[256]; __small_sprintf(TrcInBuf, "TRACETTY: %s, %d, %s", __FILE__, __LINE__, __PRETTY_FUNCTION__); OutputDebugString (TrcInBuf);}
-#else
-# undef TRACETTY
-# define TRACETTY
-#endif
-
 #define NO_COPY_RO __attribute__((nocommon)) __attribute__((section(".rdata_cygwin_nocopy")))
 #define NO_COPY __attribute__((nocommon)) __attribute__((section(".data_cygwin_nocopy")))
 #define NO_COPY_INIT __attribute__((section(".data_cygwin_nocopy")))

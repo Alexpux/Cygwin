@@ -105,7 +105,8 @@ get_session_parent_dir ()
 char * __stdcall
 shared_name (char *ret_buf, const char *str, int num)
 {
-  TRACE_IN;
+  __small_sprintf (ret_buf, "%s.%d", str, num);
+
   static NO_COPY char buf2[MAX_PATH] = {0};
   unsigned long ulModuleHash = 0;
   char *tptr = buf2;
@@ -130,7 +131,7 @@ WCHAR * __stdcall
 shared_name (WCHAR *ret_buf, const WCHAR *str, int num)
 {
   __small_swprintf (ret_buf, L"%W.%d", str, num);
-  TRACE_IN;
+
   static NO_COPY char buf2[MAX_PATH] = {0};
   unsigned long ulModuleHash = 0;
   char *tptr = buf2;
