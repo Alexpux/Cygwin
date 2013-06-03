@@ -223,6 +223,6 @@ is_msys_exec(const char *filename) {
 	free(sections);
 	CloseHandle(fh);
 	
-	//system_printf("progname:%s, is msys:%s\n", filename, "false\0true"+6*retval);
+	debug_printf("progname:%s, is msys:%s\n", filename, "false\0true"+6*retval);
 	return retval;
 }
