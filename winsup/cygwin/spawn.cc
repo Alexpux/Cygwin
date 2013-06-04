@@ -376,7 +376,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
   if (res)
     goto out;
 
-  if (!real_path.iscygexec () && ::cygheap->cwd.get_error ())
+  if (!wascygexec && ::cygheap->cwd.get_error ())
     {
       small_printf ("Error: Current working directory %s.\n"
 		    "Can't start native Windows application from here.\n\n",
@@ -408,7 +408,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       if (wascygexec)
 	newargv.dup_all ();
       else if (!one_line.fromargv (newargv, real_path.get_win32 (),
-				   real_path.iscygexec ()))
+				   wascygexec))
 	{
 	  res = -1;
 	  goto out;
@@ -419,7 +419,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       moreinfo->argc = newargv.argc;
       moreinfo->argv = newargv;
 
-      if (mode != _P_OVERLAY || !real_path.iscygexec ()
+      if (mode != _P_OVERLAY || !wascygexec
 	  || !DuplicateHandle (GetCurrentProcess (), myself.shared_handle (),
 			       GetCurrentProcess (), &moreinfo->myself_pinfo,
 			       0, TRUE, DUPLICATE_SAME_ACCESS))
@@ -548,18 +548,18 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 
   cygbench ("spawn-worker");
 
-  if (!real_path.iscygexec())
+  if (!wascygexec)
     ::cygheap->fdtab.set_file_pointers_for_exec ();
 
   moreinfo->envp = build_env (envp, envblock, moreinfo->envc,
-			      real_path.iscygexec ());
+			      wascygexec);
   if (!moreinfo->envp || !envblock)
     {
       set_errno (E2BIG);
       res = -1;
       goto out;
     }
-  set (chtype, real_path.iscygexec ());
+  set (chtype, wascygexec);
   __stdin = in__stdin;
   __stdout = in__stdout;
   record_children ();
@@ -620,7 +620,7 @@ loop:
      up on ruid. The new process will have ruid == euid. */
   ::cygheap->user.deimpersonate ();
 
-  if (!real_path.iscygexec () && mode == _P_OVERLAY)
+  if (!wascygexec && mode == _P_OVERLAY)
     myself->process_state |= PID_NOTCYGWIN;
 
   if (!::cygheap->user.issetuid ()
@@ -787,7 +787,7 @@ loop:
       myself->set_has_pgid_children ();
       ProtectHandle (pi.hThread);
       pinfo child (cygpid,
-		   PID_IN_USE | (real_path.iscygexec () ? 0 : PID_NOTCYGWIN));
+		   PID_IN_USE | (wascygexec ? 0 : PID_NOTCYGWIN));
       if (!child)
 	{
 	  syscall_printf ("pinfo failed");
