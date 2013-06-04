@@ -3278,6 +3278,7 @@ QuotedRelativePath (const char *Path)
 	return false;
       }
 }
+#endif
 
 static bool
 IsAbsWin32Path (const char * path)
@@ -3337,7 +3338,426 @@ ScrubRetpath (char * const retpath)
   debug_printf("returning: %s", retpath);
   return retpath;
 }
-#endif
+
+//
+// The returned pointer should be freed with free unless,
+// as it turns out, it is equal to the input pointer.
+//
+extern "C"
+char *
+msys_p2w (char const * const path)
+{
+  TRACE_IN;
+
+  int pathlen = (path ? strlen (path): 0);
+  
+  if (pathlen == 0)
+  {
+    char *retpath = (char *)malloc (sizeof (char));
+    memset (retpath, 0, sizeof (char));
+    return retpath;
+  }
+
+  debug_printf("msys_p2w (%s)", path);
+
+  //
+  // copy of the path string that we can overwrite
+  //
+  char *spath = (char *)alloca (pathlen + 1);
+  memcpy (spath, path, pathlen + 1);
+  
+  char * sspath;
+  
+  //
+  // retpath contains the converted path string to be returned
+  //
+  char *retpath = (char *)malloc(((MAX_PATH - pathlen) > 0) ? 
+      MAX_PATH : pathlen + MAX_PATH);
+  memset (retpath, 0, MAX_PATH);
+  int retpath_len = 0;
+  int retpath_buflen = MAX_PATH;
+    
+#define retpathcat(retstr) \
+  retpath_len += strlen(retstr); \
+  if (retpath_buflen <= retpath_len) \
+    { \
+      retpath_buflen = ((retpath_buflen * 2 <= retpath_len) ? \
+	  retpath_len + 1 : retpath_buflen * 2); \
+      retpath = (char *)realloc (retpath, retpath_buflen); \
+    } \
+  strcat (retpath, retstr);
+
+#define retpathcpy(retstr) \
+  retpath_len = strlen (retstr); \
+  *retpath = '\0'; \
+  if (retpath_buflen <= retpath_len ) \
+    { \
+      retpath_buflen = ((retpath_buflen * 2 <= retpath_len) ? \
+	  retpath_len + 1 : retpath_buflen * 2); \
+      retpath = (char *)realloc (retpath, retpath_buflen); \
+    } \
+  strcpy (retpath, retstr);
+
+  //
+  // Just return win32 paths and path lists.
+  //
+  if (IsAbsWin32Path (path) 
+      || (strchr (path, ';') > 0)
+      )
+    {
+      debug_printf("returning AbsWin32 path: %s", path);
+      return ((char *)path);
+    }
+  //
+  // Multiple forward slashes are treated special,
+  // Remove one and return for the form of //foo or ///bar
+  // but just return for the form of //server/share.
+  //
+  else if (path[0] == '/' && path[1] == '/')
+    {
+      int tidx = 2;
+      while (spath[tidx] && spath[tidx] == '/')
+	  tidx++;
+      if (strchr (&spath[tidx], '/'))
+	{
+	  retpathcpy (spath);
+	}
+      else
+	{
+	  retpathcpy (&spath[1]);
+	}
+      return ScrubRetpath (retpath);
+    }
+  //
+  // special case confusion elimination
+  // Translate a path that looks similar to /c: to c:/.
+  //
+  else if (path[0] == '/' && IsAbsWin32Path (path + 1))
+    {
+      retpathcpy (&path[1]);
+      return ScrubRetpath (retpath);
+    }
+  //
+  // Check for variable set.
+  //
+  else if ((sspath = strchr(spath, '=')) && isalpha (spath[0]))
+    {
+      if (IsAbsWin32Path (sspath + 1)) {
+	debug_printf("returning: %s", path);
+	return (char *)path;
+      }
+      char *swin32_path = msys_p2w(sspath + 1);
+      if (swin32_path == (sspath + 1)) {
+	debug_printf("returning: %s", path);
+	return (char *)path;
+      }
+      *sspath = '\0';
+      retpathcpy (spath);
+      retpathcat ("=");
+      retpathcat (swin32_path);
+      free (swin32_path);
+      return ScrubRetpath (retpath);
+    }
+  //
+  // Check for paths after commas, if string begins with a '-' character.
+  //
+  else if ((sspath = strchr(spath, ',')) && spath[0] == '-')
+    {
+      if (IsAbsWin32Path (sspath + 1)) {
+	debug_printf("returning: %s", path);
+	return (char *)path;
+      }
+      char *swin32_path = msys_p2w(sspath + 1);
+      if (swin32_path == (sspath + 1)) {
+	debug_printf("returning: %s", path);
+	return (char *)path;
+      }
+      *sspath = '\0';
+      retpathcpy (spath);
+      retpathcat (",");
+      retpathcat (swin32_path);
+      free (swin32_path);
+      return ScrubRetpath (retpath);
+    }
+  //
+  // Check for POSIX path lists.
+  // But we have to allow processing of quoted strings and switches first
+  // which uses recursion so this code will be seen again.
+  //
+  else 
+    {
+      sspath = strchr (spath, ':');
+      //
+      // Prevent http://some.string/ from being modified.
+      // 
+      if ((sspath > 0 && strlen (sspath) > 2)
+	  && (sspath[1] == '/')
+	  && (sspath[2] == '/')
+	  )
+	{
+	  debug_printf("returning: %s", path);
+	  return ((char *)path);
+	}
+      else
+      if ((sspath > 0)
+	   && (strchr (spath, '/') > 0)
+	   // 
+	   // Prevent strings beginning with -, ", ', or @ from being processed,
+	   // remember that this is a recursive routine.
+	   // 
+	   && (strchr ("-\"\'@", spath[0]) == 0)
+	   // 
+	   // Prevent ``foo:echo /bar/baz'' from being considered a path list.
+	   // 
+	   && (strlen (sspath) > 1 && strchr (":./", sspath[1]) > 0)
+	   )
+    {
+      //
+      // Yes, convert to Win32 path list.
+      //
+      while (sspath)
+	{
+	  *sspath = '\0';
+	  char *swin32_path = msys_p2w (spath);
+	  //
+	  // Just ignore sret; swin32_path has the value we need.
+	  //
+	  retpathcat (swin32_path);
+	  if (swin32_path != spath)
+	    free (swin32_path);
+	  spath = sspath + 1;
+	  sspath = strchr (spath, ':');
+	  retpathcat (";");
+	  //
+	  // Handle the last path in the list.
+	  //
+	  if (!sspath)
+	    {
+	      char *swin32_path = msys_p2w (spath);
+	      retpathcat (swin32_path);
+	      if (swin32_path != spath)
+		free (swin32_path);
+	    }
+	}
+      return ScrubRetpath (retpath);
+    }
+  else
+    {
+      switch (spath[0])
+	{
+	case '/':
+	  //
+	  // Just a normal POSIX path.
+	  //
+	  {
+	    //
+	    // Convert only up to a ".." path component, and
+	    // keep all what follows as is.
+	    //
+	    sspath = strstr (spath, "/..");
+	    if (sspath)
+	      {
+		*sspath = '\0';
+		char *swin32_path = msys_p2w (spath);
+		if (swin32_path == spath)
+		  {
+		    debug_printf("returning: %s", path);
+		    return ((char *)path);
+		  }
+		retpathcpy (swin32_path);
+		retpathcat ("/");
+		retpathcat (sspath+1);
+		free (swin32_path);
+		return ScrubRetpath (retpath);
+	      }
+	    path_conv p (spath, 0);
+	    if (p.error)
+	      {
+		set_errno(p.error);
+		debug_printf("returning: %s", path);
+		return ((char *)path);
+	      }
+	    retpathcpy (p.get_win32 ());
+	    return ScrubRetpath (retpath);
+	  }
+	case '-':
+	  //
+	  // here we check for POSIX paths as attributes to a POSIX switch.
+	  //
+	  sspath = strchr (spath, '=');
+	  if (sspath)
+	    {
+	      //
+	      // just use recursion if we find a set variable token.
+	      //
+	      *sspath = '\0';
+	      if (IsAbsWin32Path (sspath + 1)) {
+		debug_printf("returning: %s", path);
+		return (char *)path;
+	      }
+	      char *swin32_path = msys_p2w(sspath + 1);
+	      if (swin32_path == sspath + 1)
+		{
+		  debug_printf("returning: %s", path);
+		  return ((char *)path);
+		}
+	      retpathcpy (spath);
+	      retpathcat ("=");
+	      retpathcat (swin32_path);
+	      free (swin32_path);
+	      return ScrubRetpath (retpath);
+	    }
+	  else
+	    {
+	      //
+	      // Check for single letter option with a
+	      // path argument attached, eg -I/include */
+	      //
+	      if (spath[1] && spath[2] == '/')
+		{
+		  debug_printf("spath = %s", spath);
+		  sspath = spath + 2;
+		  char *swin32_path = msys_p2w (sspath);
+		  if (swin32_path == sspath)
+		    {
+		      debug_printf("returning: %s", path);
+		      return ((char *)path);
+		    }
+		  sspath = (char *)spath;
+		  sspath++;
+		  sspath++;
+		  *sspath = '\0';
+		  retpathcpy (spath);
+		  *sspath = '/';
+		  retpathcat (swin32_path);
+		  free (swin32_path);
+		  return ScrubRetpath (retpath);
+		}
+	      else
+		{
+		  debug_printf("returning: %s", path);
+		  return ((char *)path);
+		}
+	    }
+	  break;
+	case '@':
+	  //
+	  // here we check for POSIX paths as attributes to a response
+	  // file argument (@file). This is specifically to support
+	  // MinGW binutils and gcc.
+	  //
+	  sspath = spath + 1;
+	  if (IsAbsWin32Path (sspath))
+	    {
+	      debug_printf("returning: %s", path);
+	      return (char *)path;
+	    }
+	  if (spath[1] == '/')
+	    {
+	      debug_printf("spath = %s", spath);
+	      char *swin32_path = msys_p2w (sspath);
+	      if (swin32_path == sspath)
+		{
+		  debug_printf("returning: %s", path);
+		  return ((char *)path);
+		}
+	      sspath = (char *)spath;
+	      sspath++;
+	      *sspath = '\0';
+	      retpathcpy (spath);
+	      *sspath = '/';
+	      retpathcat (swin32_path);
+	      free (swin32_path);
+	      return ScrubRetpath (retpath);
+	    }
+	  else
+	    {
+	      debug_printf("returning: %s", path);
+	      return ((char *)path);
+	    }
+	  break;
+	case '"':
+	  //
+	  // Handle a double quote case.
+	  //
+	  debug_printf ("spath: %s", spath);
+	  if (spath[1] == '/')
+	    {
+	      retpathcpy ("\"");
+	      char *tpath = strchr(&spath[1], '"');
+	      if (tpath)
+		*tpath = (char)NULL;
+	      char *swin32_path = msys_p2w (&spath[1]);
+	      if (swin32_path == &spath[1])
+		{
+		  debug_printf("returning: %s", path);
+		  return ((char *)path);
+		}
+	      retpathcat (swin32_path);
+	      free (swin32_path);
+	      if (tpath)
+		retpathcat ("\"");
+	      return ScrubRetpath (retpath);
+	    }
+	  debug_printf("returning: %s", path);
+	  return ((char *)path);
+	case '\'':
+	  //
+	  // Handle a single quote case.
+	  //
+	  debug_printf ("spath: %s", spath);
+	  if (spath[1] == '/')
+	    {
+	      retpathcpy ("'");
+	      char *tpath = strchr(&spath[1], '\'');
+	      if (tpath)
+		*tpath = (char)NULL;
+	      char *swin32_path = msys_p2w (&spath[1]);
+	      if (swin32_path == &spath[1])
+		{
+		  debug_printf("returning: %s", path);
+		  return ((char *)path);
+		}
+	      retpathcat (swin32_path);
+	      free (swin32_path);
+	      if (tpath)
+		retpathcat ("'");
+	      return ScrubRetpath (retpath);
+	    }
+	  debug_printf("returning: %s", path);
+	  return ((char *)path);
+	default:
+	  //
+	  // This takes care of variable_foo=/bar/baz
+	  //
+	  if ((sspath = strchr(spath, '=')) && (sspath[1] == '/'))
+	    {
+	      sspath[1] = '\0';
+	      retpathcpy (spath);
+	      sspath[1] = '/';
+	      char *swin32_path = msys_p2w (&sspath[1]);
+	      if (swin32_path == &sspath[1])
+		{
+		  debug_printf("returning: %s", path);
+		  return ((char *)path);
+		}
+	      retpathcat (swin32_path);
+	      free (swin32_path);
+	      return ScrubRetpath (retpath);
+	    }
+	  //
+	  // Oh well, nothing special found, set win32_path same as path.
+	  //
+	  debug_printf("returning: %s", path);
+	  return ((char *)path);
+	}
+      }
+    }
+  // I should not get to this point.
+  assert (false);
+  debug_printf("returning: %s", path);
+  return ScrubRetpath (retpath);
+}
 
 /******************** Exported Path Routines *********************/
 

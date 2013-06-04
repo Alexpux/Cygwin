@@ -81,6 +81,8 @@ extern ssize_t cygwin_conv_path_list (cygwin_conv_path_t what, const void *from,
    to one of the above values, or to ENOMEM if malloc fails. */
 extern void *cygwin_create_path (cygwin_conv_path_t what, const void *from);
 
+extern char * msys_p2w (char const * const);
+
 extern pid_t cygwin_winpid_to_pid (int);
 extern int cygwin_posix_path_list_p (const char *);
 extern void cygwin_split_path (const char *, char *, char *);
