@@ -105,6 +105,7 @@ read_buffer(HANDLE fh, int offset, char *ptr, int size) {
 
 int
 is_msys_exec(const char *filename) {
+
 	HANDLE fh = CreateFile(
 		 filename
 		,GENERIC_READ
@@ -119,110 +120,125 @@ is_msys_exec(const char *filename) {
 		,debug_printf("file \"%s\" is not exists\n", filename);
 	);
 	
-	int i, retval = 0;
-	int pe_offset = 0;
-	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-		 read_integral(fh, 0x3c, &pe_offset)
-		,CloseHandle(fh)
-	);
-	debug_printf("pe_offset: 0x%x\n", pe_offset);
-	
-	char pe_sig[4] = {0};
-	char msys2_sig[] = "msys-2.0.dll";
+	int retval = 1;
+	const char *ext = strrchr (filename, '.');
+	debug_printf("extension is %s",ext);
 
-	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-		 read_buffer(fh, pe_offset, pe_sig, sizeof(pe_sig))
-		,CloseHandle(fh)
-	);
-	
-	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-		 0 == memcmp(pe_sig, "PE\0\0", sizeof(pe_sig))
-		,CloseHandle(fh)
-	);
+	if (!ext)
+	{
+		retval = 1;
+	}
+	else if (ascii_strcasematch (ext, ".bat") || ascii_strcasematch (ext, ".cmd"))
+	{
+		retval = 0;
+	}
+	else if (ascii_strcasematch (ext, ".exe")) {	
 
-	int optional = pe_offset+4+20;
-	debug_printf("optional: 0x%x\n", optional);
-	
-	short magic = 0;
-	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-		 read_integral(fh, optional, &magic)
-		,CloseHandle(fh)
-	);
-	debug_printf("magic: 0x%x\n", magic);
-	
-	unsigned int import_rva = 0;
-	if ( IMAGE_NT_OPTIONAL_HDR32_MAGIC == magic ) {
+		int i, pe_offset = 0;
+		retval = 0;
+		
 		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-			 read_integral(fh, optional+104, &import_rva)
+			 read_integral(fh, 0x3c, &pe_offset)
 			,CloseHandle(fh)
 		);
-	} else if ( IMAGE_NT_OPTIONAL_HDR64_MAGIC == magic ) {
+		debug_printf("pe_offset: 0x%x\n", pe_offset);
+		
+		char pe_sig[4] = {0};
+		char msys2_sig[] = "msys-2.0.dll";
+
 		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-			 read_integral(fh, optional+120, &import_rva)
+			 read_buffer(fh, pe_offset, pe_sig, sizeof(pe_sig))
 			,CloseHandle(fh)
 		);
-	} else {
-		debug_printf("is_msys(): unknown optional header: 0x%x\n", magic);
-	}
-	
-	int import_base = 0;
-	unsigned int import_data_size = 0;
-	
-	short section_count = 0;
-	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-		 read_integral(fh, pe_offset+4+2, &section_count)
-		,CloseHandle(fh)
-	);
-	debug_printf("section_count: 0x%x\n", section_count);
-	
-	short section_offset = 0;
-	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-		 read_integral(fh, pe_offset+4+16, &section_offset)
-		,CloseHandle(fh)
-	)
-	section_offset += optional;
-	debug_printf("section_offset: 0x%x\n", section_offset);
-	
-	char *sections = (char*)malloc((section_count*40)+1);
-	RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-		 read_buffer(fh, section_offset, sections, section_count*40)
-		,free(sections);CloseHandle(fh)
-	);
-	
-	for ( i = 0; i < section_count; ++i ) {
-		sections_t *sec = (sections_t *)(sections + (i*40));
-		if ( import_rva >= sec->vaptr && import_rva < sec->vaptr + sec->vasize ) {
-			import_base = import_rva - sec->vaptr + sec->rdptr;
-			import_data_size = sec->vaptr + sec->vasize - import_rva;
-			break;
-		}
-	}
-	if ( import_base && import_data_size ) {
-		unsigned char *imports = (unsigned char*)malloc(import_data_size+1);
+		
 		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
-			 read_buffer(fh, import_base, (char*)imports, import_data_size)
-			,free(sections);free(imports);CloseHandle(fh)
+			 0 == memcmp(pe_sig, "PE\0\0", sizeof(pe_sig))
+			,CloseHandle(fh)
 		);
-		imports[import_data_size] = 0;
-		import_t *impdata = (import_t *)imports;
-		for ( i = 0; impdata[i].name; ++i ) {
-			if ( impdata[i].name < import_rva || impdata[i].name - import_rva >= import_data_size ) {
-				debug_printf("Unrecognized PE format\n");
-				break;
-	      }
-			const char *name = (const char*)imports + impdata[i].name - import_rva;
-			debug_printf("name: %s\n", name);
-			if ( 0 == strncmp(name, msys2_sig, sizeof(msys2_sig)) ) {
-				retval = 1;
-				break;
-	      }
-		}
-		free(imports);
-	}
 
-	free(sections);
-	CloseHandle(fh);
-	
+		int optional = pe_offset+4+20;
+		debug_printf("optional: 0x%x\n", optional);
+		
+		short magic = 0;
+		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+			 read_integral(fh, optional, &magic)
+			,CloseHandle(fh)
+		);
+		debug_printf("magic: 0x%x\n", magic);
+		
+		unsigned int import_rva = 0;
+		if ( IMAGE_NT_OPTIONAL_HDR32_MAGIC == magic ) {
+			RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+				 read_integral(fh, optional+104, &import_rva)
+				,CloseHandle(fh)
+			);
+		} else if ( IMAGE_NT_OPTIONAL_HDR64_MAGIC == magic ) {
+			RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+				 read_integral(fh, optional+120, &import_rva)
+				,CloseHandle(fh)
+			);
+		} else {
+			debug_printf("is_msys(): unknown optional header: 0x%x\n", magic);
+		}
+		
+		int import_base = 0;
+		unsigned int import_data_size = 0;
+		
+		short section_count = 0;
+		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+			 read_integral(fh, pe_offset+4+2, &section_count)
+			,CloseHandle(fh)
+		);
+		debug_printf("section_count: 0x%x\n", section_count);
+		
+		short section_offset = 0;
+		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+			 read_integral(fh, pe_offset+4+16, &section_offset)
+			,CloseHandle(fh)
+		)
+		section_offset += optional;
+		debug_printf("section_offset: 0x%x\n", section_offset);
+		
+		char *sections = (char*)malloc((section_count*40)+1);
+		RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+			 read_buffer(fh, section_offset, sections, section_count*40)
+			,free(sections);CloseHandle(fh)
+		);
+		
+		for ( i = 0; i < section_count; ++i ) {
+			sections_t *sec = (sections_t *)(sections + (i*40));
+			if ( import_rva >= sec->vaptr && import_rva < sec->vaptr + sec->vasize ) {
+				import_base = import_rva - sec->vaptr + sec->rdptr;
+				import_data_size = sec->vaptr + sec->vasize - import_rva;
+				break;
+			}
+		}
+		if ( import_base && import_data_size ) {
+			unsigned char *imports = (unsigned char*)malloc(import_data_size+1);
+			RETURN_FALSE_IF_EXPRESSION_IS_FALSE(
+				 read_buffer(fh, import_base, (char*)imports, import_data_size)
+				,free(sections);free(imports);CloseHandle(fh)
+			);
+			imports[import_data_size] = 0;
+			import_t *impdata = (import_t *)imports;
+			for ( i = 0; impdata[i].name; ++i ) {
+				if ( impdata[i].name < import_rva || impdata[i].name - import_rva >= import_data_size ) {
+					debug_printf("Unrecognized PE format\n");
+					break;
+			  }
+				const char *name = (const char*)imports + impdata[i].name - import_rva;
+				debug_printf("name: %s\n", name);
+				if ( 0 == strncmp(name, msys2_sig, sizeof(msys2_sig)) ) {
+					retval = 1;
+					break;
+			  }
+			}
+			free(imports);
+		}
+
+		free(sections);
+		CloseHandle(fh);
+	}
 	debug_printf("progname:%s, is msys:%s\n", filename, "false\0true"+6*retval);
 	return retval;
 }
