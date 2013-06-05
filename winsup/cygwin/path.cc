@@ -3349,7 +3349,6 @@ extern "C"
 char *
 msys_p2w (char const * const path)
 {
-  TRACE_IN;
 
   int pathlen = (path ? strlen (path): 0);
   
