@@ -1902,45 +1902,47 @@ symlink_worker (const char *oldpath, const char *newpath, bool isdevice)
     }
   else
     {
-      path_conv win32_oldpath;
-      win32_oldpath.check (oldpath, PC_SYM_NOFOLLOW, stat_suffixes);
-      if (win32_oldpath.error)
+      path_conv src_path;
+      src_path.check (oldpath, PC_SYM_NOFOLLOW, stat_suffixes);
+      if (src_path.error)
         {
-           set_errno (win32_oldpath.error);
+           set_errno (src_path.error);
            goto done;
         }
-      if (!win32_oldpath.is_auto_device ())
+      if (!src_path.is_auto_device ())
         {
            /* MSYS copy file instead make symlink */
 
-           /* As a MSYS limitation, the source path must exist. */
-           if (!win32_oldpath.exists ())
-             {
-                set_errno (ENOENT);
-                goto done;
-             }
-
-           char * real_newpath;
-           if (isabspath (newpath))
-             strcpy (real_newpath = tp.c_get (), newpath);
+           char * real_oldpath;
+           if (isabspath (oldpath))
+             strcpy (real_oldpath = tp.c_get (), oldpath);
            else
               /* Find the real source path, relative
                  to the directory of the destination */
              {
                 /* Determine the character position of the last path component */
-                int pos = strlen (oldpath);
+                int pos = strlen (newpath);
                 while (--pos >= 0)
-                  if (isdirsep (oldpath[pos]))
+                  if (isdirsep (newpath[pos]))
                     break;
                 /* Append the source path to the directory
                    component of the destination */
-                if (pos+1+strlen(newpath) >= MAX_PATH)
+                if (pos+1+strlen(oldpath) >= MAX_PATH)
                   {
                      set_errno(ENAMETOOLONG);
                      goto done;
                   }
-                strcpy (real_newpath = tp.c_get (), oldpath);
-                strcpy (&real_newpath[pos+1], newpath);
+                strcpy (real_oldpath = tp.c_get (), newpath);
+                strcpy (&real_oldpath[pos+1], oldpath);
+             }
+
+           /* As a MSYS limitation, the source path must exist. */
+		   path_conv win32_oldpath;
+           win32_oldpath.check (real_oldpath, PC_SYM_NOFOLLOW, stat_suffixes);
+           if (!win32_oldpath.exists ())
+             {
+                set_errno (ENOENT);
+                goto done;
              }
 
            char *w_newpath;
