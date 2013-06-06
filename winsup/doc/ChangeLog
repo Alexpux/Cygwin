@@ -1,3 +1,21 @@
+2013-06-05  Corinna Vinschen  <corinna@vinschen.de>
+
+	* faq-copyright.xml: Fix link to license.
+	* faq-using.xml: Ditto.
+	* faq-what.xml: Ditto.
+
+2013-06-05  Corinna Vinschen  <corinna@vinschen.de>
+
+	* faq-programming.xml: Convert url to refer to new flat faq.html file.
+	* faq-setup.xml: Ditto.
+	* faq-using.xml: Ditto.
+	* highlights.xml: Ditto.
+
+2013-06-05  Corinna Vinschen  <corinna@vinschen.de>
+
+	* new-features.xml (ov-new1.7.19): Revert mandatory locking support to
+	"preliminary".
+
 2013-06-04  Corinna Vinschen  <corinna@vinschen.de>
 
 	* Makefile.in: Add rule to rebuild Makefile if Makefile.in changes.
