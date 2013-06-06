@@ -1013,7 +1013,7 @@ spenv::retrieve (bool no_envblock, const char *const env)
    prior to placing them in the string.  */
 char ** __reg3
 build_env (const char * const *envp, PWCHAR &envblock, int &envc,
-	   bool no_envblock)
+	   bool no_envblock, bool keep_posix)
 {
   int len, n;
   const char * const *srcp;
@@ -1118,6 +1118,13 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 	  conv = getwinenv (*srcp, rest, &temp);
 	  if (conv)
 	    p = conv->native;	/* Use win32 path */
+      else if (!keep_posix) {
+        char *w32path = msys_p2w(*srcp);
+		debug_printf("WIN32_PATH is %s", w32path);
+		p = cstrdup1(w32path);
+        if (w32path != *srcp)
+          free (w32path);
+      }
 	  else
 	    p = *srcp;		/* Don't worry about it */
 

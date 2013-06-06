@@ -565,7 +565,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
     ::cygheap->fdtab.set_file_pointers_for_exec ();
 
   moreinfo->envp = build_env (envp, envblock, moreinfo->envc,
-			      wascygexec);
+			      wascygexec, wascygexec);
   if (!moreinfo->envp || !envblock)
     {
       set_errno (E2BIG);
