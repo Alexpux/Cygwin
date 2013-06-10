@@ -508,7 +508,7 @@ try_to_debug (bool waitloop)
 	return dbg;
       SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_IDLE);
       while (!being_debugged ())
-	yield ();
+	Sleep (1);
       Sleep (2000);
     }
 
@@ -753,6 +753,10 @@ exception::handle (EXCEPTION_RECORD *e, exception_list *frame, CONTEXT *in, void
     }
   cygwin_exception exc (framep, in, e);
   si.si_cyg = (void *) &exc;
+  /* POSIX requires that for SIGSEGV and SIGBUS, si_addr should be set to the
+     address of faulting memory reference.  For SIGILL and SIGFPE these should
+     be the address of the faulting instruction.  Other signals are apparently
+     undefined so we just set those to the faulting instruction too.  */ 
   si.si_addr = (si.si_signo == SIGSEGV || si.si_signo == SIGBUS)
 	       ? (void *) e->ExceptionInformation[1] : (void *) in->_GR(ip);
   me.incyg++;
@@ -767,12 +771,11 @@ exception::handle (EXCEPTION_RECORD *e, exception_list *frame, CONTEXT *in, void
 #define SIG_NONMASKABLE	(SIGTOMASK (SIGKILL) | SIGTOMASK (SIGSTOP))
 
 /* Non-raceable sigsuspend
- * Note: This implementation is based on the Single UNIX Specification
- * man page.  This indicates that sigsuspend always returns -1 and that
- * attempts to block unblockable signals will be silently ignored.
- * This is counter to what appears to be documented in some UNIX
- * man pages, e.g. Linux.
- */
+   Note: This implementation is based on the Single UNIX Specification
+   man page.  This indicates that sigsuspend always returns -1 and that
+   attempts to block unblockable signals will be silently ignored.
+   This is counter to what appears to be documented in some UNIX
+   man pages, e.g. Linux.  */
 int __stdcall
 handle_sigsuspend (sigset_t tempmask)
 {
@@ -920,7 +923,10 @@ sigpacket::setup_handler (void *handler, struct sigaction& siga, _cygtls *tls)
 	  DWORD res;
 	  HANDLE hth = (HANDLE) *tls;
 	  if (!hth)
-	    sigproc_printf ("thread handle NULL, not set up yet?");
+	    {
+	      tls->unlock ();
+	      sigproc_printf ("thread handle NULL, not set up yet?");
+	    }
 	  else
 	    {
 	      /* Suspend the thread which will receive the signal.
@@ -933,6 +939,7 @@ sigpacket::setup_handler (void *handler, struct sigaction& siga, _cygtls *tls)
 	      /* Just set pending if thread is already suspended */
 	      if (res)
 		{
+		  tls->unlock ();
 		  ResumeThread (hth);
 		  goto out;
 		}
@@ -1249,24 +1256,28 @@ signal_exit (int sig, siginfo_t *si)
 void
 _cygtls::handle_SIGCONT ()
 {
-  if (ISSTATE (myself, PID_STOPPED))
-    {
-      myself->stopsig = 0;
-      myself->process_state &= ~PID_STOPPED;
-      /* Carefully tell sig_handle_tty_stop to wake up.  */
-      lock ();
-      sig = SIGCONT;
-      SetEvent (signal_arrived);
-      /* Make sure yield doesn't run under lock condition to avoid
-         starvation of sig_handle_tty_stop. */
-      unlock ();
-      /* Wait until sig_handle_tty_stop woke up. */
-      while (sig)
-	yield ();
-      /* Tell wait_sig to handle any queued signals now that we're alive
-	 again. */
-      sig_dispatch_pending (false);
-    }
+  if (NOTSTATE (myself, PID_STOPPED))
+    return;
+
+  myself->stopsig = 0;
+  myself->process_state &= ~PID_STOPPED;
+  /* Carefully tell sig_handle_tty_stop to wake up.
+     Make sure that any pending signal is handled before trying to
+     send a new one.  Then make sure that SIGCONT has been recognized
+     before exiting the loop.  */
+  bool sigsent = false;
+  while (1)
+    if (sig)		/* Assume that it's ok to just test sig outside of a
+			   lock since setup_handler does it this way.  */
+      yield ();		/* Attempt to schedule another thread.  */
+    else if (sigsent)
+      break;		/* SIGCONT has been recognized by other thread */
+    else
+      {
+	sig = SIGCONT;
+	SetEvent (signal_arrived); /* alert sig_handle_tty_stop */
+	sigsent = true;
+      }
   /* Clear pending stop signals */
   sig_clear (SIGSTOP);
   sig_clear (SIGTSTP);

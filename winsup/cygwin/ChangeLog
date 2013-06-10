@@ -1,3 +1,56 @@
+2013-06-08  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* exceptions.cc (try_to_debug): Don't use yield() when waiting for
+	another process.
+	(sigpacket::setup_handler): Fix long-standing problem where loop could
+	exit with lock held.
+
+2013-06-08  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* miscfuncs.cc (yield): Revert (after researching) to calling Sleep
+	with 0.  We don't want to actually sleep when calling this function.
+
+2013-06-08  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* cygwait.cc (cygwait): Remove lock around sig retrieval since this
+	code is essentially guarded by thread-specific signal_arrived.
+	* exceptions.cc (_cygtls::handle_SIGCONT): Simplify.  Eliminate
+	lock/unlock since code is guarded by signal_arrived.
+
+2013-06-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* winver.rc (LegalCopyright): Belatedly bump to 2013.
+
+2013-06-07  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* exceptions.cc (_cygtls::handle_SIGCONT): Reinstate previous behavior
+	but make sure that yield() isn't called when signal stack is locked.
+
+2013-06-07  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* exceptions.cc (exception::handle): Add comment explaining si_addr
+	behavior.
+
+2013-06-07  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* DevNotes: Add entry cgf-000023.
+	* sigproc.cc (exit_thread): Remove now-unneeded sleep code.
+
+2013-06-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* include/cygwin/version.h (CYGWIN_VERSION_DLL_MINOR): Bump to 21.
+
+2013-06-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* posix.sgml (std-notes): Fix typo.
+
+2013-06-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_disk_file.cc (fhandler_disk_file::pread): Skip to non-atomic
+	code if mandatory locking is used on this descriptor.  Explain why.
+	(fhandler_disk_file::pwrite): Ditto.
+	* posix.sgml (std-notes): Extend description of file locking.
+
 2013-06-06  Corinna Vinschen  <corinna@vinschen.de>
 
 	* exceptions.cc (_cygtls::handle_SIGCONT): Simplify loop waiting for
