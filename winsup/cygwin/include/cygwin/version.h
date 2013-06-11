@@ -480,7 +480,7 @@ details. */
 
      /* The default cygdrive prefix. */
 
-#define CYGWIN_INFO_CYGDRIVE_DEFAULT_PREFIX "/cygdrive"
+#define CYGWIN_INFO_CYGDRIVE_DEFAULT_PREFIX "/"
 
      /* In addition to the above version number strings, the build
 	process adds some strings that may be useful in
