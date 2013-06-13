@@ -462,8 +462,8 @@ mount_info::create_root_entry (const PWCHAR root)
   /* Create a default cygdrive entry.  Note that this is a user entry.
      This allows to override it with mount, unless the sysadmin created
      a cygdrive entry in /etc/fstab. */
-  cygdrive_flags = MOUNT_BINARY | MOUNT_NOPOSIX | MOUNT_NOACL;
-  strcpy (cygdrive, CYGWIN_INFO_CYGDRIVE_DEFAULT_PREFIX);
+  cygdrive_flags = MOUNT_BINARY | MOUNT_NOPOSIX | MOUNT_CYGDRIVE | MOUNT_NOACL;
+  strcpy (cygdrive, CYGWIN_INFO_CYGDRIVE_DEFAULT_PREFIX "/");
   cygdrive_len = strlen (cygdrive);
 }
 
@@ -1289,7 +1289,8 @@ mount_info::write_cygdrive_info (const char *cygdrive_prefix, unsigned flags)
   /* Verify cygdrive prefix starts with a forward slash and if there's
      another character, it's not a slash. */
   if ((cygdrive_prefix == NULL) || (*cygdrive_prefix == 0) ||
-      (!isslash (cygdrive_prefix[0])))
+      (!isslash (cygdrive_prefix[0])) ||
+      ((cygdrive_prefix[1] != '\0') && (isslash (cygdrive_prefix[1]))))
     {
       set_errno (EINVAL);
       return -1;
