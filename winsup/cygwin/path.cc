@@ -241,6 +241,7 @@ normalize_posix_path (const char *src, char *dst, char *&tail)
 {
   const char *in_src = src;
   char *dst_start = dst;
+  bool check_parent = false;
   syscall_printf ("src %s", src);
 
   if ((isdrive (src) && isdirsep (src[2])) || *src == '\\')
@@ -279,6 +280,7 @@ normalize_posix_path (const char *src, char *dst, char *&tail)
 	*tail++ = *src++;
       else
 	{
+	  check_parent = true;
 	  while (*++src)
 	    {
 	      if (isslash (*src))
@@ -302,6 +304,21 @@ normalize_posix_path (const char *src, char *dst, char *&tail)
 		break;
 	      else
 		{
+		  /* According to POSIX semantics all elements of path must
+		     exist.  To follow it, we must validate our path before
+		     removing the trailing component.  Check_parent is needed
+		     for performance optimization, in order not to verify paths
+		     which are already verified. For example this prevents
+		     double check in case of foo/bar/../.. */
+		  if (check_parent)
+		    {
+		      *tail = 0;
+		      debug_printf ("checking %s before '..'", dst_start);
+		      path_conv head (dst_start);
+		      if (!head.isdir())
+		        return ENOENT;
+		      check_parent = false;
+		    }
 		  while (tail > dst_start && !isslash (*--tail))
 		    continue;
 		  src++;

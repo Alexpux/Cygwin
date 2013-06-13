@@ -29,8 +29,8 @@ BEGIN
   BEGIN
     BLOCK "040904B0"
     BEGIN
-      VALUE "CompanyName", "MSYS2"
-      VALUE "FileDescription", "MSYS POSIX Emulation DLL"
+      VALUE "CompanyName", "Red Hat"
+      VALUE "FileDescription", "Cygwin POSIX Emulation DLL"
       VALUE "FileVersion", STRINGIFY(CYGWIN_VERSION)
       VALUE "InternalName", CYGWIN_DLL_NAME
       VALUE "LegalCopyright", "Copyright \251 Red Hat, Inc. 1996-2013"
