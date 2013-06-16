@@ -1926,7 +1926,7 @@ symlink_worker (const char *oldpath, const char *newpath, bool isdevice)
            set_errno (src_path.error);
            goto done;
         }
-      if (!src_path.is_auto_device ())
+      if (!src_path.isdevice () && !src_path.is_fs_special ())
         {
            /* MSYS copy file instead make symlink */
 
