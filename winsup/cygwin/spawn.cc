@@ -370,8 +370,9 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       goto out;
     }
 
-  wascygexec = real_path.iscygexec ();
+  real_path.resolve_msys_dep();
   res = newargv.fixup (prog_arg, real_path, ext, p_type_exec);
+  wascygexec = real_path.iscygexec ();
 
   if (res)
     goto out;
