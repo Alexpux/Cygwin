@@ -193,6 +193,7 @@ init_cygheap::init_installation_root ()
   if (w > p)
     *w = L'\0';
 
+#ifndef __MSYS__
   for (int i = 1; i >= 0; --i)
     {
       reg_key r (i, KEY_WRITE, _WIDE (CYGWIN_INFO_INSTALLATIONS_NAME),
@@ -201,6 +202,7 @@ init_cygheap::init_installation_root ()
 				    installation_root)))
 	break;
     }
+#endif
 
   if (cygwin_props.disable_key)
     {

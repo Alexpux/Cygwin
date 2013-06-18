@@ -765,6 +765,7 @@ ucenv (char *p, const char *eq)
 	}
 }
 
+#ifndef __MSYS__
 /* Set options from the registry. */
 static bool __stdcall
 regopt (const WCHAR *name, char *buf)
@@ -795,6 +796,7 @@ regopt (const WCHAR *name, char *buf)
   MALLOC_CHECK;
   return parsed_something;
 }
+#endif
 
 /* Initialize the environ array.  Look for the MSYS environment
    environment variable and set appropriate options from it.  */
@@ -807,7 +809,9 @@ environ_init (char **envp, int envc)
   char *newp;
   int sawTERM = 0;
   bool envp_passed_in;
+#ifndef __MSYS__
   bool got_something_from_registry;
+#endif
   static char NO_COPY cygterm[] = "TERM=cygwin";
   myfault efault;
   tmp_pathbuf tp;
@@ -816,10 +820,12 @@ environ_init (char **envp, int envc)
     api_fatal ("internal error reading the windows environment - too many environment variables?");
 
   char *tmpbuf = tp.t_get ();
+#ifndef __MSYS__
   got_something_from_registry = regopt (L"default", tmpbuf);
   if (myself->progname[0])
     got_something_from_registry = regopt (myself->progname, tmpbuf)
 				  || got_something_from_registry;
+#endif
 
   if (!envp)
     envp_passed_in = 0;
@@ -895,9 +901,11 @@ out:
 	parse_options (p);
     }
 
+#ifndef __MSYS__
   if (got_something_from_registry)
     parse_options (NULL);	/* possibly export registry settings to
 				   environment */
+#endif
   MALLOC_CHECK;
 }
 
