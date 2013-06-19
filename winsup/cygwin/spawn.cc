@@ -326,7 +326,6 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
   tmp_pathbuf tp;
   PWCHAR runpath = tp.w_get ();
   int c_flags;
-  bool wascygexec;
 
   bool null_app_name = false;
   STARTUPINFOW si = {};
@@ -370,14 +369,12 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       goto out;
     }
 
-  real_path.resolve_msys_dep();
   res = newargv.fixup (prog_arg, real_path, ext, p_type_exec);
-  wascygexec = real_path.iscygexec ();
 
   if (res)
     goto out;
 
-  if (!wascygexec && ::cygheap->cwd.get_error ())
+  if (!real_path.iscygexec () && ::cygheap->cwd.get_error ())
     {
       small_printf ("Error: Current working directory %s.\n"
 		    "Can't start native Windows application from here.\n\n",
@@ -406,7 +403,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
     }
   else
     {
-      if (wascygexec)
+      if (real_path.iscygexec ())
 	newargv.dup_all ();
       else {
 	    for (int i = 0; i < newargv.argc; i++)
@@ -421,7 +418,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	         free (tmpbuf);
 	      }
 	    if (!one_line.fromargv (newargv, real_path.get_win32 (),
-		  		   wascygexec))
+		  		   real_path.iscygexec ()))
 	      {
 	        res = -1;
 	        goto out;
@@ -433,7 +430,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       moreinfo->argc = newargv.argc;
       moreinfo->argv = newargv;
 
-      if (mode != _P_OVERLAY || !wascygexec
+      if (mode != _P_OVERLAY || !real_path.iscygexec ()
 	  || !DuplicateHandle (GetCurrentProcess (), myself.shared_handle (),
 			       GetCurrentProcess (), &moreinfo->myself_pinfo,
 			       0, TRUE, DUPLICATE_SAME_ACCESS))
@@ -562,18 +559,18 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 
   cygbench ("spawn-worker");
 
-  if (!wascygexec)
+  if (!real_path.iscygexec ())
     ::cygheap->fdtab.set_file_pointers_for_exec ();
 
   moreinfo->envp = build_env (envp, envblock, moreinfo->envc,
-			      wascygexec, wascygexec);
+			      real_path.iscygexec (), real_path.iscygexec ());
   if (!moreinfo->envp || !envblock)
     {
       set_errno (E2BIG);
       res = -1;
       goto out;
     }
-  set (chtype, wascygexec);
+  set (chtype, real_path.iscygexec ());
   __stdin = in__stdin;
   __stdout = in__stdout;
   record_children ();
@@ -634,7 +631,7 @@ loop:
      up on ruid. The new process will have ruid == euid. */
   ::cygheap->user.deimpersonate ();
 
-  if (!wascygexec && mode == _P_OVERLAY)
+  if (!real_path.iscygexec () && mode == _P_OVERLAY)
     myself->process_state |= PID_NOTCYGWIN;
 
   if (!::cygheap->user.issetuid ()
@@ -801,7 +798,7 @@ loop:
       myself->set_has_pgid_children ();
       ProtectHandle (pi.hThread);
       pinfo child (cygpid,
-		   PID_IN_USE | (wascygexec ? 0 : PID_NOTCYGWIN));
+		   PID_IN_USE | (real_path.iscygexec () ? 0 : PID_NOTCYGWIN));
       if (!child)
 	{
 	  syscall_printf ("pinfo failed");
