@@ -415,7 +415,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	        int newargvlen = strlen (newargv[i]);
 	        char *tmpbuf = (char *)malloc (newargvlen + 1);
 	        memcpy (tmpbuf, newargv[i], newargvlen + 1);
-	        tmpbuf = msys_p2w(tmpbuf);
+	        tmpbuf = arg_heuristic(tmpbuf);
 	        debug_printf("newargv[%d] = %s", i, newargv[i]);
 	        newargv.replace (i, tmpbuf);
 	        free (tmpbuf);
