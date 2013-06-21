@@ -1130,11 +1130,11 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 	  if (conv)
 	    p = conv->native;	/* Use win32 path */
       else if (!keep_posix) {
-        char *w32path = msys_p2w(*srcp);
-		debug_printf("WIN32_PATH is %s", w32path);
-		p = cstrdup1(w32path);
-        if (w32path != *srcp)
-          free (w32path);
+        char *win_arg = arg_heuristic(*srcp);
+		debug_printf("WIN32_PATH is %s", win_arg);
+		p = cstrdup1(win_arg);
+        if (win_arg != *srcp)
+          free (win_arg);
       }
 	  else
 	    p = *srcp;		/* Don't worry about it */

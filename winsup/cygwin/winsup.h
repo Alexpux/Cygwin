@@ -125,6 +125,18 @@ extern int cygserver_running;
 	((__c) == '/' || (__c) == '\\'); \
     })
 
+#define iswdirsepnative(ch) \
+    ({ \
+	WCHAR __c = (ch); \
+	(__c) == L'\\'; \
+    })
+
+#define isdirsepnative(ch) \
+    ({ \
+	char __c = (ch); \
+	(__c) == '\\'; \
+    })
+
 /* Convert a signal to a signal mask */
 #define SIGTOMASK(sig)	(1 << ((sig) - 1))
 
@@ -144,6 +156,10 @@ extern int cygserver_running;
 
 #define iswabspath(p) \
   (iswdirsep (*(p)) || (iswalpha (*(p)) && (p)[1] == L':' && (!(p)[2] || iswdirsep ((p)[2]))))
+
+#define isabswinpath(p) \
+  ((isalpha (*(p)) && (p)[1] == ':' && (!(p)[2] || isdirsep ((p)[2]))) || \
+   (isdirsepnative (*(p)) && isdirsepnative ((p)[1]) && isdirsepnative ((p)[2]) && (p)[3]))
 
 #define isabspath(p) \
   (isdirsep (*(p)) || (isalpha (*(p)) && (p)[1] == ':' && (!(p)[2] || isdirsep ((p)[2]))))

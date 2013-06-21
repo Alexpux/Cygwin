@@ -3327,27 +3327,6 @@ fchdir (int fd)
   return res;
 }
 
-static bool
-IsAbsWin32Path (const char * path)
-{
-  int plen = strlen (path);
-  bool p0alpha = isalpha (path[0]) != 0;
-  bool p1colon = (plen > 1 && path[1] == ':');
-  bool rval = 
-         (   ((plen == 2) && p0alpha && p1colon)
-          || (  (plen > 2) 
-	      && p0alpha 
-	      && p1colon 
-	      && (strchr (&path[2], ':') == (char *)NULL)
-	     )
-	  || (   plen > 3 
-	      && path[0] == '\\' 
-	      && path[1] == '\\' 
-	      && path[3] == '\\'
-	     )
-	 );
-    return rval;
-}
 
 static char *
 ScrubRetpath (char * const retpath)
@@ -3390,35 +3369,34 @@ ScrubRetpath (char * const retpath)
 // The returned pointer should be freed with free unless,
 // as it turns out, it is equal to the input pointer.
 //
-extern "C"
-char *
-msys_p2w (char const * const path)
+extern "C" char *
+arg_heuristic (char const * const arg)
 {
 
-  int pathlen = (path ? strlen (path): 0);
+  int arglen = (arg ? strlen (arg): 0);
   
-  if (pathlen == 0)
+  if (arglen == 0)
   {
     char *retpath = (char *)malloc (sizeof (char));
     memset (retpath, 0, sizeof (char));
     return retpath;
   }
 
-  debug_printf("msys_p2w (%s)", path);
+  debug_printf("Input value: (%s)", arg);
 
   //
   // copy of the path string that we can overwrite
   //
-  char *spath = (char *)alloca (pathlen + 1);
-  memcpy (spath, path, pathlen + 1);
+  char *spath = (char *)alloca (arglen + 1);
+  memcpy (spath, arg, arglen + 1);
   
   char * sspath;
   
   //
   // retpath contains the converted path string to be returned
   //
-  char *retpath = (char *)malloc(((MAX_PATH - pathlen) > 0) ? 
-      MAX_PATH : pathlen + MAX_PATH);
+  char *retpath = (char *)malloc(((MAX_PATH - arglen) > 0) ? 
+      MAX_PATH : arglen + MAX_PATH);
   memset (retpath, 0, MAX_PATH);
   int retpath_len = 0;
   int retpath_buflen = MAX_PATH;
@@ -3447,19 +3425,19 @@ msys_p2w (char const * const path)
   //
   // Just return win32 paths and path lists.
   //
-  if (IsAbsWin32Path (path) 
-      || (strchr (path, ';') > 0)
+  if (isabswinpath (arg) 
+      || (strchr (arg, ';') > 0)
       )
     {
-      debug_printf("returning AbsWin32 path: %s", path);
-      return ((char *)path);
+      debug_printf("returning Win32 absolute path: %s", arg);
+      return ((char *)arg);
     }
   //
   // Multiple forward slashes are treated special,
   // Remove one and return for the form of //foo or ///bar
   // but just return for the form of //server/share.
   //
-  else if (path[0] == '/' && path[1] == '/')
+  else if (arg[0] == '/' && arg[1] == '/')
     {
       int tidx = 2;
       while (spath[tidx] && spath[tidx] == '/')
@@ -3478,9 +3456,9 @@ msys_p2w (char const * const path)
   // special case confusion elimination
   // Translate a path that looks similar to /c: to c:/.
   //
-  else if (path[0] == '/' && IsAbsWin32Path (path + 1))
+  else if (arg[0] == '/' && isabswinpath (arg + 1))
     {
-      retpathcpy (&path[1]);
+      retpathcpy (&arg[1]);
       return ScrubRetpath (retpath);
     }
   //
@@ -3488,14 +3466,14 @@ msys_p2w (char const * const path)
   //
   else if ((sspath = strchr(spath, '=')) && isalpha (spath[0]))
     {
-      if (IsAbsWin32Path (sspath + 1)) {
-	debug_printf("returning: %s", path);
-	return (char *)path;
+      if (isabswinpath (sspath + 1)) {
+	debug_printf("returning: %s", arg);
+	return (char *)arg;
       }
-      char *swin32_path = msys_p2w(sspath + 1);
+      char *swin32_path = arg_heuristic(sspath + 1);
       if (swin32_path == (sspath + 1)) {
-	debug_printf("returning: %s", path);
-	return (char *)path;
+	debug_printf("returning: %s", arg);
+	return (char *)arg;
       }
       *sspath = '\0';
       retpathcpy (spath);
@@ -3509,14 +3487,14 @@ msys_p2w (char const * const path)
   //
   else if ((sspath = strchr(spath, ',')) && spath[0] == '-')
     {
-      if (IsAbsWin32Path (sspath + 1)) {
-	debug_printf("returning: %s", path);
-	return (char *)path;
+      if (isabswinpath (sspath + 1)) {
+	debug_printf("returning: %s", arg);
+	return (char *)arg;
       }
-      char *swin32_path = msys_p2w(sspath + 1);
+      char *swin32_path = arg_heuristic(sspath + 1);
       if (swin32_path == (sspath + 1)) {
-	debug_printf("returning: %s", path);
-	return (char *)path;
+	debug_printf("returning: %s", arg);
+	return (char *)arg;
       }
       *sspath = '\0';
       retpathcpy (spath);
@@ -3541,8 +3519,8 @@ msys_p2w (char const * const path)
 	  && (sspath[2] == '/')
 	  )
 	{
-	  debug_printf("returning: %s", path);
-	  return ((char *)path);
+	  debug_printf("returning: %s", arg);
+	  return ((char *)arg);
 	}
       else
       if ((sspath > 0)
@@ -3564,7 +3542,7 @@ msys_p2w (char const * const path)
       while (sspath)
 	{
 	  *sspath = '\0';
-	  char *swin32_path = msys_p2w (spath);
+	  char *swin32_path = arg_heuristic (spath);
 	  //
 	  // Just ignore sret; swin32_path has the value we need.
 	  //
@@ -3579,7 +3557,7 @@ msys_p2w (char const * const path)
 	  //
 	  if (!sspath)
 	    {
-	      char *swin32_path = msys_p2w (spath);
+	      char *swin32_path = arg_heuristic (spath);
 	      retpathcat (swin32_path);
 	      if (swin32_path != spath)
 		free (swin32_path);
@@ -3604,11 +3582,11 @@ msys_p2w (char const * const path)
 	    if (sspath)
 	      {
 		*sspath = '\0';
-		char *swin32_path = msys_p2w (spath);
+		char *swin32_path = arg_heuristic (spath);
 		if (swin32_path == spath)
 		  {
-		    debug_printf("returning: %s", path);
-		    return ((char *)path);
+		    debug_printf("returning: %s", arg);
+		    return ((char *)arg);
 		  }
 		retpathcpy (swin32_path);
 		retpathcat ("/");
@@ -3620,8 +3598,8 @@ msys_p2w (char const * const path)
 	    if (p.error)
 	      {
 		set_errno(p.error);
-		debug_printf("returning: %s", path);
-		return ((char *)path);
+		debug_printf("returning: %s", arg);
+		return ((char *)arg);
 	      }
 	    retpathcpy (p.get_win32 ());
 	    return ScrubRetpath (retpath);
@@ -3637,15 +3615,15 @@ msys_p2w (char const * const path)
 	      // just use recursion if we find a set variable token.
 	      //
 	      *sspath = '\0';
-	      if (IsAbsWin32Path (sspath + 1)) {
-		debug_printf("returning: %s", path);
-		return (char *)path;
+	      if (isabswinpath (sspath + 1)) {
+		debug_printf("returning: %s", arg);
+		return (char *)arg;
 	      }
-	      char *swin32_path = msys_p2w(sspath + 1);
+	      char *swin32_path = arg_heuristic(sspath + 1);
 	      if (swin32_path == sspath + 1)
 		{
-		  debug_printf("returning: %s", path);
-		  return ((char *)path);
+		  debug_printf("returning: %s", arg);
+		  return ((char *)arg);
 		}
 	      retpathcpy (spath);
 	      retpathcat ("=");
@@ -3663,11 +3641,11 @@ msys_p2w (char const * const path)
 		{
 		  debug_printf("spath = %s", spath);
 		  sspath = spath + 2;
-		  char *swin32_path = msys_p2w (sspath);
+		  char *swin32_path = arg_heuristic (sspath);
 		  if (swin32_path == sspath)
 		    {
-		      debug_printf("returning: %s", path);
-		      return ((char *)path);
+		      debug_printf("returning: %s", arg);
+		      return ((char *)arg);
 		    }
 		  sspath = (char *)spath;
 		  sspath++;
@@ -3681,8 +3659,8 @@ msys_p2w (char const * const path)
 		}
 	      else
 		{
-		  debug_printf("returning: %s", path);
-		  return ((char *)path);
+		  debug_printf("returning: %s", arg);
+		  return ((char *)arg);
 		}
 	    }
 	  break;
@@ -3693,19 +3671,19 @@ msys_p2w (char const * const path)
 	  // MinGW binutils and gcc.
 	  //
 	  sspath = spath + 1;
-	  if (IsAbsWin32Path (sspath))
+	  if (isabswinpath (sspath))
 	    {
-	      debug_printf("returning: %s", path);
-	      return (char *)path;
+	      debug_printf("returning: %s", arg);
+	      return (char *)arg;
 	    }
 	  if (spath[1] == '/')
 	    {
 	      debug_printf("spath = %s", spath);
-	      char *swin32_path = msys_p2w (sspath);
+	      char *swin32_path = arg_heuristic (sspath);
 	      if (swin32_path == sspath)
 		{
-		  debug_printf("returning: %s", path);
-		  return ((char *)path);
+		  debug_printf("returning: %s", arg);
+		  return ((char *)arg);
 		}
 	      sspath = (char *)spath;
 	      sspath++;
@@ -3718,8 +3696,8 @@ msys_p2w (char const * const path)
 	    }
 	  else
 	    {
-	      debug_printf("returning: %s", path);
-	      return ((char *)path);
+	      debug_printf("returning: %s", arg);
+	      return ((char *)arg);
 	    }
 	  break;
 	case '"':
@@ -3733,11 +3711,11 @@ msys_p2w (char const * const path)
 	      char *tpath = strchr(&spath[1], '"');
 	      if (tpath)
 		*tpath = (char)NULL;
-	      char *swin32_path = msys_p2w (&spath[1]);
+	      char *swin32_path = arg_heuristic (&spath[1]);
 	      if (swin32_path == &spath[1])
 		{
-		  debug_printf("returning: %s", path);
-		  return ((char *)path);
+		  debug_printf("returning: %s", arg);
+		  return ((char *)arg);
 		}
 	      retpathcat (swin32_path);
 	      free (swin32_path);
@@ -3745,8 +3723,8 @@ msys_p2w (char const * const path)
 		retpathcat ("\"");
 	      return ScrubRetpath (retpath);
 	    }
-	  debug_printf("returning: %s", path);
-	  return ((char *)path);
+	  debug_printf("returning: %s", arg);
+	  return ((char *)arg);
 	case '\'':
 	  //
 	  // Handle a single quote case.
@@ -3758,11 +3736,11 @@ msys_p2w (char const * const path)
 	      char *tpath = strchr(&spath[1], '\'');
 	      if (tpath)
 		*tpath = (char)NULL;
-	      char *swin32_path = msys_p2w (&spath[1]);
+	      char *swin32_path = arg_heuristic (&spath[1]);
 	      if (swin32_path == &spath[1])
 		{
-		  debug_printf("returning: %s", path);
-		  return ((char *)path);
+		  debug_printf("returning: %s", arg);
+		  return ((char *)arg);
 		}
 	      retpathcat (swin32_path);
 	      free (swin32_path);
@@ -3770,8 +3748,8 @@ msys_p2w (char const * const path)
 		retpathcat ("'");
 	      return ScrubRetpath (retpath);
 	    }
-	  debug_printf("returning: %s", path);
-	  return ((char *)path);
+	  debug_printf("returning: %s", arg);
+	  return ((char *)arg);
 	default:
 	  //
 	  // This takes care of variable_foo=/bar/baz
@@ -3781,11 +3759,11 @@ msys_p2w (char const * const path)
 	      sspath[1] = '\0';
 	      retpathcpy (spath);
 	      sspath[1] = '/';
-	      char *swin32_path = msys_p2w (&sspath[1]);
+	      char *swin32_path = arg_heuristic (&sspath[1]);
 	      if (swin32_path == &sspath[1])
 		{
-		  debug_printf("returning: %s", path);
-		  return ((char *)path);
+		  debug_printf("returning: %s", arg);
+		  return ((char *)arg);
 		}
 	      retpathcat (swin32_path);
 	      free (swin32_path);
@@ -3794,14 +3772,14 @@ msys_p2w (char const * const path)
 	  //
 	  // Oh well, nothing special found, set win32_path same as path.
 	  //
-	  debug_printf("returning: %s", path);
-	  return ((char *)path);
+	  debug_printf("returning: %s", arg);
+	  return ((char *)arg);
 	}
       }
     }
   // I should not get to this point.
   assert (false);
-  debug_printf("returning: %s", path);
+  debug_printf("returning: %s", arg);
   return ScrubRetpath (retpath);
 }
 
