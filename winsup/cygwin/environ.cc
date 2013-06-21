@@ -1045,10 +1045,10 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
      "special" entries, if necessary. */
   for (srcp = envp, dstp = newenv, pass_dstp = pass_env; *srcp; srcp++)
     {
+      bool calc_tl = !no_envblock;
       /* Don't pass timezone environment to non-msys applications */
       if (!keep_posix && ascii_strncasematch(*srcp, "TZ=", 3))
         goto next1;
-      bool calc_tl = !no_envblock;
       /* Look for entries that require special attention */
       for (unsigned i = 0; i < SPENVS_SIZE; i++)
 	if (!saw_spenv[i] && (*dstp = spenvs[i].retrieve (no_envblock, *srcp)))
