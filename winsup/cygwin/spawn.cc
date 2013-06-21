@@ -409,20 +409,23 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	}
       else
     {
-          //convert argv to win32
-	      int newargvlen = strlen (newargv[i]);
-	      char *tmpbuf = (char *)malloc (newargvlen + 1);
-	      memcpy (tmpbuf, newargv[i], newargvlen + 1);
-	      tmpbuf = msys_p2w(tmpbuf);
-	      debug_printf("newargv[%d] = %s", i, newargv[i]);
-	      newargv.replace (i, tmpbuf);
-	      free (tmpbuf);
-          if (!one_line.fromargv (newargv, real_path.get_win32 (),
+	    for (int i = 0; i < newargv.argc; i++)
+	      {
+            //convert argv to win32
+	        int newargvlen = strlen (newargv[i]);
+	        char *tmpbuf = (char *)malloc (newargvlen + 1);
+	        memcpy (tmpbuf, newargv[i], newargvlen + 1);
+	        tmpbuf = msys_p2w(tmpbuf);
+	        debug_printf("newargv[%d] = %s", i, newargv[i]);
+	        newargv.replace (i, tmpbuf);
+	        free (tmpbuf);
+	      }
+        if (!one_line.fromargv (newargv, real_path.get_win32 (),
 				   real_path.iscygexec ()))
-	        {
-	          res = -1;
-	          goto out;
-	        }
+	      {
+	        res = -1;
+	        goto out;
+	      }
     }
 
 
