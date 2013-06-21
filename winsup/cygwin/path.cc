@@ -49,7 +49,6 @@
   */
 
 #include "winsup.h"
-#include "msys.h"
 #include "miscfuncs.h"
 #include <ctype.h>
 #include <winioctl.h>
@@ -3327,28 +3326,6 @@ fchdir (int fd)
   syscall_printf ("%R = fchdir(%d)", res, fd);
   return res;
 }
-
-#if 0
-static bool
-QuotedRelativePath (const char *Path)
-{
-    if (Path[0] == '"' || Path[0] == '\'')
-      {
-	if (Path[1] == '/')
-	  {
-	    return false;
-	  }
-	else
-	  {
-	    return true;
-	  }
-      }
-    else
-      {
-	return false;
-      }
-}
-#endif
 
 static bool
 IsAbsWin32Path (const char * path)
