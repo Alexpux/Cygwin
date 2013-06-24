@@ -3327,6 +3327,27 @@ fchdir (int fd)
   return res;
 }
 
+static bool
+isabswinpath (const char * path)
+{
+  int plen = strlen (path);
+  bool p0alpha = isalpha (path[0]) != 0;
+  bool p1colon = (plen > 1 && path[1] == ':');
+  bool rval = 
+         (   ((plen == 2) && p0alpha && p1colon)
+          || (  (plen > 2) 
+	      && p0alpha 
+	      && p1colon 
+	      && (strchr (&path[2], ':') == (char *)NULL)
+	     )
+	  || (   plen > 3 
+	      && path[0] == '\\' 
+	      && path[1] == '\\' 
+	      && path[3] == '\\'
+	     )
+	 );
+    return rval;
+}
 
 static char *
 ScrubRetpath (char * const retpath)
