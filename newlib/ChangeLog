@@ -1,3 +1,27 @@
+2013-06-24  Yaakov Selkowitz  <yselkowitz@users.sourceforge.net>
+
+	* libc/include/string.h (rawmemchr): Declare.
+	* libc/string/Makefile.am (ELIX_4_SOURCES): Add rawmemchr.c.
+	(CHEWOUT_FILES): Add rawmemchr.def.
+	* libc/string/Makefile.in: Regenerate.
+	* libc/string/rawmemchr.c: New file.
+
+2013-06-24  Terraneo Federico  <fede.tft@hotmail.it>
+
+	* libc/reent/reent.c (_reclaim_reent): Free also _misc and
+	_signal_buf.
+
+2013-06-24  Terraneo Federico  <fede.tft@hotmail.it>
+
+	* libc/include/sys/reent.h (_ATEXIT_INIT_PTR): Remove.
+	(_REENT_INIT_ATEXIT_PTR): Remove.
+	(_REENT_INIT_PTR): Reduce code size if _REENT_SMALL.
+
+2013-06-21  Will Newton  <will.newton@linaro.org>
+
+	* libc/machine/arm/strlen-armv7.S: Import latest strlen
+	code from Linaro cortex-strings.
+
 2013-06-21  Will Newton  <will.newton@linaro.org>
 
 	* libc/machine/arm/strlen-armv7.S: Import latest strlen
