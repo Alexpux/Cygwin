@@ -4710,7 +4710,7 @@ find_fast_cwd ()
   if (!f_cwd_ptr)
     system_printf ("WARNING: Couldn't compute FAST_CWD pointer.  "
 		   "Please report this problem to\nthe public mailing "
-		   "list mingw-users@lists.sourceforge.net");
+		   "list cygwin@cygwin.com");
   if (f_cwd_ptr && *f_cwd_ptr)
     {
       /* Just evaluate structure version. */
