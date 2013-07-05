@@ -1100,8 +1100,7 @@ fstab_list_flags ()
 bool
 mount_info::from_fstab_line (char *line, bool user)
 {
-  char *native_path, *posix_path;
-  char *fs_type;
+  char *native_path, *posix_path, *fs_type;
 
   /* First field: Native path. */
   char *c = skip_ws (line);
