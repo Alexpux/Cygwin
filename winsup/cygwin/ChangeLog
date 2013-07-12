@@ -1,3 +1,23 @@
+2013-07-11  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uname.cc (uname): Drop unused code.
+
+2013-07-10  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* gentlsoffsets: Clean up a little.
+
+	* thread.cc (semaphore::_fixup_after_fork): Report on potential problem
+	parameter.  Make sure that currentvalue is never zero.
+	(semaphore::init): Make cosmetic change.
+
+2013-07-10  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygwin.sc.in (.text.*): Fold into .text on all platforms.
+	(.eh_frame): Add section.
+	* environ.cc (my_findenv): Drop __stdcall attribute.
+	(getearly): Ditto.
+	(findenv_func): Drop cast.
+
 2013-07-03  Christopher Faylor  <me.cygwin2013@cgf.cx>
 
 	* fhandler.cc (fhandler_base::close_with_arch): Make sure that the
