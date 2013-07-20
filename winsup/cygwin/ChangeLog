@@ -1,3 +1,69 @@
+2013-07-19  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* exceptions.cc (signal_exit): Add a FIXME comment.
+
+2013-07-19  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* exceptions.cc (signal_exit): Only dump core when it's a "kernel"
+	signal.  Only use RtlCaptureContext on x86_64.  It doesn't seem to do
+	what's expected on x86.
+
+2013-07-19  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* spawn.cc (child_info_spawn::worker): Reinstate using temp buffer for
+	wide character command-line storage.  Use wcs method to convert command
+	line.
+	* winf.h (lb_wcs): Delete.
+	(linebuf::wcs): Implement new single-argument method.
+
+2013-07-19  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* lib/libcmain.c (main): Don't point to last quoted character if the
+	only thing in the buffer is the program name.
+
+2013-07-19  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* common.din: Export GetCommandLine{A,W}.
+	* kernel32.cc: Add includes needed for GetCommandLine functions.
+	(ucmd): New function.
+	(cygwin_GetCommandLineW): Ditto.
+	(cygwin_GetCommandLineA): Ditto.
+	* spawn.cc (child_info_spawn::worker): Rename one_line -> cmd.  Use
+	lb_wcs macro to generate a wide character version of the line buffer.
+	Remove duplicate printing of command line.  Don't access members of
+	linebuf directly.
+	* winf.h: Use pragma once.
+	(linebuf): Make storage private.
+	(linebuf::operator size_t): New operator.  Return size of buf.
+	(linebuf::operator wchar_t): New operator.
+	(linebuf::wcs): New function.
+	(lb_wcs): New macro.
+	* include/cygwin/version.h: Bump API minor number to 268.
+
+	* strfuncs.cc: Clarify descriptive file comment.
+
+2013-07-19  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygtls.cc (_cygtls::remove): Close cw_timer handle, thus avoiding
+	handle leak.
+
+2013-07-19  Jon TURNEY  <jon.turney@dronecode.org.uk>
+
+	* cygserver_ipc.h (ipc_retval::ipc_retval): Take ssize_t as argument
+	to make sure entire ipc_retval union is initialized on all supported
+	platforms.
+
+2013-07-18  Corinna Vinschen  <corinna@vinschen.de>
+
+	* path.cc (normalize_posix_path): Start checking path before ".." at
+	dst, rather than at dst_start, otherwise suffer loss of one leading
+	slash in case of UNC paths.
+
+2013-07-17  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* winsup.h (cygbench): Fix declaration to match definition.
+	* dcrt0.cc (initial_env): Remove unused variable.
+
 2013-07-15  Corinna Vinschen  <corinna@vinschen.de>
 
 	Remove /dev/mem, /dev/kmem, /dev/port support.

@@ -6,9 +6,7 @@ This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
-#ifndef _WINF_H
-#define _WINF_H
-
+#pragma once
 /* Hack for Cygwin processes.  If the Windows command line length gets slightly
    bigger than this value, the stack position is suddenly moved up by 64K for
    no apparent reason, which results in subsequent forks failing.  Since Cygwin
@@ -71,10 +69,10 @@ class av
 
 class linebuf
 {
- public:
   size_t ix;
   char *buf;
   size_t alloced;
+ public:
   linebuf () : ix (0), buf (NULL), alloced (0) {}
   ~linebuf () {if (buf) free (buf);}
   void __reg3 add (const char *, int);
@@ -84,6 +82,23 @@ class linebuf
   bool __reg3 fromargv(av&, const char *, bool);;
   operator char *() {return buf;}
   size_t idx() {return ix;}
+  operator size_t () const { return ix + 1; }
+  operator const char * () const { return buf; }
+  operator wchar_t * ()
+  {
+    size_t n = ix + 1;
+    /* Note that this malloc'ed buffer is not freed by the destructor.
+       It is up to the caller to do (or not do) that. */
+    wchar_t *wbuf = (wchar_t *) malloc (sizeof (wchar_t) * n);
+    return wcs (wbuf, n);
+  }
+  wchar_t *wcs (wchar_t *wbuf) { return wcs (wbuf, ix + 1); }
+  wchar_t *wcs (wchar_t *wbuf, size_t n)
+  {
+    if (n == 1)
+      wbuf[0] = L'\0';
+    else
+      sys_mbstowcs (wbuf, n, buf);
+    return wbuf;
+  }
 };
-
-#endif /*_WINF_H*/
