@@ -420,7 +420,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	        newargv.replace (i, tmpbuf);
 	        free (tmpbuf);
 	      }
-      else if (!cmd.fromargv (newargv, real_path.get_win32 (),
+        if (!cmd.fromargv (newargv, real_path.get_win32 (),
 				   real_path.iscygexec ()))
 	      {
 	        res = -1;
