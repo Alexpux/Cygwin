@@ -3616,6 +3616,11 @@ arg_heuristic (char const * const arg)
 		free (swin32_path);
 		return ScrubRetpath (retpath);
 	      }
+		if (strcmp(spath, "/dev/null") == 0)
+	      {
+		retpathcpy("nul");
+		return ScrubRetpath (retpath);
+	      }
 	    path_conv p (spath, 0);
 	    if (p.error)
 	      {
