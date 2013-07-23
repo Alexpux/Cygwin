@@ -87,7 +87,7 @@ AR_FLAGS:=qv
 RANLIB:=@RANLIB@
 LD:=@LD@
 DLLTOOL:=@DLLTOOL@
-WINDRES:=@WINDRES@ --include-dir=$(srcdir)/include
+WINDRES:=@WINDRES@
 AS:=@AS@
 NM:=@NM@
 OBJCOPY:=@OBJCOPY@

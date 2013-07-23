@@ -1,4 +1,0 @@
-2013-03-27  Corinna Vinschen  <corinna@vinschen.de>
-
-	* faq-what.xml (faq.what.supported): Change to accommodate existence
-	of 64 bit version.
