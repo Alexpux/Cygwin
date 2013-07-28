@@ -77,19 +77,6 @@ set_proc_retry (const char *buf)
 }
 
 static void
-tty_is_gone (const char *buf)
-{
-  if (!user_shared->warned_notty)
-    {
-      small_printf ("\"tty\" option detected in MSYS environment variable.\n"
-		    "MSYS=tty is no longer supported.  Please remove it from your\n"
-		    "MSYS environment variable and use a terminal emulator like mintty,\n"
-		    "xterm, or rxvt.\n");
-      user_shared->warned_notty = 1;
-    }
-}
-
-static void
 set_winsymlinks (const char *buf)
 {
   if (!buf || !*buf)
@@ -146,7 +133,7 @@ static struct parse_thing
   {"pipe_byte", {&pipe_byte}, setbool, NULL, {{false}, {true}}},
   {"proc_retry", {func: set_proc_retry}, isfunc, NULL, {{0}, {5}}},
   {"reset_com", {&reset_com}, setbool, NULL, {{false}, {true}}},
-  {"tty", {func: tty_is_gone}, isfunc, NULL, {{0}, {0}}},
+  {"wincmdln", {&wincmdln}, setbool, NULL, {{false}, {true}}},
   {"winsymlinks", {func: set_winsymlinks}, isfunc, NULL, {{0}, {0}}},
   {NULL, {0}, setdword, 0, {{0}, {0}}}
 };
@@ -291,7 +278,8 @@ static win_env conv_envvars[] =
   {
     {NL ("PATH="), NULL, NULL, env_PATH_to_posix, env_plist_to_win32, true},
     {NL ("HOME="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},
-    {NL ("LD_LIBRARY_PATH="), NULL, NULL, env_plist_to_posix, env_plist_to_win32, true},
+    {NL ("LD_LIBRARY_PATH="), NULL, NULL,
+			       env_plist_to_posix, env_plist_to_win32, true},
     {NL ("TMPDIR="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},
     {NL ("TMP="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},
     {NL ("TEMP="), NULL, NULL, env_path_to_posix, env_path_to_win32, false},

@@ -420,8 +420,9 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	        newargv.replace (i, tmpbuf);
 	        free (tmpbuf);
 	      }
-        if (!cmd.fromargv (newargv, real_path.get_win32 (),
-				   real_path.iscygexec ()))
+        if ((wincmdln || !real_path.iscygexec ())
+              && !cmd.fromargv (newargv, real_path.get_win32 (),
+			        real_path.iscygexec ()))
 	      {
 	        res = -1;
 	        goto out;
