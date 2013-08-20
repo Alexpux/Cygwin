@@ -1,3 +1,27 @@
+2013-08-19  Corinna Vinschen  <corinna@vinschen.de>
+
+	* lc_msg.h: Regenerate.
+	* nlsfuncs.cc (__get_lcid_from_locale): Update list of Script-only
+	locales to Windows 8.
+	(__set_charset_from_locale): Take locales added with Windows 8 and 8.1
+	into account.
+
+2013-08-19  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_tape.cc (mtinfo_drive::set_pos): Remove unneeded linebreak.
+	(mtinfo_drive::get_status): Drop using get_ll when it's not required.
+
+2013-08-14  Corinna Vinschen  <corinna@vinschen.de>
+
+	* include/sys/cygwin.h (struct per_process): Add posix_memalign.  Reduce
+	size of unused2 accordingly.
+	* include/cygwin/version.h (CYGWIN_VERSION_API_MINOR): Bump.
+	* lib/_cygwin_crt0_common.cc (_cygwin_crt0_common): Initialize
+	u->posix_memalign with address of posix_memalign.
+	* malloc_wrapper.cc (posix_memalign): Call user-provided posix_memalign
+	rather than just returning ENOSYS.
+	* globals.cc (__cygwin_user_data): Initialize posix_memalign member.
+
 2013-08-09  Corinna Vinschen  <corinna@vinschen.de>
 
 	* include/cygwin/version.h (CYGWIN_VERSION_DLL_MINOR): Bump to 24.
@@ -26,11 +50,6 @@
 	(crealloc_abort): Ditto.
 	(ccalloc): Ditto.
 	(ccalloc_abort): Ditto.
-
-2013-07-31  Corinna Vinschen  <corinna@vinschen.de>
-
-	* path.cc (normalize_posix_path): Don't check existence of / or // dir
-	in parent dir check.
 
 2013-07-31  Corinna Vinschen  <corinna@vinschen.de>
 
