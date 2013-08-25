@@ -5,6 +5,12 @@ What's new:
 What changed:
 -------------
 
+- Change magic number associated with process information block so that 32-bit
+  Cygwin processes don't try to interpret 64-bit information and vice-versa.
+
+- Redefine content of mtget tape info struct to allow fetching the number of
+  partitions on a tape.
+
 
 Bug fixes:
 ----------
