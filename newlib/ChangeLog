@@ -1,3 +1,21 @@
+2013-09-13  Joey Ye  <joey.ye@arm.com>
+
+	* libc/stdlib/nano-mallocr.c (nano_allopt): Typo fixed to ...
+	(nano_mallopt): ... this.
+
+2013-09-12  Sebastian Huber <sebastian.huber@embedded-brains.de>
+
+	* libc/include/sys/cdefs.h: Synchronize with latest FreeBSD
+	version.
+	* libc/include/stdatomic.h: Likewise.
+
+2013-09-08  Yaakov Selkowitz  <yselkowitz@users.sourceforge.net>
+
+	* libc/include/search.h (__compar_fn_t): Add typedef.
+	(tdelete, tfind, tsearch): Use it.
+	* libc/include/stdlib.h (__compar_fn_t): Add typedef.
+	(bsearch, qsort): Use it.
+
 2013-08-19  Meador Inge  <meadori@codesourcery.com>
 
 	* libc/stdlib/__atexit.c (__register_exitproc): NULL-ify
