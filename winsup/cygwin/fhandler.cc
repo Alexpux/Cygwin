@@ -498,6 +498,12 @@ fhandler_base::open_with_arch (int flags, mode_t mode)
     }
 
   close_on_exec (flags & O_CLOEXEC);
+  /* A unique ID is necessary to recognize fhandler entries which are
+     duplicated by dup(2) or fork(2).  This is used in BSD flock calls
+     to identify the descriptor.  Skip nohandle fhandlers since advisory
+     locking is unusable for those anyway. */
+  if (!nohandle ())
+    set_unique_id ();
   return res;
 }
 
@@ -1109,6 +1115,15 @@ fhandler_base::close_with_arch ()
   return res;
 }
 
+void
+fhandler_base::cleanup ()
+{
+  /* Delete all POSIX locks on the file.  Delete all flock locks on the
+     file if this is the last reference to this file. */
+  if (unique_id)
+    del_my_locks (on_close);
+}
+
 int
 fhandler_base::close ()
 {
@@ -1245,9 +1260,6 @@ fhandler_base::fstat (struct stat *buf)
     case FH_PIPER:
       buf->st_mode = S_IFIFO | S_IRUSR;
       break;
-    case FH_FULL:
-      buf->st_mode = S_IFCHR | S_IRUSR | S_IWUSR | S_IWGRP | S_IWOTH;
-      break;
     default:
       buf->st_mode = S_IFCHR | STD_RBITS | STD_WBITS | S_IWGRP | S_IWOTH;
       break;
@@ -1363,6 +1375,15 @@ int fhandler_base::fcntl (int cmd, intptr_t arg)
 	set_flags ((get_flags () & ~allowed_flags) | new_flags);
       }
       res = 0;
+      break;
+    case F_GETLK:
+    case F_SETLK:
+    case F_SETLKW:
+	{
+	  struct flock *fl = (struct flock *) arg;
+	  fl->l_type &= F_RDLCK | F_WRLCK | F_UNLCK;
+	  res = mandatory_locking () ? mand_lock (cmd, fl) : lock (cmd, fl);
+	}
       break;
     default:
       set_errno (EINVAL);

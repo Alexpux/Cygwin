@@ -1,3 +1,59 @@
+2013-10-24  Corinna Vinschen  <corinna@vinschen.de>
+
+	* devices.in (dev_storage): Map /dev/zero and /dev/full to \Device\Null.
+	* devices.cc: Regenerate.
+	* dtable.h (struct dtable): Make fhandler_base friend, rather
+	than fhandler_disk_file.
+	* fhandler.cc (fhandler_base::open_with_arch): Create unique id.
+	(fhandler_base::cleanup): Call del_my_locks.
+	(fhandler_base::fcntl): Handle F_GETLK, F_SETLK and F_SETLKW.
+	* fhandler.h (fhandler_base::get_dev): Return real device number.
+	(fhandler_base::set_unique_id): New inline method.
+	(fhandler_disk_file::lock): Drop declaration.
+	(fhandler_disk_file::get_dev): New method, return pc.fs_serial_number.
+	(fhandler_dev_zero::open): Drop declaration.
+	* fhandler_disk_file.cc (fhandler_disk_file::close): Move
+	del_my_locks call to fhandler_base::open_with_arch.
+	(fhandler_disk_file::fcntl): Move handling of locking commands to
+	fhandler_base::fcntl.
+	(fhandler_base::open_fs): Drop call to NtAllocateLocallyUniqueId.
+	* fhandler_zero.cc (fhandler_dev_zero::open): Remove so that default
+	fhandler_base::open is used to open \Device\Null.
+	* flock.cc (fixup_lockf_after_exec): Finding a single fhandler is
+	enough here.
+	(fhandler_base::lock): Replace fhandler_disk_file::lock.  Refuse to lock
+	nohandle devices.  Handle read/write test using POSIX flags.  Explain
+	why.  Never fail on SEEK_CUR or SEEK_END, rather assume position 0,
+	just as Linux.
+	* net.cc (fdsock): Create unique id.
+
+2013-10-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* include /cygwin/config.h (_READ_WRITE_BUFSIZE_TYPE): Define.
+
+2013-10-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler.cc (fhandler_base::fstat): Drop FH_FULL case to align
+	/dev/full permissions to Linux.
+
+2013-10-22  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* fhandler.h (fhandler_base::cleanup): Mark as extern rather than
+	inline.
+	* fhandler_base.cc (fhandler_base::cleanup): Define.
+	* fhandler_tty.cc (fhandler_pty_slave::cleanup): Call fhandler_base::cleanup.
+	(fhandler_pty_master::cleanup): Ditto.
+
+2013-10-18  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* fhandler_termios.cc (tty_min::kill_pgrp): Don't send a signal to
+	myself if this process is exiting.
+
+2013-10-18  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* tty.cc (tty_list::allocate): Set sid to 0 rather than -1 since -1 is
+	an error condition.
+
 2013-10-16  Corinna Vinschen  <corinna@vinschen.de>
 
 	* fhandler_process.cc (format_process_ctty): Fix random content of
