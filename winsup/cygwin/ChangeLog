@@ -1,5 +1,31 @@
 2013-10-24  Corinna Vinschen  <corinna@vinschen.de>
 
+	* fhandler.h (fhandler_dev_zero::lseek): Convert to inline method.
+	(class fhandler_dev_random): Drop dummy_offset.
+	(fhandler_dev_random::lseek): Convert to inline method.
+	(fhandler_dev_dsp::lseek): Ditto.
+	* fhandler_dsp.cc (fhandler_dev_dsp::lseek): Drop here.
+	* fhandler_random.cc (fhandler_dev_random::open): Drop setting
+	dummy_offset.
+	(fhandler_dev_random::lseek): Drop here.
+	* fhandler_tape.cc (fhandler_dev_tape::lseek): Make no-op, but keep
+	old code for reference.
+	* fhandler_zero.cc (fhandler_dev_zero::lseek): Drop here.
+
+2013-10-24  Christopher Faylor  <me.cygwin2013@cgf.cx>
+
+	* external.cc (fillout_pinfo): If start_time is 0, wait a while before
+	returning the pinfo structure.
+
+	* fhandler.cc (fhandler_base::open_setup): Convert from inline.
+	* fhandler.h (fhandler_base::open_setup): Declare.
+	* fhandler_console.cc (fhandler_console::open_setup): Always call
+	fhandler_base::open_setup.
+	* fhandler_tty.cc (fhandler_pty_slave::open_setup): Ditto.
+	(fhandler_pty_master::open_setup): Ditto.
+
+2013-10-24  Corinna Vinschen  <corinna@vinschen.de>
+
 	* devices.in (dev_storage): Map /dev/zero and /dev/full to \Device\Null.
 	* devices.cc: Regenerate.
 	* dtable.h (struct dtable): Make fhandler_base friend, rather
@@ -29,7 +55,7 @@
 
 2013-10-23  Corinna Vinschen  <corinna@vinschen.de>
 
-	* include /cygwin/config.h (_READ_WRITE_BUFSIZE_TYPE): Define.
+	* include/cygwin/config.h (_READ_WRITE_BUFSIZE_TYPE): Define.
 
 2013-10-23  Corinna Vinschen  <corinna@vinschen.de>
 
