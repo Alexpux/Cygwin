@@ -1,3 +1,27 @@
+2013-11-13  Gregory Pietsch <gpietsch@comcast.net>
+
+	* newlib/libc/stdlib/getopt.c (getopt_internal): Add missing braces.
+
+2013-11-13  Freddie Chopin  <freddie_chopin@op.pl>
+
+	* newlib/libc/include/getopt.h (struct option): name field should be
+	"const char *".
+	* newlib/libc/stdlib/getopt.c (getopt_internal): Use fputs()/fputc()
+	instead of fprintf() to save code space.  Fix signed/unsigned
+	comparison.
+
+2013-11-12  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+
+	* libc/libc/stdlib/getopt.c (getopt_internal): Fix NULL pointer access.
+
+2013-11-08  Terry Guo  <terry.guo@arm.com>
+
+	* libm/libm.texinfo: Rename node Index to Document Index.
+
+2013-11-08  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/libc.texinfo: Rename node Library Index to Document Index.
+
 2013-11-04  Terraneo Federico  <fede.tft@hotmail.it>
 
 	* libc/stdio/fvwrite.c: Allow writing in larger chunks for fully
