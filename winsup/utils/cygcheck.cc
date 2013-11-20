@@ -9,6 +9,7 @@
    Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
    details. */
 
+#define _WIN32_WINNT 0x0602
 #define cygwin_internal cygwin_internal_dontuse
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,10 +53,6 @@ int del_orphaned_reg = 0;
 int unique_object_name_opt = 0;
 
 static char emptystr[] = "";
-
-/* This is global because it's used in both internet_display_error as well
-   as package_grep.  */
-BOOL (WINAPI *pInternetCloseHandle) (HINTERNET);
 
 #ifdef __GNUC__
 typedef long long longlong;
@@ -229,7 +226,7 @@ display_internet_error (const char *message, ...)
 
   va_start (hptr, message);
   while ((h = va_arg (hptr, HINTERNET)) != 0)
-    pInternetCloseHandle (h);
+    InternetCloseHandle (h);
   va_end (hptr);
 
   return 1;
@@ -1424,6 +1421,8 @@ handle_unique_object_name (int opt, char *path)
   return 1;
 }
 
+extern "C" NTSTATUS NTAPI RtlGetVersion (PRTL_OSVERSIONINFOEXW);
+
 static void
 dump_sysinfo ()
 {
@@ -1432,7 +1431,6 @@ dump_sysinfo ()
   time_t now;
   char *found_cygwin_dll;
   bool is_nt = false;
-  bool more_info = true;
   char osname[128];
   DWORD obcaseinsensitive = 1;
   HKEY key;
@@ -1441,30 +1439,17 @@ dump_sysinfo ()
   time (&now);
   printf ("Current System Time: %s\n", ctime (&now));
 
-  OSVERSIONINFOEX osversion;
-  osversion.dwOSVersionInfoSize = sizeof (OSVERSIONINFOEX);
-  if (!GetVersionEx (reinterpret_cast<LPOSVERSIONINFO>(&osversion)))
-    {
-      more_info = false;
-      osversion.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-      if (!GetVersionEx (reinterpret_cast<LPOSVERSIONINFO>(&osversion)))
-	display_error ("dump_sysinfo: GetVersionEx()");
-    }
-
-  HMODULE k32 = GetModuleHandleW (L"kernel32.dll");
+  RTL_OSVERSIONINFOEXW osversion;
+  osversion.dwOSVersionInfoSize = sizeof (RTL_OSVERSIONINFOEXW);
+  RtlGetVersion (&osversion);
 
   switch (osversion.dwPlatformId)
     {
-    case VER_PLATFORM_WIN32s:
-      strcpy (osname, "32s (not supported)");
-      break;
-    case VER_PLATFORM_WIN32_WINDOWS:
-      strcpy (osname, "95/98/Me (not supported)");
-      break;
     case VER_PLATFORM_WIN32_NT:
       is_nt = true;
       if (osversion.dwMajorVersion == 6)
 	{
+	  HMODULE k32 = GetModuleHandleW (L"kernel32.dll");
 	  BOOL (WINAPI *GetProductInfo) (DWORD, DWORD, DWORD, DWORD, PDWORD) =
 		  (BOOL (WINAPI *)(DWORD, DWORD, DWORD, DWORD, PDWORD))
 		  GetProcAddress (k32, "GetProductInfo");
@@ -1478,9 +1463,15 @@ dump_sysinfo ()
 	      strcpy (osname, osversion.wProductType == VER_NT_WORKSTATION
 			      ? "7" : "2008 R2");
 	      break;
-	    default:
+	    case 2:
 	      strcpy (osname, osversion.wProductType == VER_NT_WORKSTATION
 			      ? "8" : "2012");
+	      break;
+	    case 3:
+	    default:
+	      osversion.dwMinorVersion = 3;
+	      strcpy (osname, osversion.wProductType == VER_NT_WORKSTATION
+			      ? "8.1" : "2012 R2");
 	      break;
 	    }
 	  DWORD prod;
@@ -1490,10 +1481,6 @@ dump_sysinfo ()
 			      osversion.wServicePackMinor,
 			      &prod))
 	    {
-#define       PRODUCT_UNLICENSED 0xabcdabcd
-#ifndef PRODUCT_PROFESSIONAL_WMC
-#define       PRODUCT_PROFESSIONAL_WMC 0x00000067
-#endif
 	      const char *products[] =
 		{
  /* 0x00000000 */ "",
@@ -1527,7 +1514,7 @@ dump_sysinfo ()
  /* 0x0000001c */ " Ultimate N",
  /* 0x0000001d */ " Web Server Core",
  /* 0x0000001e */ " Essential Business Server Management Server",
- /* 0x0000001f */ " Essential Business Server Security Server"
+ /* 0x0000001f */ " Essential Business Server Security Server",
  /* 0x00000020 */ " Essential Business Server Messaging Server",
  /* 0x00000021 */ " Server Foundation",
  /* 0x00000022 */ " Home Server 2011",
@@ -1546,7 +1533,7 @@ dump_sysinfo ()
  /* 0x0000002f */ " Starter N",
  /* 0x00000030 */ " Professional",
  /* 0x00000031 */ " Professional N",
- /* 0x00000032 */ " Small Business Server 2011 Essentials"
+ /* 0x00000032 */ " Small Business Server 2011 Essentials",
  /* 0x00000033 */ " Server For SB Solutions",
  /* 0x00000034 */ " Server Solutions Premium",
  /* 0x00000035 */ " Server Solutions Premium Core",
@@ -1567,7 +1554,7 @@ dump_sysinfo ()
  /* 0x00000044 */ " Home Premium E",
  /* 0x00000045 */ " Professional E",
  /* 0x00000046 */ " Enterprise E",
- /* 0x00000047 */ " Ultimate E"
+ /* 0x00000047 */ " Ultimate E",
  /* 0x00000048 */ " Server Enterprise (Evaluation inst.)",
  /* 0x00000049 */ "",
  /* 0x0000004a */ "",
@@ -1614,19 +1601,8 @@ dump_sysinfo ()
 	}
       else if (osversion.dwMajorVersion == 5)
 	{
-	  if (osversion.dwMinorVersion == 0)
-	    {
-	      strcpy (osname, "2000");
-	      if (osversion.wProductType == VER_NT_WORKSTATION)
-		strcat (osname, " Professional");
-	      else if (osversion.wSuiteMask & VER_SUITE_DATACENTER)
-		strcat (osname, " Datacenter Server");
-	      else if (osversion.wSuiteMask & VER_SUITE_ENTERPRISE)
-		strcat (osname, " Advanced Server");
-	      else
-		strcat (osname, " Server");
-	    }
-	  else if (osversion.dwMinorVersion == 1)
+	  /* cygcheck won't run on Windows 200 or earlier. */
+	  if (osversion.dwMinorVersion == 1)
 	    {
 	      strcpy (osname, "XP");
 	      if (GetSystemMetrics (SM_MEDIACENTER))
@@ -1655,21 +1631,6 @@ dump_sysinfo ()
 		strcat (osname, " Compute Cluster Edition");
 	    }
 	}
-      else if (osversion.dwMajorVersion == 4)
-	{
-	  strcpy (osname, "NT 4");
-	  if (more_info)
-	    {
-	      if (osversion.wProductType == VER_NT_WORKSTATION)
-		strcat (osname, " Workstation");
-	      else
-		{
-		  strcat (osname, " Server");
-		  if (osversion.wSuiteMask & VER_SUITE_ENTERPRISE)
-		    strcat (osname, " Enterprise Edition");
-		}
-	    }
-	}
       else
 	strcpy (osname, "NT");
       break;
@@ -1677,26 +1638,22 @@ dump_sysinfo ()
       strcpy (osname, "??");
       break;
     }
-  printf ("Windows %s Ver %lu.%lu Build %lu %s\n", osname,
+  printf ("Windows %s Ver %lu.%lu Build %lu %ls\n", osname,
 	  osversion.dwMajorVersion, osversion.dwMinorVersion,
 	  osversion.dwPlatformId == VER_PLATFORM_WIN32_NT ?
 	  osversion.dwBuildNumber : (osversion.dwBuildNumber & 0xffff),
 	  osversion.dwPlatformId == VER_PLATFORM_WIN32_NT ?
-	  osversion.szCSDVersion : "");
+	  osversion.szCSDVersion : L"");
 
   if (osversion.dwPlatformId == VER_PLATFORM_WIN32s
       || osversion.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
     exit (EXIT_FAILURE);
 
-  BOOL (WINAPI *wow64_func) (HANDLE, PBOOL) = (BOOL (WINAPI *) (HANDLE, PBOOL))
-    GetProcAddress (k32, "IsWow64Process");
   BOOL is_wow64 = FALSE;
-  if (wow64_func && wow64_func (GetCurrentProcess (), &is_wow64) && is_wow64)
+  if (IsWow64Process (GetCurrentProcess (), &is_wow64) && is_wow64)
     {
-      void (WINAPI *nativinfo) (LPSYSTEM_INFO) = (void (WINAPI *)
-	(LPSYSTEM_INFO)) GetProcAddress (k32, "GetNativeSystemInfo");
       SYSTEM_INFO natinfo;
-      nativinfo (&natinfo);
+      GetNativeSystemInfo (&natinfo);
       fputs ("\nRunning under WOW64 on ", stdout);
       switch (natinfo.wProcessorArchitecture)
 	{
@@ -1832,10 +1789,6 @@ dump_sysinfo ()
     SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
   int drivemask = GetLogicalDrives ();
 
-  BOOL (WINAPI * gdfse) (LPCSTR, long long *, long long *, long long *) =
-    (BOOL (WINAPI *) (LPCSTR, long long *, long long *, long long *))
-    GetProcAddress (k32, "GetDiskFreeSpaceExA");
-
   for (i = 0; i < 26; i++)
     {
       if (!(drivemask & (1 << i)))
@@ -1885,11 +1838,14 @@ dump_sysinfo ()
       long capacity_mb = -1;
       int percent_full = -1;
 
-      long long free_me = 0ULL, free_bytes = 0ULL, total_bytes = 1ULL;
-      if (gdfse != NULL && gdfse (drive, &free_me, &total_bytes, &free_bytes))
+      ULARGE_INTEGER free_me, free_bytes, total_bytes;
+      free_me.QuadPart = free_bytes.QuadPart = 0ULL;
+      total_bytes.QuadPart = 1ULL;
+      if (GetDiskFreeSpaceEx (drive, &free_me, &total_bytes, &free_bytes))
 	{
-	  capacity_mb = total_bytes / (1024L * 1024L);
-	  percent_full = 100 - (int) ((100.0 * free_me) / total_bytes);
+	  capacity_mb = total_bytes.QuadPart / (1024L * 1024L);
+	  percent_full = 100 - (int) ((100.0 * free_me.QuadPart)
+				      / total_bytes.QuadPart);
 	}
       else
 	{
@@ -2137,43 +2093,6 @@ package_grep (char *search)
 {
   char buf[1024];
 
-  /* Attempt to dynamically load the necessary WinInet API functions so that
-     cygcheck can still function on older systems without IE.  */
-  HMODULE hWinInet;
-  if (!(hWinInet = LoadLibrary ("wininet.dll")))
-    {
-      fputs ("Unable to locate WININET.DLL.  This feature requires Microsoft "
-	     "Internet Explorer v3 or later to function.\n", stderr);
-      return 1;
-    }
-
-  /* InternetCloseHandle is used outside this function so it is declared
-     global.  The rest of these functions are only used here, so declare them
-     and call GetProcAddress for each of them with the following macro.  */
-
-  pInternetCloseHandle = (BOOL (WINAPI *) (HINTERNET))
-			    GetProcAddress (hWinInet, "InternetCloseHandle");
-#define make_func_pointer(name, ret, args) ret (WINAPI * p##name) args = \
-	    (ret (WINAPI *) args) GetProcAddress (hWinInet, #name);
-  make_func_pointer (InternetAttemptConnect, DWORD, (DWORD));
-  make_func_pointer (InternetOpenA, HINTERNET, (LPCSTR, DWORD, LPCSTR, LPCSTR,
-						DWORD));
-  make_func_pointer (InternetOpenUrlA, HINTERNET, (HINTERNET, LPCSTR, LPCSTR,
-						   DWORD, DWORD, DWORD));
-  make_func_pointer (InternetReadFile, BOOL, (HINTERNET, PVOID, DWORD, PDWORD));
-  make_func_pointer (HttpQueryInfoA, BOOL, (HINTERNET, DWORD, PVOID, PDWORD,
-					    PDWORD));
-#undef make_func_pointer
-
-  if(!pInternetCloseHandle || !pInternetAttemptConnect || !pInternetOpenA
-     || !pInternetOpenUrlA || !pInternetReadFile || !pHttpQueryInfoA)
-    {
-      fputs ("Unable to load one or more functions from WININET.DLL.  This "
-	     "feature requires Microsoft Internet Explorer v3 or later to "
-	     "function.\n", stderr);
-      return 1;
-    }
-
   /* construct the actual URL by escaping  */
   char *url = (char *) alloca (sizeof (base_url) + strlen ("&arch=x86_64") + strlen (search) * 3);
   strcpy (url, base_url);
@@ -2200,7 +2119,7 @@ package_grep (char *search)
 #endif
 
   /* Connect to the net and open the URL.  */
-  if (pInternetAttemptConnect (0) != ERROR_SUCCESS)
+  if (InternetAttemptConnect (0) != ERROR_SUCCESS)
     {
       fputs ("An internet connection is required for this function.\n", stderr);
       return 1;
@@ -2208,16 +2127,16 @@ package_grep (char *search)
 
   /* Initialize WinInet and attempt to fetch our URL.  */
   HINTERNET hi = NULL, hurl = NULL;
-  if (!(hi = pInternetOpenA ("cygcheck", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0)))
+  if (!(hi = InternetOpenA ("cygcheck", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0)))
     return display_internet_error ("InternetOpen() failed", NULL);
 
-  if (!(hurl = pInternetOpenUrlA (hi, url, NULL, 0, 0, 0)))
+  if (!(hurl = InternetOpenUrlA (hi, url, NULL, 0, 0, 0)))
     return display_internet_error ("unable to contact cygwin.com site, "
 				   "InternetOpenUrl() failed", hi, NULL);
 
   /* Check the HTTP response code.  */
   DWORD rc = 0, rc_s = sizeof (DWORD);
-  if (!pHttpQueryInfoA (hurl, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+  if (!HttpQueryInfoA (hurl, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
 		      (void *) &rc, &rc_s, NULL))
     return display_internet_error ("HttpQueryInfo() failed", hurl, hi, NULL);
 
@@ -2232,15 +2151,15 @@ package_grep (char *search)
   DWORD numread;
   do
     {
-      if (!pInternetReadFile (hurl, (void *) buf, sizeof (buf), &numread))
+      if (!InternetReadFile (hurl, (void *) buf, sizeof (buf), &numread))
 	return display_internet_error ("InternetReadFile failed", hurl, hi, NULL);
       if (numread)
 	fwrite ((void *) buf, (size_t) numread, 1, stdout);
     }
   while (numread);
 
-  pInternetCloseHandle (hurl);
-  pInternetCloseHandle (hi);
+  InternetCloseHandle (hurl);
+  InternetCloseHandle (hi);
   return 0;
 }
 

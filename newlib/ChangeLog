@@ -1,3 +1,62 @@
+3013-11-19  Jennifer Averett <jennifer.averett@oarcorp.com>
+
+	* libc/sys/rtems/sys/cpuset.h: New file.
+
+2013-11-19  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libc/include/stdlib.h: Add prototype of realpath().
+	* libc/sys/linux/realpath.c: Add restrict keyword.
+
+2013-11-19  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libm/common/modfl.c: Add cast to remove compiler warning.
+
+2013-11-19  Terraneo Federico  <fede.tft@hotmail.it>
+
+	* libc/posix/closedir.c: Fix use after free.
+	Remove useless test dd_fd != -1
+	* libc/posix/readdir.c: Remove useless test dd_fd == -1
+	* libc/posix/readdir_r.c: Ditto.
+
+2013-11-18  Sahil Patnayakuni  <sahilp@oarcorp.com>
+
+	* libc/include/stdio.h, libc/machine/powerpc/vfscanf.c,
+	libc/machine/spu/fgetpos.c, libc/machine/spu/fgets.c,
+	libc/machine/spu/fopen.c, libc/machine/spu/fputs.c,
+	libc/machine/spu/fread.c, libc/machine/spu/freopen.c,
+	libc/machine/spu/fwrite.c, libc/machine/spu/setbuf.c,
+	libc/machine/spu/vfprintf.c, libc/machine/spu/vfscanf.c,
+	libc/machine/spu/vsnprintf.c, libc/machine/spu/vsprintf.c,
+	libc/machine/spu/vsscanf.c, libc/stdio/asnprintf.c,
+	libc/stdio/asprintf.c, libc/stdio/dprintf.c,
+	libc/stdio/fgetpos.c, libc/stdio/fgets.c,
+	libc/stdio/fmemopen.c, libc/stdio/fopen.c,
+	libc/stdio/fprintf.c, libc/stdio/fputs.c,
+	libc/stdio/fread.c, libc/stdio/freopen.c,
+	libc/stdio/fscanf.c, libc/stdio/fwrite.c,
+	libc/stdio/printf.c, libc/stdio/scanf.c,
+	libc/stdio/setbuf.c, libc/stdio/snprintf.c,
+	libc/stdio/sprintf.c, libc/stdio/sscanf.c,
+	libc/stdio/vdprintf.c, libc/stdio/vprintf.c,
+	libc/stdio/vscanf.c, libc/stdio/vsnprintf.c,
+	libc/stdio/vsprintf.c, libc/stdio/vsscanf.c: Add restrict keyword.
+
+2013-11-18  Sahil Patnayakuni  <sahilp@oarcorp.com>
+
+	* libc/include/stdlib.h, libc/stdlib/mbstowcs.c,
+	libc/stdlib/mbstowcs_r.c, libc/stdlib/mbtowc.c,
+	libc/stdlib/mbtowc_r.c, libc/stdlib/strtod.c,
+	libc/stdlib/strtol.c, libc/stdlib/strtold.c,
+	libc/stdlib/strtoll.c, libc/stdlib/strtoll_r.c,
+	libc/stdlib/strtoul.c, libc/stdlib/strtoull.c,
+	libc/stdlib/strtoull_r.c, libc/stdlib/wcstombs.c,
+	libc/stdlib/wcstombs_r.c: Add restrict keyword.
+
+2013-11-18  Marcus Shawcroft  <marcus.shawcroft@arm.com>
+
+	* libc/include/sys/unistd.h (ftruncate, truncate): Define
+	for __arm__.
+
 2013-11-13  Gregory Pietsch <gpietsch@comcast.net>
 
 	* newlib/libc/stdlib/getopt.c (getopt_internal): Add missing braces.
