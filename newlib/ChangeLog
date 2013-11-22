@@ -1,4 +1,61 @@
-3013-11-19  Jennifer Averett <jennifer.averett@oarcorp.com>
+2013-11-21  Daniel Ramirez <javamonn@gmail.com>
+
+	* libc/sys/linux/statvfs.c (statvfs): Added restrict keyword.
+
+2013-11-21  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libc/sys/rdos/chown.c, libc/sys/rdos/close.c, libc/sys/rdos/execve.c,
+	libc/sys/rdos/fork.c, libc/sys/rdos/fstat.c, libc/sys/rdos/getpid.c,
+	libc/sys/rdos/gettod.c, libc/sys/rdos/isatty.c, libc/sys/rdos/kill.c,
+	libc/sys/rdos/link.c, libc/sys/rdos/lseek.c, libc/sys/rdos/open.c,
+	libc/sys/rdos/rdos.h, libc/sys/rdos/read.c, libc/sys/rdos/readlink.c,
+	libc/sys/rdos/sbrk.c, libc/sys/rdos/stat.c, libc/sys/rdos/symlink.c,
+	libc/sys/rdos/times.c, libc/sys/rdos/unlink.c, libc/sys/rdos/wait.c,
+	libc/sys/rdos/write.c: Convert from DOS to UNIX CRLF.
+
+2013-11-21  Julio Gutierrez <jgutleyva@gmail.com>
+
+	* libc/include/glob.h (glob): Add restrict keyword.
+	* libc/posix/glob.c (glob): Ditto.
+
+2013-11-21  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libc/posix/readdir_r.c: Add restrict keyword.
+	* libc/machine/spu/sys/dirent.h, libc/sys/decstation/sys/dirent.h,
+	libc/sys/linux/sys/dirent.h, libc/sys/rtems/sys/dirent.h,
+	libc/sys/sparc64/sys/dirent.h, libc/sys/sun4/sys/dirent.h,
+	libc/sys/sysvi386/sys/dirent.h: Add readdir_r() prototype.
+
+2013-11-21  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libc/sys/rdos/stat.c: Remove stray +.
+
+2013-11-21  Daniel Ramirez <javamonn@gmail.com>
+
+	* libc/include/sys/stat.h, libc/sys/linux/sys/stat.h, 
+	libc/sys/m88kbug/syscalls.c, libc/sys/rdos/stat.c, 
+	libc/sys/sparc64/sys/stat.h: Add restrict keyword.
+
+2013-11-20  Daniel Ramirez <javamonn@gmail.com>
+
+	* libc/include/search.h, libc/search/tdelete.c: Add restrict keyword.
+
+2013-11-20  Chirayu Desai  <chirayudesai1@gmail.com>
+
+	* libc/include/regex.h, libc/posix/regcomp.c,
+	libc/posix/regerror.c, libc/posix/regex.3
+	libc/posix/regexec.c: Add restrict keyword.
+
+2013-11-20  Daniel Ramirez <javamonn@gmail.com>
+
+	* libc/iconv/lib/iconv.c, libc/include/iconv.h, 
+	libc/sys/linux/iconv/iconv.c: Add restrict keyword.
+
+2013-11-20  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdlib.h: Declare realpath only if !__STRICT_ANSI__.
+
+2013-11-19  Jennifer Averett <jennifer.averett@oarcorp.com>
 
 	* libc/sys/rtems/sys/cpuset.h: New file.
 
