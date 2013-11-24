@@ -16,37 +16,31 @@ my @compiler = split ' ', $ENV{$ccorcxx};
 if ("@ARGV" !~ / -nostdinc/o) {
     my $fd;
     push @compiler, ($cxx ? '-xc++' : '-xc');
-	my $mingw_compiler = $compiler[0] =~ /mingw/o;
-	my $nuldev = '/dev/null';
-	$/ = "\n";
-	if ($mingw_compiler) {
-		$nuldev = 'NUL';
-		$/ = "\r\n";
-	}
     if (!open $fd, '-|') {
 	open STDERR, '>&', \*STDOUT;
-	exec @compiler, $nuldev, '-v', '-E', '-o', $nuldev or die "*** error execing $compiler[0] - $!\n";
+	exec @compiler, '/dev/null', '-v', '-E', '-o', '/dev/null' or die "*** error execing $compiler[0] - $!\n";
     }
     $compiler[1] =~ s/xc/nostdinc/o;
     push @compiler, '-nostdinc' if $cxx;
     push @compiler, '-I' . $_ for split ' ', $ENV{CCWRAP_HEADERS};
     push @compiler, '-isystem', $_ for split ' ', $ENV{CCWRAP_SYSTEM_HEADERS};
     my $finding_paths = 0;
+    my $mingw_compiler = $compiler[0] =~ /mingw/o;
     my @dirafters;
     for my $d (split ' ', $ENV{CCWRAP_DIRAFTER_HEADERS}) {
 	push @dirafters, '-isystem', $d if !$mingw_compiler || $d !~ /w32api/o;
     }
     while (<$fd>) {
-	    chomp;
 	if (/^\*\*\*/o) {
 	    print;
-	} elsif ($_ eq "#include <...> search starts here:") {
+	} elsif ($_ eq "#include <...> search starts here:\n") {
 	    $finding_paths = 1;
 	} elsif (!$finding_paths) {
 	    next;
-	} elsif ($_ eq "End of search list.") {
+	} elsif ($_ eq "End of search list.\n") {
 	    last;
 	} elsif (!@dirafters || !m%w32api|mingw.*/include%o) {
+	    chomp;
 	    s/^\s+//;
 	    push @compiler, '-isystem', Cwd::abs_path($_);
 	}
