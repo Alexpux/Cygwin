@@ -1150,7 +1150,7 @@ __get_current_collate_codeset (void)
    transformation.  The advantage is that we don't need any files with
    collation information. */
 extern "C" int
-wcscoll (const wchar_t *ws1, const wchar_t *ws2)
+wcscoll (const wchar_t *__restrict ws1, const wchar_t *__restrict ws2)
 {
   int ret;
 
@@ -1163,7 +1163,7 @@ wcscoll (const wchar_t *ws1, const wchar_t *ws2)
 }
 
 extern "C" int
-strcoll (const char *s1, const char *s2)
+strcoll (const char *__restrict s1, const char *__restrict s2)
 {
   size_t n1, n2;
   wchar_t *ws1, *ws2;
@@ -1204,7 +1204,7 @@ __collate_range_cmp (int c1, int c2)
 }
 
 extern "C" size_t
-wcsxfrm (wchar_t *ws1, const wchar_t *ws2, size_t wsn)
+wcsxfrm (wchar_t *__restrict ws1, const wchar_t *__restrict ws2, size_t wsn)
 {
   size_t ret;
 
@@ -1230,7 +1230,7 @@ wcsxfrm (wchar_t *ws1, const wchar_t *ws2, size_t wsn)
 }
 
 extern "C" size_t
-strxfrm (char *s1, const char *s2, size_t sn)
+strxfrm (char *__restrict s1, const char *__restrict s2, size_t sn)
 {
   size_t ret;
   size_t n2;

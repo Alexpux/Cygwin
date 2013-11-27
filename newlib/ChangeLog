@@ -1,3 +1,98 @@
+2013-11-26  Matheus Almeida  <Matheus.Almeida@imgtec.com>
+
+	* libc/include/machine/setjmp.h: Add support for __mips_fpr being
+	64 and treat it the same as if __mips64 is set.
+	* libc/machine/mips/setjmp.S: Ditto, plus add checks for _MIPS_SIM
+	being _ABIN32 and _ABI64.
+
+2013-11-26  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libc/machine/powerpc/vfscanf.c, libc/stdio/fgetpos.c,
+	libc/stdio/fgets.c, libc/stdio/fputs.c, libc/stdio/fread.c,
+	libc/stdio/freopen.c, libc/stdio/fwrite.c, libc/stdio/sscanf.c,
+	libc/stdlib/mbstowcs.c, libc/stdlib/mbtowc.c,
+	libc/stdlib/strtod.c, libc/stdlib/strtol.c, libc/stdlib/strtoll.c,
+	libc/stdlib/strtoul.c, libc/stdlib/strtoull.c,
+	libc/stdlib/wcstombs.c: Fix documentation prototypes which were
+	over eighty columns.
+
+2013-11-26  Julio Gutierrez <jgutleyva@gmail.com>
+
+	*libc/include/wchar.h: Add restrict keyword.
+	*libc/stdio/fgetws.c (fgetws): ditto.
+	*libc/stdio/fputws.c (fputws): ditto.
+	*libc/stdio/fwprintf.c (fwprintf): ditto.
+	*libc/stdio/fwscanf.c (fwscanf): ditto.
+	*libc/stdio/swprintf.c (swprintf): ditto.
+	*libc/stdio/swscanf.c (swscanf): ditto.
+	*libc/stdio/vfwprintf.c (vfwprintf): ditto.
+	*libc/stdio/vfwscanf.c (vfwscanf): ditto.
+	*libc/stdio/vswprintf.c (vswprintf): ditto.
+	*libc/stdio/vswscanf.c (vswscanf): ditto.
+	*libc/stdio/vwprintf.c (vwprintf): ditto.
+	*libc/stdio/vwscanf.c (vwscanf): ditto.
+	*libc/stdio/wprintf.c (wprintf): ditto.
+	*libc/stdio/wscanf.c (wscanf): ditto.
+	*libc/stdlib/mbrlen.c (mbrlen): ditto.
+	*libc/stdlib/mbrtowc.c (mbrtowc): ditto.
+	*libc/stdlib/mbsnrtowcs.c (mbsnrtowcs): ditto.
+	*libc/stdlib/mbsrtowcs.c (mbsrtowcs): ditto.
+	*libc/stdlib/wcrtomb.c (wcrtomb): ditto.
+	*libc/stdlib/wcsnrtombs.c (wcsnrtombs): ditto.
+	*libc/stdlib/wcsrtombs.c (wcsrtombs): ditto.
+	*libc/stdlib/wcstod.c (wcstod): ditto.
+	*libc/stdlib/wcstol.c (wcstol): ditto.
+	*libc/stdlib/wcstold.c (wcstold): ditto.
+	*libc/stdlib/wcstoll.c (wcstoll): ditto.
+	*libc/stdlib/wcstoul.c (wcstoul): ditto.
+	*libc/stdlib/wcstoull.c (cstoull): ditto.
+	*libc/string/wcpcpy.c (wcpcpy): ditto.
+	*libc/string/wcpncpy.c (wcpncpy): ditto.
+	*libc/string/wcscat.c (wcscat): ditto.
+	*libc/string/wcscpy.c (wcscpy): ditto.
+	*libc/string/wcsncat.c (wcsncat): ditto.
+	*libc/string/wcsncpy.c (wcsncpy): ditto.
+	*libc/string/wcsstr.c (wcsstr): ditto.
+	*libc/string/wcstok.c (wcstok): ditto.
+	*libc/string/wcsxfrm.c (wcsxfrm): ditto.
+	*libc/string/wmemcpy.c (wmemcpy): ditto.
+
+2013-11-26  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/posix/posix_spawn.c: Drop using namespace.h.
+
+2013-11-26  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/posix/posix_spawn.c: Eliminate OS function calls not present
+	in newlib or Cygwin.
+	(process_spawnattr): Use sigprocmask rather than _sigprocmask.  Use
+	sigaction rather than _sigaction.
+	(process_file_actions_entry): Use dup2 rather than _dup2.
+	(do_posix_spawn): Use execvpe rather than _execvpe.  Use waitpid
+	rather than _waitpid.
+
+2013-11-25  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libc/iconv/lib/iconv.c, libc/time/strftime.c: Change "restrict<" to
+	"restrict <" to fix formatting.
+
+2013-11-25  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/spawn.h (posix_spawn_file_actions_destroy): Fix typo
+	in function name.
+	* libc/posix/posix_spawn.c (posix_spawn_file_actions_destroy): Ditto.
+
+2013-11-25  Sahil Patnayakuni <sahil.patnayakuni@gmail.com>
+
+	* libc/include/time.h (time): Add restrict keyword.
+	* libc/include/wchar.h (wcsftime): Add restrict keyword.
+	* libc/time/asctime_r.c (asctime_r): Same.
+	* libc/time/gmtime_r.c (gmtime_r): Same.  
+	* libc/time/lcltime_r.c (lcltime_r): Same.     
+	* libc/time/strftime.c (strftime): Same.   
+	* libc/time/strptime.c (strptime): Same.  
+	* libc/sys/linux/linuxthreads/timer_create.c (timer_create): Same.   
+	* libc/sys/linux/linuxthreads/timer_settime.c (timer_settime): Same.                            
 2013-11-23 Bryan Dunsmore <dunsmoreb@gmail.com>
 
 	* libc/include/wordexp.h (wordexp): Add restrict keyword.
