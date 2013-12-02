@@ -16,7 +16,6 @@ details. */
 #include <stdio.h>
 #include <unistd.h>
 #include <wchar.h>
-#include <sys/param.h>
 
 #define USE_SYS_TYPES_FD_SET
 #include <winsock.h>
@@ -73,13 +72,10 @@ set_std_handle (int fd)
 }
 
 int
-dtable::extend (int howmuch)
+dtable::extend (size_t howmuch)
 {
-  int new_size = size + howmuch;
+  size_t new_size = size + howmuch;
   fhandler_base **newfds;
-
-  if (howmuch <= 0)
-    return 0;
 
   if (new_size > OPEN_MAX_MAX)
     {
@@ -225,17 +221,24 @@ dtable::delete_archetype (fhandler_base *fh)
 }
 
 int
-dtable::find_unused_handle (int start)
+dtable::find_unused_handle (size_t start)
 {
+  size_t extendby = (start >= size) ? 1 + start - size : NOFILE_INCR;
+
+  /* This do loop should only ever execute twice. */
+  int res = -1;
   do
     {
       for (size_t i = start; i < size; i++)
-	/* See if open -- no need for overhead of not_open */
 	if (fds[i] == NULL)
-	  return i;
+	  {
+	    res = (int) i;
+	    goto out;
+	  }
     }
-  while (extend (MAX (NOFILE_INCR, start - size)));
-  return -1;
+  while (extend (extendby));
+out:
+  return res;
 }
 
 void
@@ -253,14 +256,19 @@ extern "C" int
 cygwin_attach_handle_to_fd (char *name, int fd, HANDLE handle, mode_t bin,
 			    DWORD myaccess)
 {
+  cygheap->fdtab.lock ();
   if (fd == -1)
     fd = cygheap->fdtab.find_unused_handle ();
   fhandler_base *fh = build_fh_name (name);
   if (!fh)
-    return -1;
-  cygheap->fdtab[fd] = fh;
-  cygheap->fdtab[fd]->inc_refcnt ();
-  fh->init (handle, myaccess, bin ?: fh->pc_binmode ());
+    fd = -1;
+  else
+    {
+      cygheap->fdtab[fd] = fh;
+      cygheap->fdtab[fd]->inc_refcnt ();
+      fh->init (handle, myaccess, bin ?: fh->pc_binmode ());
+    }
+  cygheap->fdtab.unlock ();
   return fd;
 }
 
@@ -641,7 +649,7 @@ build_fh_pc (path_conv& pc)
   else
     {
       if (!fh->get_name ())
-	fh->set_name (fh->dev ().name);
+	fh->set_name (fh->dev ().native);
       fh->archetype = fh->clone ();
       debug_printf ("created an archetype (%p) for %s(%d/%d)", fh->archetype, fh->get_name (), fh->dev ().get_major (), fh->dev ().get_minor ());
       fh->archetype->archetype = NULL;
