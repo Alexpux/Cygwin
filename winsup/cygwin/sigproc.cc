@@ -207,7 +207,6 @@ proc_subproc (DWORD what, uintptr_t val)
     case PROC_DETACHED_CHILD:
       if (vchild != myself)
 	{
-	  vchild->ppid = what == PROC_DETACHED_CHILD ? 1 : myself->pid;
 	  vchild->uid = myself->uid;
 	  vchild->gid = myself->gid;
 	  vchild->pgid = myself->pgid;
@@ -215,6 +214,7 @@ proc_subproc (DWORD what, uintptr_t val)
 	  vchild->ctty = myself->ctty;
 	  vchild->cygstarted = true;
 	  vchild->process_state |= PID_INITIALIZING;
+	  vchild->ppid = what == PROC_DETACHED_CHILD ? 1 : myself->pid;	/* always set last */
 	}
       if (what == PROC_DETACHED_CHILD)
 	break;
@@ -553,7 +553,16 @@ sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
 	}
       VerifyHandle (sendsig);
       if (!communing)
-	CloseHandle (hp);
+	{
+	  CloseHandle (hp);
+	  DWORD flag = PIPE_NOWAIT;
+	  /* Set PIPE_NOWAIT here to avoid blocking when sending a signal.
+	     (Yes, I know MSDN says not to use this)
+	     We can't ever block here because it causes a deadlock when
+	     debugging with gdb.  */
+	  BOOL res = SetNamedPipeHandleState (sendsig, &flag, NULL, NULL);
+	  sigproc_printf ("%d = SetNamedPipeHandleState (%y, PIPE_NOWAIT, NULL, NULL)", res, sendsig);
+	}
       else
 	{
 	  si._si_commune._si_process_handle = hp;
