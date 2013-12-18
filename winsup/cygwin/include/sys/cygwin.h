@@ -81,6 +81,10 @@ extern ssize_t cygwin_conv_path_list (cygwin_conv_path_t what, const void *from,
    to one of the above values, or to ENOMEM if malloc fails. */
 extern void *cygwin_create_path (cygwin_conv_path_t what, const void *from);
 
+extern char * arg_heuristic_with_exclusions (char const * const arg,
+					     char const * exclusions,
+					     size_t exclusions_count);
+
 extern char * arg_heuristic (char const * const);
 
 extern pid_t cygwin_winpid_to_pid (int);

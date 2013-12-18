@@ -3408,7 +3408,7 @@ ScrubRetpath (char * const retpath)
 // as it turns out, it is equal to the input pointer.
 //
 extern "C" char *
-arg_heuristic (char const * const arg)
+arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, size_t exclusions_count)
 {
 
   int arglen = (arg ? strlen (arg): 0);
@@ -3421,6 +3421,13 @@ arg_heuristic (char const * const arg)
   }
 
   debug_printf("Input value: (%s)", arg);
+
+  for (size_t excl = 0; excl < exclusions_count; ++excl)
+    {
+      if ( strstr (arg, exclusions) == arg )
+        return (char*)arg;
+      exclusions += strlen (exclusions) + 1;
+    }
 
   //
   // copy of the path string that we can overwrite
@@ -3825,6 +3832,13 @@ arg_heuristic (char const * const arg)
   debug_printf("returning: %s", arg);
   return ScrubRetpath (retpath);
 }
+
+extern "C" char *
+arg_heuristic (char const * const arg)
+{
+  return arg_heuristic_with_exclusions (arg, NULL, 0);
+}
+
 
 /******************** Exported Path Routines *********************/
 

@@ -288,6 +288,26 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
   pid_t cygpid;
   int res = -1;
 
+  /* Environment variable MSYS2_ARG_CONV_EXCL contains a list
+     of ';' separated argument prefixes to pass un-modified..
+     It isn't applied to env. variables; only spawn arguments */
+  char* msys2_arg_conv_excl_env = getenv("MSYS2_ARG_CONV_EXCL");
+  char* msys2_arg_conv_excl = NULL;
+  size_t msys2_arg_conv_excl_count = 0;
+  if (msys2_arg_conv_excl_env)
+    {
+      msys2_arg_conv_excl = (char*)alloca (strlen(msys2_arg_conv_excl_env)+1);
+      strcpy (msys2_arg_conv_excl, msys2_arg_conv_excl_env);
+      msys2_arg_conv_excl_count = 1;
+      msys2_arg_conv_excl_env = strchr ( msys2_arg_conv_excl, ';' );
+      while (msys2_arg_conv_excl_env)
+        {
+          *msys2_arg_conv_excl_env = '\0';
+          ++msys2_arg_conv_excl_count;
+          msys2_arg_conv_excl_env = strchr ( msys2_arg_conv_excl_env + 1, ';' );
+        }
+    }
+
   /* Check if we have been called from exec{lv}p or spawn{lv}p and mask
      mode to keep only the spawn mode. */
   bool p_type_exec = !!(mode & _P_PATH_TYPE_EXEC);
@@ -413,7 +433,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	        int newargvlen = strlen (newargv[i]);
 	        char *tmpbuf = (char *)malloc (newargvlen + 1);
 	        memcpy (tmpbuf, newargv[i], newargvlen + 1);
-	        tmpbuf = arg_heuristic(tmpbuf);
+	        tmpbuf = arg_heuristic_with_exclusions(tmpbuf, msys2_arg_conv_excl, msys2_arg_conv_excl_count);
 	        debug_printf("newargv[%d] = %s", i, newargv[i]);
 	        newargv.replace (i, tmpbuf);
 	        free (tmpbuf);
