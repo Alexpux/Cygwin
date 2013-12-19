@@ -16,3 +16,12 @@ Bug Fixes
 
 - Closing a dup'ed master tty handle should no longer invalidate the dup'ed fd.
   Fixes: http://cygwin.com/ml/cygwin/2013-12/threads.html#00279
+
+- Problems where ps hangs when used in a pipeline should now be solved.
+  Fixes: http://cygwin.com/ml/cygwin/2013-12/threads.html#00262
+
+- Using gdb from a Windows console rather than a pty should no longer randomly
+  hang.
+
+- Fix locale-specific radix char handling in scanf family of functions.
+  Fixes: http://cygwin.com/ml/cygwin/2013-12/msg00294.html
