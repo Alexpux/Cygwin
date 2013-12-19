@@ -156,7 +156,7 @@ strace::vsprntf (char *buf, const char *func, const char *infmt, va_list ap)
       else if (__progname)
 	sys_mbstowcs(pn = progname, NT_MAX_PATH, __progname);
 
-      PWCHAR p;
+      PWCHAR p = NULL;
       if (!pn)
 	GetModuleFileNameW (NULL, pn = progname, sizeof (progname));
       if (!pn)
