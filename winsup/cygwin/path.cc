@@ -1074,7 +1074,7 @@ out:
     }
   else if (!need_directory || error)
     /* nothing to do */;
-  else if (fileattr == INVALID_FILE_ATTRIBUTES)
+  else if (fileattr == INVALID_FILE_ATTRIBUTES || ((fileattr & FILE_ATTRIBUTE_DIRECTORY)  && !component))
     strcat (modifiable_path (), "\\"); /* Reattach trailing dirsep in native path. */
   else if (fileattr & FILE_ATTRIBUTE_DIRECTORY)
     path_flags &= ~PATH_SYMLINK;
