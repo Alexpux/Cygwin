@@ -1,6 +1,6 @@
 /* winf.cc
 
-   Copyright 2003, 2004, 2005, 2006, 2008, 2009 Red Hat, Inc.
+   Copyright 2003, 2004, 2005, 2006, 2008, 2009, 2013, 2014 Red Hat, Inc.
 
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
@@ -75,7 +75,7 @@ linebuf::fromargv (av& newargv, const char *real_path, bool cmdlenoverflow_ok)
 
       a = i ? newargv[i] : (char *) real_path;
       int len = strlen (a);
-      if (len != 0 && !strpbrk (a, " \t\n\r\""))
+      if (len != 0 && !strpbrk (a, " \t\n\r\"="))
 	add (a, len);
       else
 	{

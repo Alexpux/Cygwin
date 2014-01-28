@@ -1,3 +1,37 @@
+2014-01-27  Christopher Faylor  <me.cygwin2014@cgf.cx>
+
+	* gendef (_setjmp (x86)): Save FPU control word location in sequential
+	location.  Adjust sigstack save accordingly.
+	(_longjmp (x86)): Ditto for restore.
+
+2014-01-27  Corinna Vinschen  <corinna@vinschen.de>
+
+	* gendef (sigdelayed (x86_64)): Save and restore FPU control word.
+	(_sigdelayed (x86)): Ditto.  Save and restore XMM registers.  Add
+	comment.
+	(_setjmp (x86)): Save FPU control word, following FreeBSD here.
+	(_longjmp (x86)): Restore FPU control word.
+
+2014-01-24  Christopher Faylor  <me.cygwin2014@cgf.cx>
+
+	* winf.cc (linebuf::fromargv): Treat '=' as a special character.
+
+2014-01-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* security.h (open_local_policy): Remove declaration.
+	(lsa_open_policy): Declare.
+	(lsa_close_policy): Declare.
+	* sec_auth.cc (lsa_open_policy): Rename from open_local_policy.  Take
+	server name as parameter.  Return NULL in case of error, rather than
+	INVALID_HANDLE_VALUE.
+	(lsa_close_policy): Rename from close_local_policy.  Make externally
+	available.  Get handle by value.
+	(create_token): Convert call to open_local_policy/close_local_policy
+	according to aforementioned changes.
+	(lsaauth): Ditto.
+	(lsaprivkeyauth): Ditto.
+	* setlsapwd.cc (setlsapwd): Ditto.
+
 2014-01-22  Corinna Vinschen  <corinna@vinschen.de>
 
 	* path.cc (etc::test_file_change): In case of NtQueryFullAttributesFile
@@ -56,7 +90,7 @@
 
 2014-01-08  Christopher Faylor  <me.cygwin2014@cgf.cx>
 
-	* exceptions.h (cygwin_exception::open_stackdumpfile): Move old
+	* exception.h (cygwin_exception::open_stackdumpfile): Move old
 	function into class.
 	(cygwin_exception::h): New member.
 	(cygwin_exception::cygwin_exception): Initialize h to NULL.
