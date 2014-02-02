@@ -483,7 +483,7 @@ mount_info::init ()
     {
       char native[PATH_MAX];
       if (root_idx < 0)
-	api_fatal ("root_idx %d, user_shared magic %y, nmounts %d", root_idx, user_shared->version, nmounts);
+        api_fatal ("root_idx %d, user_shared magic %y, nmounts %d", root_idx, user_shared->version, nmounts);
       char *p = stpcpy (native, mount[root_idx].native_path);
       if (!root_mnt)
         {
