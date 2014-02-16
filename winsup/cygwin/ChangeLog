@@ -1,3 +1,65 @@
+2014-02-15  Christopher Faylor  <me.cygwin2014@cgf.cx>
+
+	* DevNotes: Add entry cgf-000024.
+	* fhandler.h (dev_console::state): Remove trailing underscore.
+	(dev_console::args): Ditto.
+	(dev_console::nargs): Ditto.
+	(dev_console::info): Eliminate subclass.
+	(dev_console::dwEnd): New field.
+	(dev_console::scroll_window): New function.
+	(dev_console::is_fullscreen): Ditto.
+	(dev_console::fillin): Rename from fillin_info.
+	(fhandler_console::scroll_buffer): Rename from scroll_screen.
+	* fhandler_console.cc: Throughout s/dev_state\.info/dev_state/g.
+	Accommodate other name changes.
+	(dev_console::fillin): Accommodate rename.  Notice max x/y written to.
+	Forgo memset if GetConsoleScreenBufferInfo fails.
+	(fhandler_console::scroll_buffer): Accommodate rename.  Don't treat y
+	coordinate of zero as top of screen.
+	(dev_console::is_fullscreen): New function.
+	(dev_console::scroll_window): Ditto.
+	(fhandler_console::clear_screen): Just scroll the screen when clearing
+	the screen in a state where the screen buffer is bigger than the
+	screen.
+	(fhandler_console::char_command): Try harder to get 'S' and 'T' working
+	in the presence of a screen buffer.  Use temporary 'n' variable rather
+	than dev_state.args[0].  Use GNU ?: shortcut method.
+
+2014-02-14  Christopher Faylor  <me.cygwin2014@cgf.cx>
+
+	* pinfo.cc (winpids::add): Always copy pinfo structure when winpid.
+	Fill out dwProcessId explicitly to handle exec from a windows process.
+	(winpids::enum_processes): Reorganize to iterate over known cygwin pids
+	when !winpid.  Simplify logic.  Don't do duplicate detection for
+	winpid.
+
+2014-02-14  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Default to /bin/bash
+	as login shell.
+
+2014-02-13  Corinna Vinschen  <corinna@vinschen.de>
+
+	* ldap.cc (cyg_ldap::fetch_posix_offset_for_domain): If domain name
+	has no dot, it's a Netbios name.  Change the search filter expression
+	accordingly and filter by flatName.  Add comment.
+	* uinfo.cc (cygheap_domain_info::init):  Gracefully handle NULL
+	DnsDomainName and DomainSid members in DS_DOMAIN_TRUSTSW structure.
+	Add comment.  Fix comment preceeding fetching the mapping server
+	from registry.
+	(pwdgrp::fetch_account_from_file): Convert str to a local array.
+	(fetch_posix_offset): New static function.
+	(pwdgrp::fetch_account_from_windows): Add debug output in case
+	LookupAccountSidW fails.  Simplify code by calling fetch_posix_offset
+	where appropriate.  If LookupAccountSidW fails, check if the SID is
+	one of the known trusted domains.  If so, create a more informative
+	account entry.
+
+2014-02-12  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (cygheap_pwdgrp::nss_init_line): Explicitely ignore a colon
+	as separator char.
+
 2014-02-11  Christopher Faylor  <me.cygwin2014@cgf.cx>
 
 	* winsup.h: Turn off previous workaround but leave a comment.
