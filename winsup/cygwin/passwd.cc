@@ -296,6 +296,7 @@ pg_ent::clear_cache ()
 void
 pg_ent::setent (bool _group, int _enums, PCWSTR _enum_tdoms)
 {
+  cygheap->dom.init ();
   endent (_group);
   if (!_enums && !_enum_tdoms)
     {
@@ -317,6 +318,7 @@ pg_ent::setent (bool _group, int _enums, PCWSTR _enum_tdoms)
       from_files = cygheap->pg.nss_pwd_files ();
       from_db = cygheap->pg.nss_pwd_db ();
     }
+  state = from_cache;
 }
 
 void *
@@ -361,6 +363,11 @@ pg_ent::getent (void)
     case from_sam:
       if (from_db
 	  && nss_db_enum_local ()
+	  /* Domain controller?  If so, sam and ad are one and the same
+	     and "local ad" would list all domain accounts twice without
+	     this test. */
+	  && (cygheap->dom.account_flat_name ()[0] != L'@'
+	      || !nss_db_enum_primary ())
 	  && (entry = enumerate_sam ()))
 	return entry;
       state = from_ad;
@@ -638,6 +645,28 @@ extern "C" void
 endpwent (void)
 {
   pwent.endpwent ();
+}
+
+/* *_filtered functions are called from mkpasswd */
+void *
+setpwent_filtered (int enums, PCWSTR enum_tdoms)
+{
+  pw_ent *pw = new pw_ent;
+  if (pw)
+    pw->setpwent (enums, enum_tdoms);
+  return (void *) pw;
+}
+
+void *
+getpwent_filtered (void *pw)
+{
+  return (void *) ((pw_ent *) pw)->getpwent ();
+}
+
+void
+endpwent_filtered (void *pw)
+{
+  ((pw_ent *) pw)->endpwent ();
 }
 
 #ifndef __x86_64__
