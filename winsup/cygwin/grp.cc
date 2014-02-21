@@ -570,7 +570,7 @@ get_groups (const char *user, gid_t gid, cygsidlist &gsids)
   cygsid usersid, grpsid;
   if (usersid.getfrompw (pw))
     get_server_groups (gsids, usersid, pw);
-  if (grpsid.getfromgr (grp))
+  if (gid != ILLEGAL_GID && grpsid.getfromgr (grp))
     gsids += grpsid;
   cygheap->user.reimpersonate ();
 }
@@ -624,9 +624,11 @@ getgrouplist (const char *user, gid_t gid, gid_t *groups, int *ngroups)
 	  groups[cnt] = grp->gr_gid;
 	++cnt;
       }
+  *ngroups = cnt;
   if (cnt > *ngroups)
     ret = -1;
-  *ngroups = cnt;
+  else
+    ret = cnt;
 
   syscall_printf ( "%d = getgrouplist(%s, %u, %p, %d)",
 		  ret, user, gid, groups, *ngroups);
