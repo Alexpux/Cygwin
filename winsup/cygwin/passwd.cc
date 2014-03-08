@@ -108,7 +108,7 @@ internal_getpwsid (cygpsid &sid, cyg_ldap *pldap)
   cygheap->pg.nss_init ();
   if (cygheap->pg.nss_pwd_files ())
     {
-      cygheap->pg.pwd_cache.file.check_file (false);
+      cygheap->pg.pwd_cache.file.check_file ();
       if ((ret = cygheap->pg.pwd_cache.file.find_user (sid)))
 	return ret;
       if ((ret = cygheap->pg.pwd_cache.file.add_user_from_file (sid)))
@@ -139,7 +139,7 @@ internal_getpwnam (const char *name, cyg_ldap *pldap)
   cygheap->pg.nss_init ();
   if (cygheap->pg.nss_pwd_files ())
     {
-      cygheap->pg.pwd_cache.file.check_file (false);
+      cygheap->pg.pwd_cache.file.check_file ();
       if ((ret = cygheap->pg.pwd_cache.file.find_user (name)))
 	return ret;
       if ((ret = cygheap->pg.pwd_cache.file.add_user_from_file (name)))
@@ -162,7 +162,7 @@ internal_getpwuid (uid_t uid, cyg_ldap *pldap)
   cygheap->pg.nss_init ();
   if (cygheap->pg.nss_pwd_files ())
     {
-      cygheap->pg.pwd_cache.file.check_file (false);
+      cygheap->pg.pwd_cache.file.check_file ();
       if ((ret = cygheap->pg.pwd_cache.file.find_user (uid)))
 	return ret;
       if ((ret = cygheap->pg.pwd_cache.file.add_user_from_file (uid)))
@@ -442,7 +442,7 @@ pg_ent::enumerate_file ()
     {
       pwdgrp &prf = group ? cygheap->pg.grp_cache.file
 			  : cygheap->pg.pwd_cache.file;
-      if (prf.check_file (group))
+      if (prf.check_file ())
 	{
 	  if (!buf)
 	    buf = (char *) malloc (NT_MAX_PATH);
@@ -467,40 +467,31 @@ pg_ent::enumerate_file ()
 void *
 pg_ent::enumerate_builtin ()
 {
-  static const char *pwd_builtins[] = {
-    /* SYSTEM */
-    "S-1-5-18",
-    /* LocalService */
-    "S-1-5-19",
-    /* NetworkService */
-    "S-1-5-20",
-    /* Administrators */
-    "S-1-5-32-544",
-    /* TrustedInstaller */
-    "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",
-    /* The end */
+  static cygpsid *pwd_builtins[] = {
+    &well_known_system_sid,
+    &well_known_local_service_sid,
+    &well_known_network_service_sid,
+    &well_known_admins_sid,
+    &trusted_installer_sid,
     NULL
   };
-  static const char *grp_builtins[] = {
-    /* SYSTEM */
-    "S-1-5-18",
-    /* TrustedInstaller */
-    "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",
-    /* The end */
+  static cygpsid *grp_builtins[] = {
+    &well_known_system_sid,
+    &trusted_installer_sid,
     NULL
   };
 
-  const char **builtins = group ? grp_builtins : pwd_builtins;
+  cygpsid **builtins = group ? grp_builtins : pwd_builtins;
   if (!builtins[cnt])
     {
       cnt = max = resume = 0;
       return NULL;
     }
-  cygsid sid (builtins[cnt++]);
+  cygsid sid (*builtins[cnt++]);
   fetch_user_arg_t arg;
   arg.type = SID_arg;
   arg.sid = &sid;
-  char *line = pg.fetch_account_from_windows (arg, group);
+  char *line = pg.fetch_account_from_windows (arg);
   return pg.add_account_post_fetch (line, false);
 } 
 
@@ -547,7 +538,7 @@ pg_ent::enumerate_sam ()
 	  fetch_user_arg_t arg;
 	  arg.type = SID_arg;
 	  arg.sid = &sid;
-	  char *line = pg.fetch_account_from_windows (arg, group);
+	  char *line = pg.fetch_account_from_windows (arg);
 	  if (line)
 	    return pg.add_account_post_fetch (line, false);
 	}
@@ -594,7 +585,7 @@ pg_ent::enumerate_ad ()
 	  fetch_user_arg_t arg;
 	  arg.type = SID_arg;
 	  arg.sid = &sid;
-	  char *line = pg.fetch_account_from_windows (arg, group, &cldap);
+	  char *line = pg.fetch_account_from_windows (arg, &cldap);
 	  if (line)
 	    return pg.add_account_post_fetch (line, false);
 	}
@@ -608,7 +599,7 @@ pw_ent::enumerate_caches ()
   if (!max && from_files)
     {
       pwdgrp &prf = cygheap->pg.pwd_cache.file;
-      prf.check_file (false);
+      prf.check_file ();
       if (cnt < prf.cached_users ())
         return &prf.passwd ()[cnt++].p;
       cnt = 0;
