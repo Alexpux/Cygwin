@@ -733,8 +733,7 @@ dev_console::fillin (HANDLE h)
 {
   bool ret;
 
-  b.cbSize = sizeof (b);
-  if ((ret = GetConsoleScreenBufferInfoEx (h, &b)))
+  if ((ret = GetConsoleScreenBufferInfo (h, &b)))
     {
       dwWinSize.Y = 1 + b.srWindow.Bottom - b.srWindow.Top;
       dwWinSize.X = 1 + b.srWindow.Right - b.srWindow.Left;
@@ -1457,8 +1456,9 @@ dev_console::save_restore (HANDLE h, char c)
   if (c == 'h') /* save */
     {
       fillin (h);
-      save_bufsize.Y = dwEnd.Y + 1;		/* Assume starting from 0/0 */
       save_bufsize.X = b.dwSize.X;
+      if ((save_bufsize.Y = dwEnd.Y + 2) > b.dwSize.Y)
+	save_bufsize.X = b.dwSize.Y;
 
       if (save_buf)
 	cfree (save_buf);
