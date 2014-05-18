@@ -85,7 +85,7 @@ cygheap_user::init ()
   status = NtSetInformationToken (hProcToken, TokenOwner, &effec_cygsid,
 				  sizeof (cygsid));
   if (!NT_SUCCESS (status))
-    debug_printf ("NtSetInformationToken(TokenOwner), %y", status);
+    debug_printf ("NtSetInformationToken (TokenOwner), %y", status);
 
   /* Standard way to build a security descriptor with the usual DACL */
   PSECURITY_ATTRIBUTES sa_buf = (PSECURITY_ATTRIBUTES) alloca (1024);
@@ -135,7 +135,7 @@ internal_getlogin (cygheap_user &user)
       user.set_name (pwd->pw_name);
       myself->uid = pwd->pw_uid;
       myself->gid = pwd->pw_gid;
-      /* Is the primary group in the passwd DB is different from the primary
+      /* If the primary group in the passwd DB is different from the primary
 	 group in the user token, we have to find the SID of that group and
 	 try to override the token primary group. */
       if (!pgrp || myself->gid != pgrp->gr_gid)
@@ -1162,6 +1162,19 @@ fetch_posix_offset (PDS_DOMAIN_TRUSTSW td, cyg_ldap *cldap)
   return td->PosixOffset;
 }
 
+/* CV 2014-05-08: USER_INFO_24 is not yet defined in Mingw64, but will be in
+   the next release.  For the time being, define the structure here with
+   another name which won't collide with the upcoming correct definition
+   in lmaccess.h. */
+struct cyg_USER_INFO_24
+{
+  BOOL   usri24_internet_identity;
+  DWORD  usri24_flags;
+  LPWSTR usri24_internet_provider_name;
+  LPWSTR usri24_internet_principal_name;
+  PSID   usri24_user_sid;
+};
+
 char *
 pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 {
@@ -1171,12 +1184,12 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
   cygsid csid;
   DWORD nlen = UNLEN + 1;
   DWORD dlen = DNLEN + 1;
-  DWORD slen = MAX_SID_LEN;
+  DWORD slen = SECURITY_MAX_SID_SIZE;
   cygpsid sid (NO_SID);
   SID_NAME_USE acc_type;
   BOOL ret = false;
   /* Cygwin user name style. */
-  enum {
+  enum name_style_t {
     name_only,
     plus_prepended,
     fully_qualified
@@ -1238,19 +1251,24 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	 standalone machine, or the username must be from the primary domain.
 	 In the latter case, prepend the primary domain name so as not to
 	 collide with an account from the account domain with the same name. */
+      name_style_t nstyle;
+
+      nstyle = name_only;
       p = name;
       if (*arg.name == cygheap->pg.nss_separator ()[0])
-	++arg.name;
-      else if (!strchr (arg.name, cygheap->pg.nss_separator ()[0])
-	       && cygheap->dom.member_machine ())
+	nstyle = plus_prepended;
+      else if (strchr (arg.name, cygheap->pg.nss_separator ()[0]))
+	nstyle = fully_qualified;
+      else if (cygheap->dom.member_machine ())
 	p = wcpcpy (wcpcpy (p, cygheap->dom.primary_flat_name ()),
 		    cygheap->pg.nss_separator ());
       /* Now fill up with name to search. */
-      sys_mbstowcs (p, UNLEN + 1, arg.name);
+      sys_mbstowcs (p, UNLEN + 1,
+		    arg.name + (nstyle == plus_prepended ? 1 : 0));
       /* Replace domain separator char with backslash and make sure p is NULL
 	 or points to the backslash, so... */
       if ((p = wcschr (name, cygheap->pg.nss_separator ()[0])))
-      	*p = L'\\';
+	*p = L'\\';
       sid = csid;
       ret = LookupAccountNameW (NULL, name, sid, &slen, dom, &dlen, &acc_type);
       if (!ret)
@@ -1261,6 +1279,77 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
       /* ... we can skip the backslash in the rest of this function. */
       if (p)
 	name = p + 1;
+      /* Last but not least, some validity checks on the name style. */
+      switch (nstyle)
+	{
+	case name_only:
+	  /* name_only account must start with S-1-5-21 */
+	  if (sid_id_auth (sid) != 5 /* SECURITY_NT_AUTHORITY */
+	      || sid_sub_auth (sid, 0) != SECURITY_NT_NON_UNIQUE)
+	    {
+	      debug_printf ("Invalid account name <%s> (name only/"
+			    "not NON_UNIQUE)", arg.name);
+	      return NULL;
+	    }
+	  /* name_only only if db_prefix is auto. */
+	  if (!cygheap->pg.nss_prefix_auto ())
+	    {
+	      debug_printf ("Invalid account name <%s> (name only/"
+			    "db_prefix not auto)", arg.name);
+	      return NULL;
+	    }
+	  break;
+	case plus_prepended:
+	  /* plus_prepended account must not start with S-1-5-21. */
+	  if (sid_id_auth (sid) == 5 /* SECURITY_NT_AUTHORITY */
+	      && sid_sub_auth (sid, 0) == SECURITY_NT_NON_UNIQUE)
+	    {
+	      debug_printf ("Invalid account name <%s> (plus prependend/"
+			    "NON_UNIQUE)", arg.name);
+	      return NULL;
+	    }
+	  /* plus_prepended only if db_prefix is not always. */
+	  if (cygheap->pg.nss_prefix_always ())
+	    {
+	      debug_printf ("Invalid account name <%s> (plus prependend/"
+			    "db_prefix not always)", arg.name);
+	      return NULL;
+	    }
+	  break;
+	case fully_qualified:
+	  /* All is well if db_prefix is always. */
+	  if (cygheap->pg.nss_prefix_always ())
+	    break;
+	  /* Otherwise, no fully_qualified for builtin accounts. */
+	  if (sid_id_auth (sid) != 5 /* SECURITY_NT_AUTHORITY */
+	      || sid_sub_auth (sid, 0) != SECURITY_NT_NON_UNIQUE)
+	    {
+	      debug_printf ("Invalid account name <%s> (fully qualified/"
+			    "not NON_UNIQUE)", arg.name);
+	      return NULL;
+	    }
+	  /* All is well if db_prefix is primary. */
+	  if (cygheap->pg.nss_prefix_primary ())
+	    break;
+	  /* Domain member and domain == primary domain? */
+	  if (cygheap->dom.member_machine ())
+	    {
+	      if (!wcscasecmp (dom, cygheap->dom.primary_flat_name ()))
+		{
+		  debug_printf ("Invalid account name <%s> (fully qualified/"
+				"primary domain account)", arg.name);
+		  return NULL;
+		}
+	    }
+	  /* Not domain member and domain == account domain? */
+	  else if (!wcscasecmp (dom, cygheap->dom.account_flat_name ()))
+	    {
+	      debug_printf ("Invalid account name <%s> (fully qualified/"
+			    "local account)", arg.name);
+	      return NULL;
+	    }
+	  break;
+	}
       break;
     case ID_arg:
       /* Construct SID from ID using the SFU rules, just like the code below
@@ -1271,6 +1360,8 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	 by mkpasswd/mkgroup. */
       if (arg.id < 0x200)
 	__small_swprintf (sidstr, L"S-1-5-%u", arg.id & 0x1ff);
+      else if (arg.id == 0x3e8) /* Special case "Other Organization" */
+	wcpcpy (sidstr, L"S-1-5-1000");
       else if (arg.id <= 0x7ff)
 	__small_swprintf (sidstr, L"S-1-5-32-%u", arg.id & 0x7ff);
       else
@@ -1384,8 +1475,13 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
   if (ret)
     {
       /* Builtin account?  SYSTEM, for instance, is returned as SidTypeUser,
-	 if a process is running as LocalSystem service. */
-      if (acc_type == SidTypeUser && sid_sub_auth_count (sid) <= 3)
+	 if a process is running as LocalSystem service.
+	 Microsoft Account?  These show up in the user's group list, using the
+	 undocumented security authority 11.  Even though this is officially a
+	 user account, it only matters as part of the group list, so we convert
+	 it to a well-known group here. */
+      if (acc_type == SidTypeUser
+	  && (sid_sub_auth_count (sid) <= 3 || sid_id_auth (sid) == 11))
 	acc_type = SidTypeWellKnownGroup;
       switch (acc_type)
       	{
@@ -1409,7 +1505,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	      is_domain_account = false;
 	    }
 	  /* Account domain account? */
-	  else if (!wcscmp (dom, cygheap->dom.account_flat_name ()))
+	  else if (!wcscasecmp (dom, cygheap->dom.account_flat_name ()))
 	    {
 	      posix_offset = 0x30000;
 	      if (cygheap->dom.member_machine ()
@@ -1422,7 +1518,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	  else if (cygheap->dom.member_machine ())
 	    {
 	      /* Primary domain account? */
-	      if (!wcscmp (dom, cygheap->dom.primary_flat_name ()))
+	      if (!wcscasecmp (dom, cygheap->dom.primary_flat_name ()))
 		{
 		  posix_offset = 0x100000;
 		  /* In theory domain should have been set to
@@ -1447,7 +1543,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		  for (ULONG idx = 0;
 		       (td = cygheap->dom.trusted_domain (idx));
 		       ++idx)
-		    if (!wcscmp (dom, td->NetbiosDomainName))
+		    if (!wcscasecmp (dom, td->NetbiosDomainName))
 		      {
 			domain = td->DnsDomainName;
 			posix_offset =
@@ -1557,6 +1653,25 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		    }
 		  /* Set comment variable for below attribute loop. */
 		  comment = ui->usri4_comment;
+		  /* Logging in with a Microsoft Account, the user's primary
+		     group SID is the user's SID.  Security sensitive tools
+		     expecting tight file permissions choke on that.  We need
+		     an explicit primary group which is not identical to the
+		     user account.  Unfortunately, while the default primary
+		     group of the account in SAM is still "None", "None" is not
+		     in the user token group list.  So, what we do here is to
+		     use "Users" as a sane default primary group instead. */
+		  if (wincap.has_microsoft_accounts ())
+		    {
+		      struct cyg_USER_INFO_24 *ui24;
+		      nas = NetUserGetInfo (NULL, name, 24, (PBYTE *) &ui24);
+		      if (nas == NERR_Success)
+			{
+			  if (ui24->usri24_internet_identity)
+			    gid = DOMAIN_ALIAS_RID_USERS;
+			  NetApiBufferFree (ui24);
+			}
+		    }
 		}
 	      else /* acc_type == SidTypeAlias */
 		{
@@ -1636,8 +1751,9 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	    }
 	  break;
 	case SidTypeWellKnownGroup:
-	  name_style = (cygheap->pg.nss_prefix_always ()) ? fully_qualified
-							  : plus_prepended;
+	  name_style = (cygheap->pg.nss_prefix_always ()
+			|| sid_id_auth (sid) == 11) /* Microsoft Account */
+		       ? fully_qualified : plus_prepended;
 #ifdef INTERIX_COMPATIBLE
 	  if (sid_id_auth (sid) == 5 /* SECURITY_NT_AUTHORITY */
 	      && sid_sub_auth_count (sid) > 1)
@@ -1653,7 +1769,8 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	  if (sid_id_auth (sid) != 5 /* SECURITY_NT_AUTHORITY */)
 	    uid = 0x10000 + 0x100 * sid_id_auth (sid)
 		  + (sid_sub_auth_rid (sid) & 0xff);
-	  else if (sid_sub_auth (sid, 0) < SECURITY_PACKAGE_BASE_RID)
+	  else if (sid_sub_auth (sid, 0) < SECURITY_PACKAGE_BASE_RID
+		   || sid_sub_auth (sid, 0) > SECURITY_MAX_BASE_RID)
 	    uid = sid_sub_auth_rid (sid) & 0x7ff;
 	  else
 	    {
@@ -1784,7 +1901,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		      posix_name, sid.string (sidstr), uid);
   /* For non-users, create a passwd entry which doesn't allow interactive
      logon.  Unless it's the SYSTEM account.  This conveniently allows to
-     long interactively as SYSTEM for debugging purposes. */
+     logon interactively as SYSTEM for debugging purposes. */
   else if (acc_type != SidTypeUser && sid != well_known_system_sid)
     __small_swprintf (linebuf, L"%W:*:%u:%u:,%W:/:/sbin/nologin",
 		      posix_name, uid, gid, sid.string (sidstr));

@@ -1,3 +1,34 @@
+2014-05-15  Daniel Cederman  <cederman@gaisler.com>
+
+	* libc/machine/sparc/setjmp.S (longjmp): Use register g1 instead of g6.
+
+2014-05-14  Kaushik Phatak  <Kaushik.Phatak@kpit.com>
+
+	* libc/include/machine/ieeefp.h: Define _DOUBLE_IS_32BITS when double
+	options is not __RL78_64BIT_DOUBLES__.
+
+2014-05-12  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdint.h (WCHAR_MIN): Copy definition from wchar.h.
+	(WCHAR_MAX): Ditto.
+	* libc/include/wchar.h (WCHAR_MIN): Add comment.
+	(WCHAR_MAX): Ditto.
+
+2014-05-09  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdio.h (tempnam): Declare as __BSD_VISIBLE or
+	__XSI_VISIBLE or if __POSIX_VISIBLE >= 200112.
+
+2014-05-09  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdio.h (fcloseall): Declare as __GNU_VISIBLE only.
+	(renameat): Drop explicit __CYGWIN__ dependency.
+
+2014-05-05  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdio.h: Declare various C99 printf/scanf functions for
+	C++11, too.
+
 2014-04-22  Richard Earnshaw  <rearnsha@arm.com>
 
 	* libc/machine/arm/strcmp-arm-tiny.S: New file.

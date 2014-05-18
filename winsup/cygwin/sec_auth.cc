@@ -277,7 +277,7 @@ get_user_groups (WCHAR *logonserver, cygsidlist &grp_list,
   for (DWORD i = 0; i < cnt; ++i)
     {
       cygsid gsid;
-      DWORD glen = MAX_SID_LEN;
+      DWORD glen = SECURITY_MAX_SID_SIZE;
       WCHAR dom[MAX_DOMAIN_NAME_LEN + 1];
       DWORD dlen = sizeof (dom);
       SID_NAME_USE use = SidTypeInvalid;
@@ -325,7 +325,7 @@ get_user_local_groups (PWCHAR logonserver, PWCHAR domain,
   for (DWORD i = 0; i < cnt; ++i)
     {
       cygsid gsid;
-      DWORD glen = MAX_SID_LEN;
+      DWORD glen = SECURITY_MAX_SID_SIZE;
       WCHAR dom[MAX_DOMAIN_NAME_LEN + 1];
       DWORD domlen = MAX_DOMAIN_NAME_LEN + 1;
 
@@ -361,7 +361,7 @@ get_user_local_groups (PWCHAR logonserver, PWCHAR domain,
 	  if (bg_ptr)
 	    {
 	      wcscpy (bg_ptr, dg_ptr);
-	      glen = MAX_SID_LEN;
+	      glen = SECURITY_MAX_SID_SIZE;
 	      domlen = MAX_DOMAIN_NAME_LEN + 1;
 	      if (LookupAccountNameW (NULL, builtin_grp, gsid, &glen,
 				      dom, &domlen, &use))
@@ -465,7 +465,11 @@ get_server_groups (cygsidlist &grp_list, PSID usersid, struct passwd *pw)
       __seterrno ();
       return false;
     }
-  if (get_logon_server (domain, server, DS_IS_FLAT_NAME))
+  /* If the SID does NOT start with S-1-5-21, the domain is some builtin
+     domain.  The search for a logon server is moot. */
+  if (sid_id_auth (usersid) == 5 /* SECURITY_NT_AUTHORITY */
+      && sid_sub_auth (usersid, 0) == SECURITY_NT_NON_UNIQUE
+      && get_logon_server (domain, server, DS_IS_FLAT_NAME))
     get_user_groups (server, grp_list, user, domain);
   get_user_local_groups (server, domain, grp_list, user);
   return true;
@@ -687,7 +691,8 @@ verify_token (HANDLE token, cygsid &usersid, user_groups &groups, bool *pintern)
      is not well_known_null_sid, it must match pgrpsid */
   if (intern && !groups.issetgroups ())
     {
-      const DWORD sd_buf_siz = MAX_SID_LEN + sizeof (SECURITY_DESCRIPTOR);
+      const DWORD sd_buf_siz = SECURITY_MAX_SID_SIZE
+			       + sizeof (SECURITY_DESCRIPTOR);
       PSECURITY_DESCRIPTOR sd_buf = (PSECURITY_DESCRIPTOR) alloca (sd_buf_siz);
       cygpsid gsid (NO_SID);
       NTSTATUS status;
