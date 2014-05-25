@@ -172,7 +172,7 @@ cyg_ldap::open (PCWSTR domain)
     }
   ldap_value_freeW (val);
   val = NULL;
-  ldap_memfreeW ((PWCHAR) msg);
+  ldap_msgfree (msg);
   msg = entry = NULL; return true;
 err:
   close ();
@@ -182,12 +182,14 @@ err:
 void
 cyg_ldap::close ()
 {
-  if (msg_id != (ULONG) -1)
-    ldap_abandon (lh, msg_id);
+  if (srch_id != NULL)
+    ldap_search_abandon_page (lh, srch_id);
   if (lh)
     ldap_unbind (lh);
+  if (srch_msg)
+    ldap_msgfree (srch_msg);
   if (msg)
-    ldap_memfreeW ((PWCHAR) msg);
+    ldap_msgfree (msg);
   if (val)
     ldap_value_freeW (val);
   if (rootdse)
@@ -196,21 +198,23 @@ cyg_ldap::close ()
   msg = entry = NULL;
   val = NULL;
   rootdse = NULL;
-  msg_id = (ULONG) -1;
+  srch_id = NULL;
+  srch_msg = srch_entry = NULL;
 }
 
 bool
-cyg_ldap::fetch_ad_account (PSID sid, bool group)
+cyg_ldap::fetch_ad_account (PSID sid, bool group, PCWSTR domain)
 {
-  WCHAR filter[140], *f;
+  WCHAR filter[140], *f, *rdse = rootdse;
   LONG len = (LONG) RtlLengthSid (sid);
   PBYTE s = (PBYTE) sid;
   static WCHAR hex_wchars[] = L"0123456789abcdef";
   ULONG ret;
+  tmp_pathbuf tp;
 
   if (msg)
     {
-      ldap_memfreeW ((PWCHAR) msg);
+      ldap_msgfree (msg);
       msg = entry = NULL;
     }
   if (val)
@@ -226,17 +230,36 @@ cyg_ldap::fetch_ad_account (PSID sid, bool group)
       *f++ = hex_wchars[*s++ & 0xf];
     }
   wcpcpy (f, L")");
+  if (domain)
+    {
+      /* FIXME:  This is a hack.  The most correct solution is probably to
+         open a connection to the DC of the trusted domain.  But this always
+	 takes extra time, so we're trying to avoid it.  If this results in
+	 problems, we know what to do. */
+      rdse = tp.w_get ();
+      PWCHAR r = rdse;
+      for (PWCHAR dotp = (PWCHAR) domain; dotp && *dotp; domain = dotp)
+	{
+	  dotp = wcschr (domain, L'.');
+	  if (dotp)
+	    *dotp++ = L'\0';
+	  if (r > rdse)
+	    *r++ = L',';
+	  r = wcpcpy (r, L"DC=");
+	  r = wcpcpy (r, domain);
+	}
+    }
   attr = group ? group_attr : user_attr;
-  if ((ret = ldap_search_stW (lh, rootdse, LDAP_SCOPE_SUBTREE, filter,
+  if ((ret = ldap_search_stW (lh, rdse, LDAP_SCOPE_SUBTREE, filter,
 			      attr, 0, &tv, &msg)) != LDAP_SUCCESS)
     {
       debug_printf ("ldap_search_stW(%W,%W) error 0x%02x",
-		    rootdse, filter, ret);
+		    rdse, filter, ret);
       return false;
     }
   if (!(entry = ldap_first_entry (lh, msg)))
     {
-      debug_printf ("No entry for %W in rootdse %W", filter, rootdse);
+      debug_printf ("No entry for %W in rootdse %W", filter, rdse);
       return false;
     }
   return true;
@@ -266,12 +289,13 @@ cyg_ldap::enumerate_ad_accounts (PCWSTR domain, bool group)
 		/* 1 == ACCOUNT_GROUP */
 		"(!(groupType:" LDAP_MATCHING_RULE_BIT_AND ":=1))"
 		"(objectSid=*))";
-  msg_id = ldap_searchW (lh, rootdse, LDAP_SCOPE_SUBTREE, (PWCHAR) filter,
-			 sid_attr, 0);
-  if (msg_id == (ULONG) -1)
+  srch_id = ldap_search_init_pageW (lh, rootdse, LDAP_SCOPE_SUBTREE,
+				    (PWCHAR) filter, sid_attr, 0,
+				    NULL, NULL, 3, 100, NULL);
+  if (srch_id == NULL)
     {
-      debug_printf ("ldap_searchW(%W,%W) error 0x%02x", rootdse, filter,
-		    LdapGetLastError ());
+      debug_printf ("ldap_search_init_pageW(%W,%W) error 0x%02x",
+		    rootdse, filter, LdapGetLastError ());
       return false;
     }
   return true;
@@ -283,34 +307,38 @@ cyg_ldap::next_account (cygsid &sid)
   ULONG ret;
   PLDAP_BERVAL *bval;
 
-  if (msg)
+  ULONG total;
+
+  if (srch_entry)
     {
-      ldap_memfreeW ((PWCHAR) msg);
-      msg = entry = NULL;
+      if ((srch_entry = ldap_next_entry (lh, srch_entry))
+	  && (bval = ldap_get_values_lenW (lh, srch_entry, sid_attr[0])))
+	{
+	  sid = (PSID) bval[0]->bv_val;
+	  ldap_value_free_len (bval);
+	  return true;
+	}
+      ldap_msgfree (srch_msg);
+      srch_msg = srch_entry = NULL;
     }
-  if (val)
+  do
     {
-      ldap_value_freeW (val);
-      val = NULL;
+      ret = ldap_get_next_page_s (lh, srch_id, &tv, 100, &total, &srch_msg);
     }
-  ret = ldap_result (lh, msg_id, LDAP_MSG_ONE, &tv, &msg);
-  if (ret == 0)
-    {
-      debug_printf ("ldap_result() timeout!");
-      return false;
-    }
-  if (ret == (ULONG) -1)
-    {
-      debug_printf ("ldap_result() error 0x%02x", LdapGetLastError ());
-      return false;
-    }
-  if ((entry = ldap_first_entry (lh, msg))
-      && (bval = ldap_get_values_lenW (lh, entry, sid_attr[0])))
+  while (ret == LDAP_SUCCESS && ldap_count_entries (lh, srch_msg) == 0);
+  if (ret == LDAP_NO_RESULTS_RETURNED)
+    ;
+  else if (ret != LDAP_SUCCESS)
+    debug_printf ("ldap_result() error 0x%02x", ret);
+  else if ((srch_entry = ldap_first_entry (lh, srch_msg))
+	   && (bval = ldap_get_values_lenW (lh, srch_entry, sid_attr[0])))
     {
       sid = (PSID) bval[0]->bv_val;
       ldap_value_free_len (bval);
       return true;
     }
+  ldap_search_abandon_page (lh, srch_id);
+  srch_id = NULL;
   return false;
 }
 
@@ -322,7 +350,7 @@ cyg_ldap::fetch_posix_offset_for_domain (PCWSTR domain)
 
   if (msg)
     {
-      ldap_memfreeW ((PWCHAR) msg);
+      ldap_msgfree (msg);
       msg = entry = NULL;
     }
   if (val)
@@ -378,7 +406,7 @@ cyg_ldap::fetch_unix_sid_from_ad (uint32_t id, cygsid &sid, bool group)
 
   if (msg)
     {
-      ldap_memfreeW ((PWCHAR) msg);
+      ldap_msgfree (msg);
       msg = entry = NULL;
     }
   if (group)
@@ -410,7 +438,7 @@ cyg_ldap::fetch_unix_name_from_rfc2307 (uint32_t id, bool group)
 
   if (msg)
     {
-      ldap_memfreeW ((PWCHAR) msg);
+      ldap_msgfree (msg);
       msg = entry = NULL;
     }
   if (val)

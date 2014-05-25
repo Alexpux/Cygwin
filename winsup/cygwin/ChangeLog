@@ -1,3 +1,65 @@
+2014-05-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (ldap_memfreeW): Remove.
+	(ldap_msgfree): Import.
+	* ldap.cc: Throughout, use ldap_msgfree to free LDAPMessage memory,
+	rather than ldap_memfreeW.
+	(cyg_ldap::next_account): Immediately abandon search when quiting from
+	search.
+
+2014-05-22  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (ldap_abandon): Remove.
+	(ldap_count_entries): Import.
+	(ldap_get_next_page_s): Import.
+	(ldap_result): Remove.
+	(ldap_searchW): Remove.
+	(ldap_search_abandon_page): Import.
+	(ldap_search_init_pageW): Import.
+	* ldap.cc (cyg_ldap::close): Use ldap_search_abandon_page to abandon
+	search.  Reset srch_id, srch_msg and srch_entry.
+	(cyg_ldap::enumerate_ad_accounts): Use paged search to overcome server
+	side search result set restriction.
+	(cyg_ldap::next_account): Ditto.
+	* ldap.h (class cyg_ldap): Add members srch_id, srch_msg and srch_entry.
+	Remove member msg_id.
+	(cyg_ldap::cyg_ldap): Change initialization accordingly.
+
+2014-05-22  Corinna Vinschen  <corinna@vinschen.de>
+
+	* sec_auth.cc (get_server_groups): Call get_user_local_groups only if
+	get_logon_server succeeded.
+
+2014-05-22  Corinna Vinschen  <corinna@vinschen.de>
+
+	* ldap.cc (cyg_ldap::fetch_ad_account): Take additional domain string
+	parameter.  Convert into likely rootDSE string if not NULL, and use in
+	subsequent call to ldap_search_stW.  Add comment to explain that this
+	is not the exactly correct solution.
+	* ldap.h (cyg_ldap::fetch_ad_account): Change prototype accordingly.
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Always use loc_ldap
+	in call to fetch_posix_offset to make sure we're fetchoinmg the posix
+	offsets from *our* domain controller.  Only set domain variable to
+	non-NULL if the account is from a trusted domain.  Use domain in call
+	to cyg_ldap::fetch_ad_account.
+
+2014-05-22  Corinna Vinschen  <corinna@vinschen.de>
+
+	* gmon.h: Pull in profile.h.  Explain why.
+
+2014-05-22  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Fix potential SEGV
+	referencing NULL pointer.
+
+2014-05-22  Corinna Vinschen  <corinna@vinschen.de>
+
+	* libc/bsdlib.cc (forkpty): Close master and slave if fork fails to
+	avoid resource leak (CID 59997).
+	* libc/fts.c: Update to FreeBSD version 1.39 (CID 59947).
+	* libc/minires.c (minires_get_search): Fix out-of-bounds read from
+	words array (CID 59937).
+
 2014-05-20  Corinna Vinschen  <corinna@vinschen.de>
 
 	* flock.cc (delete_lock_in_parent): Use LIST_FOREACH_SAFE to avoid
