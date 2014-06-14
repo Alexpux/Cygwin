@@ -1,3 +1,29 @@
+2014-06-11  Richard Earnshaw  <rearnsha@arm.com>
+
+	* libc/machine/aarch64/strchrnul.S: New file.
+	* libc/machine/aarch64/strchrnul-stub.c: New file.
+	* libc/machine/aarch64/Makefile.am: Add them to build list.
+	* libc/machine/aarch64/Makefile.in: Regenerated.
+
+2014-06-10  Richard Earnshaw  <rearnsha@arm.com>
+
+	* libc/machine/aarch64/strchr.S: New file.
+	* libc/machine/aarch64/strchr-stub.c: New file.
+	* libc/machine/aarch64/Makefile.am: Add them to build list.
+	* libc/machine/aarch64/Makefile.in: Regenerated.
+
+2014-06-09  DJ Delorie  <dj@redhat.com>
+
+	* configure.host (default_newlib_nano_malloc): New.
+	(msp430): Set it.
+	* configure.in (newlib_nano_malloc): Leave unset if not set by
+	the user.
+	* configure: Regenerate.
+	* libc/configure.in (NEWLIB_NANO_MALLOC): Set after running
+	configure.host.
+	(newlib_nano_malloc): Leave unset if not set by	the user.
+	* libc/configure: Regenerate.
+
 2014-05-15  Daniel Cederman  <cederman@gaisler.com>
 
 	* libc/machine/sparc/setjmp.S (longjmp): Use register g1 instead of g6.
