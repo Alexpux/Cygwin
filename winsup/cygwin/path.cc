@@ -5251,15 +5251,6 @@ cwdstuff::get (char *buf, int need_posix, int with_chroot, unsigned ulen)
   else
     tocopy = posix;
 
-  // Make sure that we have forward slashes always.
-  char *pstr;
-  pstr = strchr(tocopy, '\\');
-  while (pstr)
-    {
-      *pstr = '/';
-      pstr = strchr(pstr, '\\');
-    }
-
   debug_printf ("posix %s", posix);
   if (strlen (tocopy) >= ulen)
     {

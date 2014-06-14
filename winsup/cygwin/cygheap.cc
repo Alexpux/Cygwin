@@ -177,14 +177,17 @@ init_cygheap::init_installation_root ()
 			      &installation_key, FALSE);
 
   PWCHAR w = wcsrchr (installation_root, L'\\');
-  if (w)
-    {
-      *w = L'\0';
-      w = wcsrchr (installation_root, L'\\');
-    }
-  if (!w)
-    api_fatal ("Can't initialize Cygwin installation root dir.\n"
-	       "Invalid DLL path");
+  for (int i=1; i >=0; --i)
+  {
+    if (w)
+      {
+        *w = L'\0';
+        w = wcsrchr (installation_root, L'\\');
+      }
+    if (!w)
+      api_fatal ("Can't initialize MSYS2 installation root dir.\n"
+	         "Invalid DLL path");
+  }
   /* If w < p, the Cygwin DLL resides in the root dir of a drive or network
      path.  In that case, if we strip off yet another backslash, the path
      becomes invalid.  We avoid that here so that the DLL also works in this
