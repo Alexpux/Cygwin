@@ -41,6 +41,7 @@ details. */
 #define isproc(path) \
   (path_prefix_p (proc, (path), proc_len, false))
 
+bool NO_COPY mount_info::got_usr_bin;
 int NO_COPY mount_info::root_idx = -1;
 
 /* is_unc_share: Return non-zero if PATH begins with //server/share
@@ -476,6 +477,17 @@ mount_info::init ()
 
   from_fstab (false, path, pathend);
   from_fstab (true, path, pathend);
+  
+  if (!got_usr_bin)
+    {
+      char native[PATH_MAX];
+      if (root_idx < 0)
+        api_fatal ("root_idx %d, user_shared magic %y, nmounts %d", root_idx, user_shared->version, nmounts);
+      char *p = stpcpy (native, mount[root_idx].native_path);
+	stpcpy (p, "\\usr\\bin");
+	add_item (native, "/bin",
+		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC | MOUNT_NOACL);
+   }
 }
 
 static void
@@ -1418,6 +1430,9 @@ mount_info::add_item (const char *native, const char *posix,
 
   if (i == nmounts)
     nmounts++;
+
+  if (strcmp (posixtmp, "/bin") == 0)
+    got_usr_bin = true;
 
   if (posixtmp[0] == '/' && posixtmp[1] == '\0' && !(mountflags & MOUNT_CYGDRIVE))
     root_idx = i;
