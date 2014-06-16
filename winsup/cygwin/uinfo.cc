@@ -1909,7 +1909,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		      dom, name,
 		      sid.string (sidstr),
 		      home ? L"" : L"/home/", home ?: name,
-		      shell ?: L"/bin/bash");
+		      shell ?: L"/usr/bin/bash");
   sys_wcstombs_alloc (&line, HEAP_BUF, linebuf);
   debug_printf ("line: <%s>", line);
   return line;
