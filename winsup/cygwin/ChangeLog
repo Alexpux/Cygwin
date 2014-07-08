@@ -1,3 +1,33 @@
+2014-07-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* exceptions.cc (exception::myfault_handle): Disable handling
+	STATUS_STACK_OVERFLOW.  Explain why.
+
+2014-07-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_socket.cc (fhandler_socket::send_internal): Improve loop to
+	write streams in chunks of wmem() bytes to raise performance when
+	writing small buffers.  Rename variables and add comments to help
+	understanding the code in years to come.
+
+2014-07-07  Corinna Vinschen  <corinna@vinschen.de>
+
+	* passwd.cc (pg_ent::enumerate_ad): Revert to simply skipping a domain
+	if opening the connection to the domain fails.
+
+2014-07-07  Pierre Humblet  <Pierre.Humblet@ieee.org>
+	    Corinna Vinschen  <corinna@vinschen.de>
+
+	* libc/minires.c (minires_dprintf): Change "Minires" to "Resolv" to
+	differ from external minres lib.
+	(res_nquerydomain): Fix off-by-one in domain concatenation.  Add debug
+	output.
+
+2014-07-03  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_disk_file.cc (fhandler_disk_file::fstatvfs): Add debug
+	output.
+
 2014-06-25  Corinna Vinschen  <corinna@vinschen.de>
 
 	* errno.cc (errmap): Fix order of SERVICE_REQUEST_TIMEOUT.
