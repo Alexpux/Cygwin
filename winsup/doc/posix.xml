@@ -1,3 +1,10 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook V4.5//EN"
+    "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+
+<chapter id="compatibility" xmlns:xi="http://www.w3.org/2001/XInclude">
+<title>Compatibility</title>
+
 <sect1 id="std-susv4"><title>System interfaces compatible with the Single Unix Specification, Version 4:</title>
 
 <para>Note that the core of the Single Unix Specification, Version 4 is
@@ -1554,3 +1561,5 @@ return -1 and set errno to ENOSYS.  <function>grantpt</function> and
 available when cygserver is running.</para>
 
 </sect1>
+
+</chapter>

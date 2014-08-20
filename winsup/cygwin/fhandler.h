@@ -75,9 +75,11 @@ enum dirent_states
 enum conn_state
 {
   unconnected = 0,
-  connect_pending = 1,
-  connected = 2,
-  connect_failed = 3
+  connect_credxchg = 1,
+  connect_pending = 2,
+  connected = 3,
+  listener = 4,
+  connect_failed = 5
 };
 
 enum line_edit_status
@@ -528,12 +530,11 @@ class fhandler_socket: public fhandler_base
     unsigned saw_shutdown_read     : 1; /* Socket saw a SHUT_RD */
     unsigned saw_shutdown_write    : 1; /* Socket saw a SHUT_WR */
     unsigned saw_reuseaddr	   : 1; /* Socket saw SO_REUSEADDR call */
-    unsigned listener		   : 1; /* listen called */
-    unsigned connect_state	   : 2;
+    unsigned connect_state	   : 3;
    public:
     status_flags () :
       async_io (0), saw_shutdown_read (0), saw_shutdown_write (0),
-      listener (0), connect_state (unconnected)
+      connect_state (unconnected)
       {}
   } status;
 
@@ -554,7 +555,6 @@ class fhandler_socket: public fhandler_base
   IMPLEMENT_STATUS_FLAG (bool, saw_shutdown_read)
   IMPLEMENT_STATUS_FLAG (bool, saw_shutdown_write)
   IMPLEMENT_STATUS_FLAG (bool, saw_reuseaddr)
-  IMPLEMENT_STATUS_FLAG (bool, listener)
   IMPLEMENT_STATUS_FLAG (conn_state, connect_state)
 
   int bind (const struct sockaddr *name, int namelen);
@@ -582,7 +582,11 @@ class fhandler_socket: public fhandler_base
 
   int ioctl (unsigned int cmd, void *);
   int fcntl (int cmd, intptr_t);
-  off_t lseek (off_t, int) { return 0; }
+  off_t lseek (off_t, int)
+  { 
+    set_errno (ESPIPE);
+    return -1;
+  }
   int shutdown (int how);
   int close ();
   void hclose (HANDLE) {close ();}
@@ -1135,7 +1139,11 @@ class fhandler_serial: public fhandler_base
   int switch_modem_lines (int set, int clr);
   int tcsetattr (int a, const struct termios *t);
   int tcgetattr (struct termios *t);
-  off_t lseek (off_t, int) { return 0; }
+  off_t lseek (off_t, int)
+  { 
+    set_errno (ESPIPE);
+    return -1;
+  }
   int tcflush (int);
   bool is_tty () const { return true; }
   void fixup_after_fork (HANDLE parent);
