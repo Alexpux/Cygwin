@@ -2,7 +2,7 @@
    process's environment.
 
    Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011, 2012, 2013 Red Hat, Inc.
+   2008, 2009, 2010, 2011, 2012, 2013, 2014 Red Hat, Inc.
 
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
@@ -664,19 +664,22 @@ _addenv (const char *name, const char *value, int overwrite)
 extern "C" int
 putenv (char *str)
 {
-  myfault efault;
-  if (efault.faulted (EFAULT))
-    return -1;
-  if (*str)
+  __try
     {
-      char *eq = strchr (str, '=');
-      if (eq)
-	return _addenv (str, eq + 1, -1);
+      if (*str)
+	{
+	  char *eq = strchr (str, '=');
+	  if (eq)
+	    return _addenv (str, eq + 1, -1);
 
-      /* Remove str from the environment. */
-      unsetenv (str);
+	  /* Remove str from the environment. */
+	  unsetenv (str);
+	}
+      return 0;
     }
-  return 0;
+  __except (EFAULT) {}
+  __endtry
+  return -1;
 }
 
 /* Set the value of the environment variable "name" to be
@@ -684,15 +687,18 @@ putenv (char *str)
 extern "C" int
 setenv (const char *name, const char *value, int overwrite)
 {
-  myfault efault;
-  if (efault.faulted (EFAULT))
-    return -1;
-  if (!name || !*name || strchr (name, '='))
+  __try
     {
-      set_errno (EINVAL);
-      return -1;
+      if (!name || !*name || strchr (name, '='))
+	{
+	  set_errno (EINVAL);
+	  __leave;
+	}
+      return _addenv (name, value, !!overwrite);
     }
-  return _addenv (name, value, !!overwrite);
+  __except (EFAULT) {}
+  __endtry
+  return -1;
 }
 
 /* Delete environment variable "name".  */
@@ -701,22 +707,26 @@ unsetenv (const char *name)
 {
   register char **e;
   int offset;
-  myfault efault;
-  if (efault.faulted (EFAULT))
-    return -1;
-  if (!name || *name == '\0' || strchr (name, '='))
+
+  __try
     {
-      set_errno (EINVAL);
-      return -1;
+      if (!name || *name == '\0' || strchr (name, '='))
+	{
+	  set_errno (EINVAL);
+	  __leave;
+	}
+
+      while (my_findenv (name, &offset))	/* if set multiple times */
+	/* Move up the rest of the array */
+	for (e = cur_environ () + offset; ; e++)
+	  if (!(*e = *(e + 1)))
+	    break;
+
+      return 0;
     }
-
-  while (my_findenv (name, &offset))	/* if set multiple times */
-    /* Move up the rest of the array */
-    for (e = cur_environ () + offset; ; e++)
-      if (!(*e = *(e + 1)))
-	break;
-
-  return 0;
+  __except (EFAULT) {}
+  __endtry
+  return -1;
 }
 
 /* Minimal list of Windows vars which must be converted to uppercase.
@@ -840,54 +850,52 @@ environ_init (char **envp, int envc)
   bool got_something_from_registry;
 #endif
   static char NO_COPY cygterm[] = "TERM=cygwin";
-  myfault efault;
   tmp_pathbuf tp;
 
-  if (efault.faulted ())
-    api_fatal ("internal error reading the windows environment - too many environment variables?");
-
-  char *tmpbuf = tp.t_get ();
+  __try
+    {
+      char *tmpbuf = tp.t_get ();
 #ifndef __MSYS__
-  got_something_from_registry = regopt (L"default", tmpbuf);
-  if (myself->progname[0])
-    got_something_from_registry = regopt (myself->progname, tmpbuf)
-				  || got_something_from_registry;
+      got_something_from_registry = regopt (L"default", tmpbuf);
+      if (myself->progname[0])
+	got_something_from_registry = regopt (myself->progname, tmpbuf)
+				      || got_something_from_registry;
 #endif
 
-  if (!envp)
-    envp_passed_in = 0;
-  else
-    {
-      envc++;
-      envc *= sizeof (char *);
-      char **newenv = (char **) malloc (envc);
-      memcpy (newenv, envp, envc);
-      cfree (envp);
+      if (!envp)
+	envp_passed_in = 0;
+      else
+	{
+	  envc++;
+	  envc *= sizeof (char *);
+	  char **newenv = (char **) malloc (envc);
+	  memcpy (newenv, envp, envc);
+	  cfree (envp);
 
-      /* Older applications relied on the fact that cygwin malloced elements of the
-	 environment list.  */
-      envp = newenv;
-      if (ENVMALLOC)
-	for (char **e = newenv; *e; e++)
-	  {
-	    char *p = *e;
-	    *e = strdup (p);
-	    cfree (p);
-	  }
-      envp_passed_in = 1;
-      goto out;
-    }
+	  /* Older applications relied on the fact that cygwin malloced elements of the
+	     environment list.  */
+	  envp = newenv;
+	  if (ENVMALLOC)
+	    for (char **e = newenv; *e; e++)
+	      {
+		char *p = *e;
+		*e = strdup (p);
+		cfree (p);
+	      }
+	  envp_passed_in = 1;
+	  goto out;
+	}
 
-  /* Allocate space for environment + trailing NULL + MSYS env. */
+  /* Allocate space for environment + trailing NULL + CYGWIN env. */
   lastenviron = envp = (char **) malloc ((4 + (envc = 100)) * sizeof (char *));
 
-  rawenv = GetEnvironmentStringsW ();
-  if (!rawenv)
-    {
-      system_printf ("GetEnvironmentStrings returned NULL, %E");
-      return;
-    }
-  debug_printf ("GetEnvironmentStrings returned %p", rawenv);
+      rawenv = GetEnvironmentStringsW ();
+      if (!rawenv)
+	{
+	  system_printf ("GetEnvironmentStrings returned NULL, %E");
+	  return;
+	}
+      debug_printf ("GetEnvironmentStrings returned %p", rawenv);
 
   /* Current directory information is recorded as variables of the
      form "=X:=X:\foo\bar; these must be changed into something legal
@@ -912,10 +920,10 @@ environ_init (char **envp, int envc)
       debug_printf ("%p: %s", envp[i], envp[i]);
     }
 
-  if (!sawTERM)
-    envp[i++] = strdup (cygterm);
-  envp[i] = NULL;
-  FreeEnvironmentStringsW (rawenv);
+      if (!sawTERM)
+	envp[i++] = strdup (cygterm);
+      envp[i] = NULL;
+      FreeEnvironmentStringsW (rawenv);
 
 out:
   findenv_func = (char * (*)(const char*, int*)) my_findenv;
@@ -929,11 +937,18 @@ out:
     }
 
 #ifndef __MSYS__
-  if (got_something_from_registry)
-    parse_options (NULL);	/* possibly export registry settings to
-				   environment */
+      if (got_something_from_registry)
+	parse_options (NULL);	/* possibly export registry settings to
+				       environment */
 #endif
-  MALLOC_CHECK;
+      MALLOC_CHECK;
+    }
+  __except (NO_ERROR)
+    {
+      api_fatal ("internal error reading the windows environment "
+		 "- too many environment variables?");
+    }
+  __endtry
 }
 
 /* Function called by qsort to sort environment strings.  */
