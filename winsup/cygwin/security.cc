@@ -39,7 +39,7 @@ LONG
 get_file_sd (HANDLE fh, path_conv &pc, security_descriptor &sd,
 	     bool justcreated)
 {
-  NTSTATUS status;
+  NTSTATUS status = STATUS_SUCCESS;
   OBJECT_ATTRIBUTES attr;
   IO_STATUS_BLOCK io;
   ULONG len = SD_MAXIMUM_SIZE, rlen;
@@ -56,20 +56,19 @@ get_file_sd (HANDLE fh, path_conv &pc, security_descriptor &sd,
       status = NtQuerySecurityObject (fh, ALL_SECURITY_INFORMATION,
 				      sd, len, &rlen);
       if (!NT_SUCCESS (status))
-	{
-	  debug_printf ("NtQuerySecurityObject (%S), status %y",
-			pc.get_nt_native_path (), status);
-	  fh = NULL;
-	}
+	debug_printf ("NtQuerySecurityObject (%S), status %y",
+		      pc.get_nt_native_path (), status);
     }
   /* If the handle was NULL, or fetching with the original handle didn't work,
      try to reopen the file with READ_CONTROL and fetch the security descriptor
      using that handle. */
-  if (!fh)
+  if (!fh || !NT_SUCCESS (status))
     {
       status = NtOpenFile (&fh, READ_CONTROL,
-			   pc.get_object_attr (attr, sec_none_nih), &io,
-			   FILE_SHARE_VALID_FLAGS, FILE_OPEN_FOR_BACKUP_INTENT);
+			   fh ? pc.init_reopen_attr (attr, fh)
+			      : pc.get_object_attr (attr, sec_none_nih),
+			   &io, FILE_SHARE_VALID_FLAGS,
+			   FILE_OPEN_FOR_BACKUP_INTENT);
       if (!NT_SUCCESS (status))
 	{
 	  sd.free ();
@@ -216,8 +215,10 @@ set_file_sd (HANDLE fh, path_conv &pc, security_descriptor &sd, bool is_chown)
 	  OBJECT_ATTRIBUTES attr;
 	  IO_STATUS_BLOCK io;
 	  status = NtOpenFile (&fh, (is_chown ? WRITE_OWNER  : 0) | WRITE_DAC,
-			       pc.get_object_attr (attr, sec_none_nih),
-			       &io, FILE_SHARE_VALID_FLAGS,
+			       fh ? pc.init_reopen_attr (attr, fh)
+				  : pc.get_object_attr (attr, sec_none_nih),
+			       &io,
+			       FILE_SHARE_VALID_FLAGS,
 			       FILE_OPEN_FOR_BACKUP_INTENT);
 	  if (!NT_SUCCESS (status))
 	    {
@@ -312,6 +313,21 @@ get_attribute_from_acl (mode_t *attribute, PACL acl, PSID owner_sid,
 	  if (ace->Mask & FILE_EXEC_BITS)
 	    *flags |= ((!(*anti & S_IXGRP)) ? S_IXGRP : 0)
 		      | ((grp_member && !(*anti & S_IXUSR)) ? S_IXUSR : 0);
+	}
+      else if (flags == &allow)
+	{
+	  /* Simplified computation of additional group permissions based on
+	     the CLASS_OBJ value.  CLASS_OBJ represents the or'ed value of
+	     the primary group permissions and all secondary user and group
+	     permissions.  FIXME: This only takes ACCESS_ALLOWED_ACEs into
+	     account.  The computation with additional ACCESS_DENIED_ACE
+	     handling is much more complicated. */
+	  if (ace->Mask & FILE_READ_BITS)
+	    *flags |= S_IRGRP;
+	  if (ace->Mask & FILE_WRITE_BITS)
+	    *flags |= S_IWGRP;
+	  if (ace->Mask & FILE_EXEC_BITS)
+	    *flags |= S_IXGRP;
 	}
     }
   *attribute &= ~(S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX | S_ISGID | S_ISUID);
@@ -505,7 +521,7 @@ alloc_sd (path_conv &pc, uid_t uid, gid_t gid, int attribute,
   /* NOTE: If the high bit of attribute is set, we have just created
      a file or directory.  See below for an explanation. */
 
-  debug_printf("uid %u, gid %u, attribute %y", uid, gid, attribute);
+  debug_printf("uid %u, gid %u, attribute 0%o", uid, gid, attribute);
 
   /* Get owner and group from current security descriptor. */
   PSID cur_owner_sid = NULL;
@@ -963,7 +979,7 @@ set_file_attribute (HANDLE handle, path_conv &pc,
     }
   else
     ret = 0;
-  syscall_printf ("%d = set_file_attribute(%S, %d, %d, %y)",
+  syscall_printf ("%d = set_file_attribute(%S, %d, %d, 0%o)",
 		  ret, pc.get_nt_native_path (), uid, gid, attribute);
   return ret;
 }
@@ -1048,8 +1064,8 @@ check_access (security_descriptor &sd, GENERIC_MAPPING &mapping,
 
 /* Samba override.  Check security descriptor for Samba UNIX user and group
    accounts and check if we have an RFC 2307 mapping to a Windows account.
-   Create a new security descriptor with all of the UNIX acocunts with
-   valid mapping replaced with their WIndows counterpart. */
+   Create a new security descriptor with all of the UNIX accounts with
+   valid mapping replaced with their Windows counterpart. */
 static void
 convert_samba_sd (security_descriptor &sd_ret)
 {

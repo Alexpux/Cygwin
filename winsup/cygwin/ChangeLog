@@ -1,3 +1,98 @@
+2014-08-28  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler.cc (fhandler_base::facl): Drop CLASS_OBJ entry.
+	* fhandler_disk_file.cc (fhandler_disk_file::facl): Ditto in noacl case.
+	* sec_acl.cc (getacl): Compute useful fake CLASS_OBJ and DEF_CLASS_OBJ
+	permission bits based on how these values are generated on Linux.
+	Add commants to explain what the code is doing.
+	* security.cc (get_attribute_from_acl): Compute group permission based
+	on the actual primary group permissions and all secondary user and group
+	ACCESS_ALLOWED_ACEs to emulate Linux' behaviour more closely.
+	(check_access): Fix typos im comment.
+	* include/cygwin/acl.h (MIN_ACL_ENTRIES): Redefine as 3.
+
+2014-08-28  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_disk_file.cc (fhandler_disk_file::fstatvfs): Try the
+	FileFsSizeInformation information class on filesystems choking on
+	FileFsFullSizeInformation (I see you Netapp!)
+
+2014-08-27  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler.h (fhandler_pty_slave::fch_open_handles): Add bool parameter
+	to declaration.
+	* fhandler_tty.cc (fhandler_pty_slave::fch_open_handles): Add bool
+	parameter "chown".  Only request WRITE_OWNER access when opening pty
+	synchronization objects if "chown" is set.
+	(fhandler_pty_slave::fchmod): Call fch_open_handles with new bool
+	parameter set to false.
+	(fhandler_pty_slave::fchown): Call fch_open_handles with new bool
+	parameter set to true.
+	* kernel32.cc (CreateFileMappingW): Fix default standard rights for
+	file mappings from READ_CONTROL to STANDARD_RIGHTS_REQUIRED to allow
+	changing the DACL (fixes "access denied" error in pinfo::set_acl).
+
+	* fhandler_disk_file.cc (fhandler_base::fstat_helper): Change debug
+	output to print mode bits in octal.
+	* security.cc (alloc_sd): Ditto.
+	(set_file_attribute): Ditto.
+
+2014-08-27  Corinna Vinschen  <corinna@vinschen.de>
+
+	* ntea.cc (read_ea): Change left-over return to __leave.  Fix
+	condition to close handle.  Call NtClose rather than CloseHandle.
+	(write_ea): Fix condition to close handle.  Call NtClose rather than
+	CloseHandle.
+	* security.cc (get_file_sd): Call pc.init_reopen_attr if a valid
+	incoming handle was given, pc.get_object_attr otherwise.
+	(set_file_sd): Ditto.
+
+2014-08-26  Corinna Vinschen  <corinna@vinschen.de>
+
+	* path.h (path_conv::init_reopen_attr): Change from void to returning
+	POBJECT_ATTRIBUTES.  Take OBJECT_ATTRIBUTES reference as argument, not
+	pointer.
+	* fhandler_disk_file.cc: Throughout accommodate above change.
+	* syscalls.cc: Ditto.
+	* ntea.cc (read_ea): Don't set hdl to NULL if it's already NULL.  Set
+	attr with pc.init_reopen_attr before trying to reopen file.
+	(write_ea): Ditto.
+	* security.cc (get_file_sd): Use pc.init_reopen_attr rather than
+	pc.get_object_attr when trying to reopen file.
+	(set_file_sd): Ditto.
+
+2014-08-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygtls.cc (san::leave/x86_64): Implement.
+	* cygtls.h (class tls_pathbuf): Move counter variables into a union.
+	Add 64 bit element _counters covering both counter variables to
+	optimize save and restore operations.
+	(class san/x86_64): Only store single 64 bit value.
+	(san::san/x86_64): Implement.
+	(san::leave/x86_64): Only declare here, as returns_twice function.
+	Explain why.
+	(class san/i686): Change type of _c_cnt and _w_cnt to uint32_t.
+	(__try/x86_64): Move definition of __sebastian after the first memory
+	barrier.  Drop __sebastian.setup call.
+
+2014-08-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygtls.cc (_cygtls::remove): Revert previous patch.
+	*  cygtls.h (struct _local_storage): Move pathbufs back here.
+	(class san/x86_64): Revert class.  Save and restore pathbufs counters
+	only.
+	(class san/i686): Revert saving and restoring pathbufs counters.
+	(__try/x86_64): Add a san variable and call it's setup method.
+	(__except/x86_64): Call san::leave to restore pathbufs counters.
+	* gendef (_sigbe): Revert previous change.
+	* thread.cc (verifyable_object_state): Remove gcc 4.7 workaround in
+	forward declaration as well.
+	* tls_pbuf.cc (tls_pbuf): Revert previous change.
+	* tls_pbuf.h (class tmp_pathbuf): Accommodate reverting pathbufs to
+	locals structure.
+	* tlsoffsets.h: Regenerate.
+	* tlsoffsets64.h: Regenerate.
+
 2014-08-21  Corinna Vinschen  <corinna@vinschen.de>
 
 	* Throughout, use __try/__except/__endtry blocks, rather than myfault

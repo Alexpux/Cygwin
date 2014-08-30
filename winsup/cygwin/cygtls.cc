@@ -193,10 +193,18 @@ _cygtls::remove (DWORD wait)
   free_local (servent_buf);
   free_local (hostent_buf);
   /* Free temporary TLS path buffers. */
-  pathbufs.destroy ();
+  locals.pathbufs.destroy ();
   /* Close timer handle. */
   if (locals.cw_timer)
     NtClose (locals.cw_timer);
   cygheap->remove_tls (this, wait);
   remove_wq (wait);
 }
+
+#ifdef __x86_64__
+void san::leave ()
+{
+  /* Restore tls_pathbuf counters in case of error. */
+  _my_tls.locals.pathbufs._counters = _cnt;
+}
+#endif

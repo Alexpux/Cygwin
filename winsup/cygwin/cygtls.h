@@ -51,8 +51,15 @@ class tls_pathbuf
   /* Make sure that c_cnt and w_cnt are always the first two members of this
      class, and never change the size (32 bit), unless you also change the
      mov statements in sigbe! */
-  uint32_t c_cnt;
-  uint32_t w_cnt;
+  union
+    {
+      struct
+	{
+	  uint32_t c_cnt;
+	  uint32_t w_cnt;
+	};
+      uint64_t _counters;
+    };
   char  *c_buf[TP_NUM_C_BUFS];
   WCHAR *w_buf[TP_NUM_W_BUFS];
 
@@ -132,6 +139,7 @@ struct _local_storage
   /* thread.cc */
   HANDLE cw_timer;
 
+  tls_pathbuf pathbufs;
   char ttybuf[32];
 };
 
@@ -189,7 +197,6 @@ public:
   struct pthread *tid;
   class cygthread *_ctinfo;
   class san *andreas;
-  tls_pathbuf pathbufs;
   waitq wq;
   int sig;
   unsigned incyg;
@@ -288,20 +295,41 @@ extern PVOID _tlstop __asm__ ("%fs:8");
 extern _cygtls *_main_tls;
 extern _cygtls *_sig_tls;
 
-#ifndef __x86_64__
+#ifdef __x86_64__
+class san
+{
+  uint64_t _cnt;
+public:
+  san () __attribute__ ((always_inline))
+  {
+    _cnt = _my_tls.locals.pathbufs._counters;
+  }
+  /* This is the first thing called in the __except handler.  The attribute
+     "returns_twice" makes sure that GCC disregards any register value set
+     earlier in the function, so this call serves as a register barrier. */
+  void leave () __attribute__ ((returns_twice));
+};
+#else
 class san
 {
   san *_clemente;
   jmp_buf _context;
+  uint32_t _c_cnt;
+  uint32_t _w_cnt;
 public:
   int setup () __attribute__ ((always_inline))
   {
     _clemente = _my_tls.andreas;
     _my_tls.andreas = this;
+    _c_cnt = _my_tls.locals.pathbufs.c_cnt;
+    _w_cnt = _my_tls.locals.pathbufs.w_cnt;
     return __sjfault (_context);
   }
   void leave () __attribute__ ((always_inline))
   {
+    /* Restore tls_pathbuf counters in case of error. */
+    _my_tls.locals.pathbufs.c_cnt = _c_cnt;
+    _my_tls.locals.pathbufs.w_cnt = _w_cnt;
     __ljfault (_context, 1);
   }
   void reset () __attribute__ ((always_inline))
@@ -332,6 +360,7 @@ public:
   { \
     __label__ __l_try, __l_except, __l_endtry; \
     __mem_barrier; \
+    san __sebastian; \
     __asm__ goto ("\n" \
       "  .seh_handler _ZN9exception7myfaultEP17_EXCEPTION_RECORDPvP8_CONTEXTP19_DISPATCHER_CONTEXT, @except						\n" \
       "  .seh_handlerdata						\n" \
@@ -352,6 +381,7 @@ public:
     { \
       __l_except: \
 	__mem_barrier; \
+	__sebastian.leave (); \
 	if (__errno) \
 	  set_errno (__errno);
 
