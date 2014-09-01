@@ -1,3 +1,30 @@
+2014-08-31  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Disallow user accounts
+	as groups.  Add comment.
+
+2014-08-31  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (cygheap_pwdgrp::init): Fix comment.  Rearrange code for
+	style.
+	(cygheap_pwdgrp::nss_init_line): Disable db_prefix and db_separator
+	settings.  Add comment.
+	(pwdgrp::fetch_account_from_windows): Drop outdated comment.  Fix code
+	fetching primary group gid of group setting in SAM description field.
+	Change comment accordingly.
+
+2014-08-31  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Disallow creating an
+	entry for "NULL SID".
+
+2014-08-31  Corinna Vinschen  <corinna@vinschen.de>
+
+	* sec_acl.cc (setacl): Add comment.  Handle NULL ACE for SUID, SGID,
+	and VTX bits.  Create owner, group, other and NULL entries in the same
+	way and in the same order as alloc_sd.
+	(getacl): Skip NULL ACE.
+
 2014-08-28  Corinna Vinschen  <corinna@vinschen.de>
 
 	* fhandler.cc (fhandler_base::facl): Drop CLASS_OBJ entry.
