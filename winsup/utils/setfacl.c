@@ -108,16 +108,22 @@ getaclentry (action_t action, char *c, aclent_t *ace)
     return FALSE;
   /* Skip to next field. */
   c = c2;
-  if (!*c && action != Delete)
-    return FALSE;
-  /* If this is a user or group entry, check if next char is a colon char.
-     If so, skip it, otherwise it's the name of a user or group. */
-  if (!(ace->a_type & (USER_OBJ | GROUP_OBJ)))
+  if (!*c)
+    {
+      /* Nothing follows.  This is only valid if action is Delete and the
+	 type is CLASS_OBJ, or if ACL_DEFAULT is set. */
+      if (action != Delete
+	  || (!(ace->a_type & (CLASS_OBJ | ACL_DEFAULT))))
+	return FALSE;
+    }
+  else if (!(ace->a_type & (USER_OBJ | GROUP_OBJ)))
     {
       /* Mask and other entries may contain an extra colon. */
       if (*c == ':')
 	++c;
     }
+  /* If this is a user or group entry, check if next char is a colon char.
+     If so, skip it, otherwise it's the name of a user or group. */
   else if (*c == ':')
     ++c;
   else if (*c)
@@ -130,8 +136,6 @@ getaclentry (action_t action, char *c, aclent_t *ace)
       if (*c2 == ':')
 	*c2++ = '\0';
       else if (action != Delete)
-	return FALSE;
-      else if (!(ace->a_type & ACL_DEFAULT))
 	return FALSE;
       /* Fetch user/group id. */
       if (isdigit ((unsigned char) *c))
@@ -263,6 +267,70 @@ modacl (aclent_t *tgt, int tcnt, aclent_t *src, int scnt)
 }
 
 int
+addmissing (aclent_t *tgt, int tcnt)
+{
+  int t;
+  int types = 0, def_types = 0;
+  int perm = 0, def_perm = 0;
+
+  /* Check if we have all the required entries now. */
+  for (t = 0; t < tcnt; ++t)
+    if (tgt[t].a_type & ACL_DEFAULT)
+      {
+	def_types |= tgt[t].a_type;
+	if (tgt[t].a_type & (USER | GROUP | GROUP_OBJ))
+	  def_perm |= tgt[t].a_perm;
+      }
+    else
+      {
+	types |= tgt[t].a_type;
+	if (tgt[t].a_type & (USER | GROUP | GROUP_OBJ))
+	  perm |= tgt[t].a_perm;
+      }
+  /* Add missing CLASS_OBJ */
+  if ((types & (USER | GROUP)) && !(types & CLASS_OBJ))
+    {
+      tgt[tcnt].a_type = CLASS_OBJ;
+      tgt[tcnt].a_id = (uid_t) -1;
+      tgt[tcnt++].a_perm = perm;
+    }
+  if (def_types)
+    {
+      /* Add missing default entries. */
+      if (!(def_types & USER_OBJ) && tcnt < MAX_ACL_ENTRIES)
+	{
+	  t = searchace (tgt, tcnt, USER_OBJ, -1);
+	  tgt[tcnt].a_type = DEF_USER_OBJ;
+	  tgt[tcnt].a_id = (uid_t) -1;
+	  tgt[tcnt++].a_perm = t >= 0 ? tgt[t].a_perm : S_IRWXO;
+	}
+      if (!(def_types & GROUP_OBJ) && tcnt < MAX_ACL_ENTRIES)
+	{
+	  t = searchace (tgt, tcnt, GROUP_OBJ, -1);
+	  tgt[tcnt].a_type = DEF_GROUP_OBJ;
+	  tgt[tcnt].a_id = (uid_t) -1;
+	  tgt[tcnt].a_perm = t >= 0 ? tgt[t].a_perm : (S_IROTH | S_IXOTH);
+	  def_perm |= tgt[tcnt++].a_perm;
+	}
+      if (!(def_types & OTHER_OBJ) && tcnt < MAX_ACL_ENTRIES)
+	{
+	  t = searchace (tgt, tcnt, OTHER_OBJ, -1);
+	  tgt[tcnt].a_type = DEF_OTHER_OBJ;
+	  tgt[tcnt].a_id = (uid_t) -1;
+	  tgt[tcnt++].a_perm = t >= 0 ? tgt[t].a_perm : (S_IROTH | S_IXOTH);
+	}
+      /* Add missing DEF_CLASS_OBJ */
+      if ((def_types & (USER | GROUP)) && !(def_types & CLASS_OBJ))
+	{
+	  tgt[tcnt].a_type = DEF_CLASS_OBJ;
+	  tgt[tcnt].a_id = (uid_t) -1;
+	  tgt[tcnt++].a_perm = def_perm;
+	}
+    }
+  return tcnt;
+}
+
+int
 setfacl (action_t action, char *path, aclent_t *acls, int cnt)
 {
   aclent_t lacl[MAX_ACL_ENTRIES];
@@ -279,6 +347,7 @@ setfacl (action_t action, char *path, aclent_t *acls, int cnt)
     }
   else if ((lcnt = acl (path, GETACL, MAX_ACL_ENTRIES, lacl)) < 0
       || (lcnt = modacl (lacl, lcnt, acls, cnt)) < 0
+      || (action != Delete && (lcnt = addmissing (lacl, lcnt)) < 0)
       || (lcnt = acl (path, SETACL, lcnt, lacl)) < 0)
     {
       perror (prog_name);
@@ -346,12 +415,13 @@ usage (FILE * stream)
 	    "     Acl_entries to be deleted should be specified without\n"
 	    "     permissions, as in the following list:\n"
 	    "\n"
-	    "         u[ser]:uid\n"
-	    "         g[roup]:gid\n"
-	    "         d[efault]:u[ser]:uid\n"
-	    "         d[efault]:g[roup]:gid\n"
-	    "         d[efault]:m[ask]:\n"
-	    "         d[efault]:o[ther]:\n"
+	    "         u[ser]:uid[:]\n"
+	    "         g[roup]:gid[:]\n"
+	    "         m[ask][:]\n"
+	    "         d[efault]:u[ser][:uid]\n"
+	    "         d[efault]:g[roup][:gid]\n"
+	    "         d[efault]:m[ask][:]\n"
+	    "         d[efault]:o[ther][:]\n"
 	    "\n"
 	    "-f   Take the Acl_entries from ACL_FILE one per line. Whitespace\n"
 	    "     characters are ignored, and the character \"#\" may be used\n"
