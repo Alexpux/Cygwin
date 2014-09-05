@@ -710,6 +710,12 @@ path_conv::check (const char *src, unsigned opt,
 	      need_directory = 1;
 	      *--tail = '\0';
 	    }
+	  /* Special case for "/" must set need_directory, without removing
+	     trailing slash */
+	  else if (tail == path_copy + 1 && isslash (tail[-1]))
+	    {
+	      need_directory = 1;
+	    }
 	  path_end = tail;
 
 	  /* Scan path_copy from right to left looking either for a symlink
