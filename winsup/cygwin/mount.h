@@ -181,6 +181,8 @@ class mount_info
  private:
   int posix_sorted[MAX_MOUNTS];
   int native_sorted[MAX_MOUNTS];
+  int longest_posix_sorted[MAX_MOUNTS];
+  int shortest_native_sorted[MAX_MOUNTS];
 
  public:
   void init ();
