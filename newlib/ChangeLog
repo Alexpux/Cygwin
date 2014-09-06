@@ -1,3 +1,44 @@
+2014-09-05  Hale Wang  <hale.wang@arm.com>
+
+	* libc/machine/arm/memchr.S: Clean up the wrapper.
+	* libc/machine/arm/memcpy.S: Likewise.
+	* libc/machine/arm/memchr-stub.c: Delete this redundant file.
+	* libc/machine/arm/memcpy-stub.c: Likewise.
+	* libc/machine/arm/strcmp.S: Add speed-preferred wrapper.
+	* libc/machine/arm/strlen.S: Likewise.
+	* libc/machine/arm/Makefile.am: Add dependencies.
+	* libc/machine/arm/Makefile.in: Regenerated.
+	* libc/machine/arm/configure.in: Add dependencies.
+	* libc/machine/arm/configure: Regenerated.
+
+2014-09-05  Bin Cheng  <bin.cheng@arm.com>
+
+	* libc/stdio/findfp.c (_cleanup_r): Call _fflush_r when configuration
+	option "--enable-lite-exit" is in effect.  Refactor the code.
+
+2014-09-05  Bin Cheng  <bin.cheng@arm.com>
+
+	* libc/stdio/fwalk.c (_fwalk_reent): Remove redundant test.
+
+2014-09-04  Freddie Chopin  <freddie_chopin@op.pl>
+
+	* libc/time/mktm_r.c (_mktm_r): Optimize speed.
+
+2014-09-04  Freddie Chopin  <freddie_chopin@op.pl>
+
+	* libc/time/clock.c (clock): Fix warnings about signed-unsigned
+	comparisons.
+	* libc/time/strftime.c (strftime): Likewise.
+	* libc/time/strptime.c (match_string): Fix warning about discarding
+	'restrict' qualifier from pointer target type.
+
+2014-09-04  Hale Wang  <hale.wang@arm.com>
+
+	* libc/machine/arm/aeabi_memcpy.c: New file.
+	* libc/machine/arm/aeabi_memcpy-armv7a.S: New file.
+	* libc/machine/arm/Makefile.am: Add dependencies.
+	* libc/machine/arm/Makefile.in: Regenerated.
+
 2014-08-27  DJ Delorie  <dj@redhat.com>
 
 	* libc/include/math.h (frexpl): Remove parameter name.

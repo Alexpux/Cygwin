@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 ARM Ltd
+ * Copyright (c) 2014 ARM Ltd
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,15 +26,39 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* The sole purpose of this file is to include the plain memcpy provided
-   in newlib.  An optimized version of memcpy is provided in the assembly
-   file memcpy.S in this directory. */
-#if (defined (__OPTIMIZE_SIZE__) || defined (PREFER_SIZE_OVER_SPEED) || \
-     (!((defined (__ARM_ARCH_7A__) && defined (__ARM_FEATURE_UNALIGNED)) \
-        || defined (__ARM_ARCH_7EM__) || defined (__ARM_ARCH_7M__))))
+#include <stddef.h>
+#include <_ansi.h>
 
-#include "../../string/memcpy.c"
+/* According to the Run-time ABI for the ARM Architecture.  This
+   function is allowed to corrupt only the integer core register
+   permitted to be corrupted by the [AAPCS] (r0-r3, ip, lr, and
+   CPSR).
+
+   The FP registers are used in memcpy for target __ARM_ARCH_7A.
+   Therefore, we can't just simply use alias to support the function
+   aeabi_memcpy for target __ARM_ARCH_7A.  Instead, we choose the
+   previous versions of memcpy to suppport it as an alternative.  */
+
+/* NOTE: This ifdef MUST match the one in aeabi_memcpy-armv7a.S.  */
+#if defined (__ARM_ARCH_7A__) && defined (__ARM_FEATURE_UNALIGNED) && \
+	(defined (__ARM_NEON__) || !defined (__SOFTFP__))
+
+/* Defined in aeabi_memcpy-armv7a.S.  */
 
 #else
-        /* Do nothing. See memcpy.S in this directory. */
+/* Support the alias for the __aeabi_memcpy which may
+   assume memory alignment.  */
+void __aeabi_memcpy4 (void *dest, const void *source, size_t n)
+	_ATTRIBUTE ((alias ("__aeabi_memcpy")));
+
+void __aeabi_memcpy8 (void *dest, const void *source, size_t n)
+	_ATTRIBUTE ((alias ("__aeabi_memcpy")));
+
+/* Support the routine __aeabi_memcpy.  Can't alias to memcpy
+   because it's not defined in the same translation unit.  */
+void __aeabi_memcpy (void *dest, const void *source, size_t n)
+{
+  extern void memcpy (void *dest, const void *source, size_t n);
+  memcpy (dest, source, n);
+}
 #endif
