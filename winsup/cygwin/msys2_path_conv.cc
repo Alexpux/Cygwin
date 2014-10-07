@@ -263,6 +263,10 @@ const char* convert(char *dst, size_t dstlen, const char *src) {
             need_convert = true;
             break;
         }
+        if (isspace(*it)) {
+            need_convert = false;
+            break;
+        }
     }
 
     char* dstit = dst;
