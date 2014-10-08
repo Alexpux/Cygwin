@@ -369,9 +369,7 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
             return SIMPLE_WINDOWS_PATH;
         }
 
-        int double_slashed = 0;
         if (*it == '/') {
-            double_slashed = 1;
             it += 1;
             switch(*it) {
               case ':': return URL;
