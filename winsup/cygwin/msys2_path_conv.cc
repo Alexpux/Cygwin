@@ -373,20 +373,19 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
         if (*it == '/') {
             double_slashed = 1;
             it += 1;
-        }
-
-        if (double_slashed && *it == ':') {
-            return URL;
-        }
-
-        if (double_slashed && *it == '/') {
-            return ESCAPE_WINDOWS_PATH;
+            switch(*it) {
+              case ':': return URL;
+              case '/': return ESCAPED_PATH;
+            }
+            if (memchr(it, '/', end - it))
+              return UNC;
+            else
+              return ESCAPED_PATH;
         }
 
         for (; *it != '\0' && it != end; ++it) {
             switch(*it) {
                 case ':': {char ch = *(it + 1); if (ch == '/' || ch == ':' || ch == '.') return POSIX_PATH_LIST;}
-                case '/': result = (double_slashed) ? UNC : ROOTED_PATH; break;
                 case ';': return WINDOWS_PATH_LIST;
             }
         }
@@ -395,7 +394,7 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
             return result;
         }
 
-        return (double_slashed) ? ESCAPED_PATH : ROOTED_PATH;
+        return ROOTED_PATH;
     }
 
     int starts_with_minus = (*it == '-');
