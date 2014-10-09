@@ -208,7 +208,13 @@ void find_end_of_posix_list(const char** to, int* in_string) {
     }
 }
 
-void find_end_of_rooted_path(const char** to, int* in_string) {
+void find_end_of_rooted_path(const char** from, const char** to, int* in_string) {
+    for (const char* it = *from; *it != '\0' && it != *to; ++it)
+        if (*it == '.' && *(it + 1) == '.' && *(it - 1) == '/') {
+            *to = it - 1;
+            return;
+        }
+
     for (; **to != '\0'; ++*to) {
         if (*in_string == 0 && **to == ' ') {
             return;
@@ -237,7 +243,7 @@ void sub_convert(const char** from, const char** to, char** dst, const char* dst
     }
 
     if (type == ROOTED_PATH) {
-        find_end_of_rooted_path(to, in_string);
+        find_end_of_rooted_path(from, to, in_string);
     }
 
     copy_to_dst(copy_from, *from, dst, dstend);
