@@ -324,7 +324,7 @@ build_argv (char *cmd, char **&argv, int &argc, int winshell)
 	    {
 	      sawquote = cmd;
 	      /* Handle quoting.  Only strip off quotes if the parent is
-		 a Msys process, or if the word starts with a '@'.
+		 a Cygwin process, or if the word starts with a '@'.
 		 In this case, the insert_file function needs an unquoted
 		 DOS filename and globbing isn't performed anyway. */
 	      cmd = quoted (cmd, winshell && argc > 0 && *word != '@');
@@ -393,11 +393,13 @@ check_sanity_and_sync (per_process *p)
     api_fatal ("msys DLL and APP are out of sync -- API version mismatch %u > %u",
 	       p->api_major, cygwin_version.api_major);
 
+#ifndef __x86_64__
   /* This is a kludge to work around a version of _msys_common_crt0
      which overwrote the cxx_malloc field with the local DLL copy.
      Hilarity ensues if the DLL is not loaded while the process
      is forking. */
   __cygwin_user_data.cxx_malloc = &default_cygwin_cxx_malloc;
+#endif
 }
 
 child_info NO_COPY *child_proc_info;
