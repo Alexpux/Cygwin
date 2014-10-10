@@ -1,3 +1,36 @@
+2014-10-09  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_procsys.cc (fhandler_procsys::readdir): Just test
+	ObjectTypeName for object types rather than calling lstat to avoid
+	performance hit.
+	* globals.cc (ro_u_natdir): Define.
+	(ro_u_natsyml): Define.
+	(ro_u_natdev): Define.
+
+2014-10-09  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_disk_file.cc (fhandler_disk_file::readdir_helper): Set d_type
+	for virtual directories.
+
+2014-10-09  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_proc.cc (fhandler_proc::readdir): Set dirent d_type.
+	* fhandler_process.cc (fhandler_process::readdir): Ditto.
+	* fhandler_procnet.cc (fhandler_procnet::readdir): Ditto.
+	* fhandler_procsys.cc (fhandler_procsys::readdir): Ditto.
+	* fhandler_procsysvipc.cc (fhandler_procsysvipc::readdir): Ditto.
+	*  fhandler_virtual.h (virt_ftype_to_dtype): Define new inline function
+	to generate dirent d_type from virtual_ftype_t.
+
+2014-10-08  Corinna Vinschen  <corinna@vinschen.de>
+
+	* common.din (ffsl): Export.
+	(ffsll): Export.
+	* syscalls.cc (ffs): Implement using GCC intrinsic.
+	(ffsl): Ditto.
+	(ffsll): Ditto.
+	* include/cygwin/version.h (CYGWIN_VERSION_API_MINOR): Bump.
+
 2014-10-08  Christian Franke  <franke@computer.org>
 
 	* syscall.cc (ffs): Fix crash of ffs (0x80000000) on 64 bit.

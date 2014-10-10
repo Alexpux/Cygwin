@@ -1,3 +1,47 @@
+2014-10-09  Sebastian Huber  <sebastian.huber@embedded-brains.de>
+
+        * libc/include/stdint.h: Include <sys/_intsup.h>.
+        (__STDINT_EXP): Delete.
+        (__have_long32): Likewise.
+        (__have_long64): Likewise.
+        (__have_longlong64): Likewise.
+        * libc/include/sys/_intsup.h: New file.
+        (__STDINT_EXP): Move from libc/include/stdint.h.
+        (__have_long32): Likewise.
+        (__have_long64): Likewise.
+        (__have_longlong64): Likewise.
+        * libc/include/inttypes.h: Include <sys/_intsup.h>.
+        (__INTTYPES_EXP): Delete and use __STDINT_EXP() instead.
+
+2014-10-09  Freddie Chopin  <freddie_chopin@op.pl>
+
+	* libc/string/memccpy.c (memccpy): Fix warning about signed-unsigned
+	comparison
+	* libc/string/memchr.c (memchr): Ditto.
+	* libc/string/memrchr.c (memrchr): Ditto.
+	* libc/string/memset.c: (memset): Ditto.
+	* libc/string/rawmemchr.c (rawmemchr): Ditto.
+	* libc/string/local.h (__locale_cjk_lang): Fix "function declaration
+	isn't a prototype" warning.
+	* libc/string/strcasestr.c (strcasestr): Ditto.
+	* libc/string/u_strerr.c (_user_strerror): Fix "unused parameter"
+	warnings.
+	* libc/string/rawmemchr.c (rawmemchr): Fix comment type
+	"// ..." -> "/* ... */".
+
+2014-10-08  Steve Ellcey  <sellcey@mips.com>
+
+	* newlib/libc/machine/mips/strcmp.c: Remove.
+	* newlib/libc/machine/mips/strcmp.S: New.
+	* newlib/libc/machine/mips/Makefile.am (lib_a_SOURCES):
+	Replace strcmp.c with strcmp.S
+	* newlib/libc/machine/mips/Makefile.in: Regenerate.
+
+2014-10-08 Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/string.h (ffsl): Declare as GNU function.
+	(ffsll): Ditto.
+
 2014-09-17  Jeff Johnston  <jjohnstn@redhat.com>
 
 	* libc/include/sys/features.h: Add __NEWLIB__ and
