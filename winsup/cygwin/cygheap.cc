@@ -170,24 +170,29 @@ init_cygheap::init_installation_root ()
 	}
     }
   installation_root[1] = L'?';
-
   RtlInitEmptyUnicodeString (&installation_key, installation_key_buf,
 			     sizeof installation_key_buf);
   RtlInt64ToHexUnicodeString (hash_path_name (0, installation_root),
 			      &installation_key, FALSE);
 
   PWCHAR w = wcsrchr (installation_root, L'\\');
-  for (int i=1; i >=0; --i)
-  {
-    if (w)
-      {
-        *w = L'\0';
-        w = wcsrchr (installation_root, L'\\');
-      }
-    if (!w)
-      api_fatal ("Can't initialize MSYS2 installation root dir.\n"
-	         "Invalid DLL path");
-  }
+  if (w)
+    {
+      *w = L'\0';
+      w = wcsrchr (installation_root, L'\\');
+    }
+  if (!w)
+    api_fatal ("Can't initialize MSYS2 installation root dir.\n"
+	       "Invalid DLL path");
+
+  /* Remove "." from DLL search path and install our /bin dir instead.
+     Note that this change is propagated to child processes so we don't
+     have to call SetDllDirectory in each process. */
+  installation_root[1] = L'\\';
+  if (!SetDllDirectoryW (installation_root))
+    debug_printf ("Couldn't set %W as DLL directory, %E", installation_root);
+  installation_root[1] = L'?';
+
   /* If w < p, the Cygwin DLL resides in the root dir of a drive or network
      path.  In that case, if we strip off yet another backslash, the path
      becomes invalid.  We avoid that here so that the DLL also works in this
