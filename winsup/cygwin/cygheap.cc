@@ -178,6 +178,9 @@ init_cygheap::init_installation_root ()
 
   /* Strip off last path component ("\\cygwin1.dll") */
   PWCHAR w = wcsrchr (installation_root, L'\\');
+  /* Back two folders to get root as we have all stuff in usr subfolder */
+  for (int i=1; i >=0; --i)
+  {
   if (w)
     {
       *w = L'\0';
@@ -186,6 +189,7 @@ init_cygheap::init_installation_root ()
   if (!w)
     api_fatal ("Can't initialize MSYS2 installation root dir.\n"
 	       "Invalid DLL path");
+  }
 
   /* Copy result into installation_dir before stripping off "bin" dir and
      revert to Win32 path.  This path is used in cygheap_init to call
