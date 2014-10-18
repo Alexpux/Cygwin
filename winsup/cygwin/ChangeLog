@@ -1,3 +1,46 @@
+2014-10-17  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygheap.cc (cygheap_fixup_in_child): Call set_dll_dir.
+	(init_cygheap::init_installation_root): Just memmove contents of
+	installation_root instead of calling GetModuleFileNameW again.
+	Copy installation_root to installation_dir before stripping of
+	"bin" dir.  Don't call SetDllDirectory here.  Explain what we do.
+	(setup_cygheap): New function taking over initial cygheap setup
+	from memory_init.  Additionally call set_dll_dir.
+	* cygheap.h (struct init_cygheap): Add installation_dir member.
+	(init_cygheap::set_dll_dir): Define.
+	(setup_cygheap): Declare.
+	* dcrt0.cc: Throughout drop parameter from memory_init call.
+	(dll_crt0_0): Call setup_cygheap prior to memory_init.
+	* dlfcn.cc (dlopen): Change comment to point to the right function.
+	* shared.cc (memory_init): Drop parameter.  Drop cygheap setup.
+	* shared_info.h (memory_init): Change declaration accordingly.
+
+2014-10-17  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygtls.h (__try): Define __l_endtry as block-local label in 32 bit
+	case as well.
+
+2014-10-17  Corinna Vinschen  <corinna@vinschen.de>
+
+	* Makefile.in (DLL_OFILES): Add quotactl.o.
+	* common.din (quotactl): Export.
+	* ntdll.h: Define FILE_FS_CONTROL_INFORMATION::FileSystemControlFlags
+	flag values.
+	(struct _FILE_FS_CONTROL_INFORMATION): Define.
+	(struct _FILE_GET_QUOTA_INFORMATION): Define.
+	(typedef struct _FILE_QUOTA_INFORMATION): Define.
+	(NtQueryObject): Use PVOID rather than VOID*.
+	(NtQueryVolumeInformationFile): Ditto.
+	(NtQueryQuotaInformationFile): Declare.
+	(NtSetQuotaInformationFile): Declare.
+	(NtSetVolumeInformationFile): Declare.
+	* quotactl.cc: New file implementing quotactl().
+	* include/sys/mount.h (BLOCK_SIZE): Define.
+	(BLOCK_SIZE_BITS): Define.
+	* include/sys/quota.h: New header.
+	* include/cygwin/version.h (CYGWIN_VERSION_API_MINOR): Bump.
+
 2014-10-16  Corinna Vinschen  <corinna@vinschen.de>
 
 	* Makefile.in (DLL_OFILES): Rearrange with one file per line.
@@ -18,7 +61,7 @@
 	installation dir as DLL search path, instead of ".".
 	* cygheap.h (class cwdstuff): Add parameter names in function
 	declarations for readability.
-	(cwdstuff::get): Ad inline implementation fetching the CWD as wide char
+	(cwdstuff::get): Add inline implementation fetching the CWD as wide char
 	string.
 	* dlfcn.cc (dlopen): Add searching for dependent DLLs in DLL
 	installation dir or CWD, if all else failed.
