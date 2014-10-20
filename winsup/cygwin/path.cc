@@ -3428,7 +3428,9 @@ arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, 
   debug_printf("Input value: (%s)", arg);
   for (size_t excl = 0; excl < exclusions_count; ++excl)
     {
-      if ( strstr (arg, exclusions) == arg )
+      /* Since we've got regex linked we should maybe switch to that, but
+         running regexes for every argument could be too slow. */
+      if ( strcmp (exclusions, "*") == 0 || strstr (arg, exclusions) == arg )
         return (char*)arg;
       exclusions += strlen (exclusions) + 1;
     }

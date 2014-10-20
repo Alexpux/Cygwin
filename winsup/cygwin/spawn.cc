@@ -290,7 +290,8 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 
   /* Environment variable MSYS2_ARG_CONV_EXCL contains a list
      of ';' separated argument prefixes to pass un-modified..
-     It isn't applied to env. variables; only spawn arguments */
+     It isn't applied to env. variables; only spawn arguments.
+     A value of * means don't convert any arguments. */
   char* msys2_arg_conv_excl_env = getenv("MSYS2_ARG_CONV_EXCL");
   char* msys2_arg_conv_excl = NULL;
   size_t msys2_arg_conv_excl_count = 0;
