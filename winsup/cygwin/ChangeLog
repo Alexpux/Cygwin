@@ -1,3 +1,13 @@
+2014-10-20  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_serial.cc: Revert debug code accidentally checked in on
+	2014-08-18.
+
+2014-10-20  Corinna Vinschen  <corinna@vinschen.de>
+
+	* path.cc (symlink_info::check): Set error from status code if opening
+	the parent directory failed, but keep special case for root dirs.
+
 2014-10-17  Corinna Vinschen  <corinna@vinschen.de>
 
 	* cygheap.cc (cygheap_fixup_in_child): Call set_dll_dir.
@@ -179,7 +189,7 @@
 
 2014-10-08  Christian Franke  <franke@computer.org>
 
-	* syscall.cc (ffs): Fix crash of ffs (0x80000000) on 64 bit.
+	* syscalls.cc (ffs): Fix crash of ffs (0x80000000) on 64 bit.
 
 2014-10-08  Corinna Vinschen  <corinna@vinschen.de>
 
