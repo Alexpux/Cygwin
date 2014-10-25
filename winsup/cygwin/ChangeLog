@@ -1,3 +1,32 @@
+2014-10-24  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_proc.cc (format_proc_cygdrive): Fix symlink path if cygdrive
+	is "/".
+
+2014-10-24  Corinna Vinschen  <corinna@vinschen.de>
+
+	* gendef (sigdelayed): 64 bit only: Fix seh_pushreg statements in
+	prologue.
+
+2014-10-24  Kai Tietz  <corinna@vinschen.de>
+	    Corinna Vinschen  <corinna@vinschen.de>
+
+	* gendef (sigdelayed): 64 bit only: Push CPU flags before aligning
+	stack to avoid changing flag values.
+
+2014-10-22  Yaakov Selkowitz  <yselkowi@redhat.com>
+
+	* common.din (stime): Export.
+	* times.cc (stime): New function.
+	* include/cygwin/time.h (stime): Declare.
+	* include/cygwin/version.h (CYGWIN_VERSION_API_MINOR): Bump.
+
+2014-10-21  Corinna Vinschen  <corinna@vinschen.de>
+
+	* sec_auth.cc (get_user_groups): Remove experimental exception handler
+	added 2014-09-05.
+	(get_user_local_groups): Ditto.
+
 2014-10-20  Corinna Vinschen  <corinna@vinschen.de>
 
 	* fhandler_serial.cc: Revert debug code accidentally checked in on
