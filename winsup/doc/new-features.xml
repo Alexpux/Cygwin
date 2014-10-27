@@ -26,6 +26,11 @@ the entries read from SAM/AD.
 </para></listitem>
 
 <listitem><para>
+Add -b/--remove-all option to setfacl to reduce the ACL to only the entries
+representing POSIX permission bits.
+</para></listitem>
+
+<listitem><para>
 /proc/cygdrive is a new symlink pointing to the current cygdrive prefix.
 This can be utilized in scripts to access paths via cygdrive prefix,
 even if the cygdrive prefix has been changed by the user.
@@ -67,8 +72,9 @@ getfacl(1)/setfacl(1) accordingly.
 </para></listitem>
 
 <listitem><para>
-Drop the current working directory from the default DLL search path in
-favor of Cygwin's /bin dir.
+When exec'ing applications, check if $PATH exists and is non-empty.  If
+not, add PATH variable with Cygwin installation directory as content to
+Windows environment to allow loading of Cygwin system DLLs.
 </para></listitem>
 
 <listitem><para>
