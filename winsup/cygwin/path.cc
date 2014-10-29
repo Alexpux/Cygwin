@@ -518,10 +518,10 @@ path_conv::get_wide_win32_path (PWCHAR wc)
   return wc;
 }
 
-void
+static void
 warn_msdos (const char *src)
 {
-  if (user_shared->warned_msdos || !dos_file_warning || !cygwin_finished_initializing)
+  if (user_shared->warned_msdos || !cygwin_finished_initializing)
     return;
   tmp_pathbuf tp;
   char *posix_path = tp.c_get ();
@@ -1209,7 +1209,7 @@ path_conv::check (const char *src, unsigned opt,
 	  if (tail < path_end && tail > path_copy + 1)
 	    *tail = '/';
 	  set_normalized_path (path_copy);
-	  if (is_msdos && !(opt & PC_NOWARN))
+	  if (is_msdos && dos_file_warning && !(opt & PC_NOWARN))
 	    warn_msdos (src);
 	}
 
