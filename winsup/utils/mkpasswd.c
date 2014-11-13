@@ -170,8 +170,8 @@ enum_unix_users (domlist_t *mach, const char *sep, DWORD id_offset,
 				       (dlen = MAX_DOMAIN_NAME_LEN + 1, &dlen),
 				       &acc_type))
 	    printf ("%s%s%ls:unused:%" PRIu32 ":99999:,%s::\n",
-		    mach->with_dom ? "Unix_User" : "",
-		    mach->with_dom ? sep : "",
+		    "Unix_User",
+		    sep,
 		    user + 10,
 		    (unsigned int) (id_offset +
 		    *GetSidSubAuthority (psid,
@@ -207,8 +207,8 @@ enum_unix_users (domlist_t *mach, const char *sep, DWORD id_offset,
 				     &acc_type)
 		  && !iswdigit (user[0]))
 		printf ("%s%s%ls:unused:%" PRIu32 ":99999:,%s::\n",
-			mach->with_dom ? "Unix_User" : "",
-			mach->with_dom ? sep : "",
+			"Unix_User",
+			sep,
 			user,
 			(unsigned int) (id_offset + start),
 			put_sid (psid));
@@ -370,27 +370,29 @@ usage (FILE * stream)
 "\n"
 "Options:\n"
 "\n"
-"   -l,--local [machine]    print local user accounts\n"
-"                           (from local machine if no machine specified)\n"
-"   -L,--Local machine      ditto, but generate username with machine prefix\n"
-"   -d,--domain [domain]    print domain accounts\n"
-"                           (from current domain if no domain specified)\n"
-"   -c,--current            print current user\n"
-"   -S,--separator char     for -l use character char as domain\\user\n"
-"                           separator in username instead of the default '%s'\n"
-"   -o,--id-offset offset   change the default offset (0x10000) added to uids\n"
-"                           in domain or foreign server accounts.\n"
-"   -u,--username username  only return information for the specified user\n"
-"                           one of -l, -d must be specified, too\n"
-"   -b,--no-builtin         don't print BUILTIN users\n"
-"   -p,--path-to-home path  use specified path instead of user account home dir\n"
-"                           or /home prefix\n"
-"   -U,--unix userlist      print UNIX users when using -l on a UNIX Samba\n"
-"                           server.  userlist is a comma-separated list of\n"
+"   -l,--local [machine]    Print local user accounts of \"machine\",\n"
+"                           from local machine if no machine specified.\n"
+"                           Automatically adding machine prefix for local\n"
+"                           machine depends on settings in /etc/nsswitch.conf.\n"
+"   -L,--Local machine      Ditto, but generate username with machine prefix.\n"
+"   -d,--domain [domain]    Print domain accounts,\n"
+"                           from current domain if no domain specified.\n"
+"   -c,--current            Print current user.\n"
+"   -S,--separator char     For -L use character char as domain\\user\n"
+"                           separator in username instead of the default '%s'.\n"
+"   -o,--id-offset offset   Change the default offset (0x10000) added to uids\n"
+"                           of foreign local machine accounts.  Use with -l/-L.\n"
+"   -u,--username username  Only return information for the specified user.\n"
+"                           One of -l, -d must be specified, too\n"
+"   -b,--no-builtin         Don't print BUILTIN users.\n"
+"   -p,--path-to-home path  Use specified path instead of user account home dir\n"
+"                           or /home prefix.\n"
+"   -U,--unix userlist      Print UNIX users when using -l on a UNIX Samba\n"
+"                           server.  Userlist is a comma-separated list of\n"
 "                           usernames or uid ranges (root,-25,50-100).\n"
-"                           (enumerating large ranges can take a long time!)\n"
-"   -h,--help               displays this message\n"
-"   -V,--version            version information and exit\n"
+"                           Enumerating large ranges can take a long time!\n"
+"   -h,--help               Displays this message.\n"
+"   -V,--version            Version information and exit.\n"
 "\n"
 "Default is to print local accounts on stand-alone machines, domain accounts\n"
 "on domain controllers and domain member machines.\n"
@@ -441,6 +443,7 @@ main (int argc, char **argv)
 {
   int print_domlist = 0;
   domlist_t domlist[32];
+  char cname[1024];
   char *opt, *p, *ep;
   int print_current = 0;
   int print_builtin = 1;
@@ -513,21 +516,48 @@ main (int argc, char **argv)
 		       program_invocation_short_name,
 		       domlist[i].domain ? "domain" : "machine",
 		       domlist[i].str);
-	      goto skip;
+	      break;
 	    }
 	domlist[print_domlist].str = opt;
 	if (opt && (p = strchr (opt, ',')))
 	  {
 	    if (p == opt)
 	      {
-		fprintf (stderr, "%s: Malformed domain,offset string '%s'.  "
+		fprintf (stderr, "%s: Malformed domain string '%s'.  "
 			 "Skipping...\n", program_invocation_short_name, opt);
 		break;
 	      }
 	    *p = '\0';
 	  }
-	domlist[print_domlist++].with_dom = (c == 'L');
-skip:
+	if (c == 'l' || c == 'L')
+	  {
+	    DWORD csize = sizeof cname;
+
+	    domlist[print_domlist].with_dom = (c == 'L');
+	    if (!opt)
+	      {
+		/* If the system uses /etc/passwd exclusively as account DB,
+		   create local group names the old fashioned way. */
+		if (cygwin_internal (CW_GETNSS_PWD_SRC) == NSS_SRC_FILES)
+		  {
+		    GetComputerNameExA (ComputerNameNetBIOS, cname, &csize);
+		    domlist[print_domlist].str = cname;
+		  }
+	      }
+	    else if (cygwin_internal (CW_GETNSS_PWD_SRC) != NSS_SRC_FILES)
+	      {
+		/* If the system uses Windows account DBs, check if machine
+		   name is local machine.  If so, remove the domain name to
+		   enforce system naming convention. */
+		if (GetComputerNameExA (strchr (opt, '.')
+					? ComputerNameDnsFullyQualified
+					: ComputerNameNetBIOS,
+					cname, &csize)
+		    && strcasecmp (opt, cname) == 0)
+		  domlist[print_domlist].str = NULL;
+	      }
+	  }
+	++print_domlist;
 	break;
       case 'S':
 	sep_char = optarg;

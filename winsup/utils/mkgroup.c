@@ -168,8 +168,8 @@ enum_unix_groups (domlist_t *mach, const char *sep, DWORD id_offset,
 				       (dlen = MAX_DOMAIN_NAME_LEN + 1, &dlen),
 				       &acc_type))
 	    printf ("%s%s%ls:%s:%" PRIu32 ":\n",
-		    mach->with_dom ? "Unix_Group" : "",
-		    mach->with_dom ? sep : "",
+		    "Unix_Group",
+		    sep,
 		    p,
 		    put_sid (psid),
 		    (unsigned int) (id_offset +
@@ -205,8 +205,8 @@ enum_unix_groups (domlist_t *mach, const char *sep, DWORD id_offset,
 				     &acc_type)
 		  && !iswdigit (grp[0]))
 		printf ("%s%s%ls:%s:%" PRIu32 ":\n",
-			mach->with_dom ? "Unix_Group" : "",
-			mach->with_dom ? sep : "",
+			"Unix_Group",
+			sep,
 			grp,
 			put_sid (psid),
 			(unsigned int) (id_offset + start));
@@ -481,25 +481,27 @@ usage (FILE * stream)
 "\n"
 "Options:\n"
 "\n"
-"   -l,--local [machine]    print local groups\n"
-"                           (from local machine if no machine specified)\n"
-"   -L,--Local machine      ditto, but generate groupname with machine prefix\n"
-"   -d,--domain [domain]    print domain groups\n"
-"                           (from current domain if no domain specified)\n"
-"   -c,--current            print current group\n"
-"   -S,--separator char     for -l use character char as domain\\group\n"
-"                           separator in groupname instead of default '%s'\n"
-"   -o,--id-offset offset   change the default offset (0x10000) added to\n"
-"                           gids of foreign machine accounts.\n"
-"   -g,--group groupname    only return information for the specified group\n"
-"                           one of -l, -d must be specified, too\n"
-"   -b,--no-builtin         don't print BUILTIN groups\n"
-"   -U,--unix grouplist     print UNIX groups when using -l on a UNIX Samba\n"
-"                           server.  grouplist is a comma-separated list of\n"
+"   -l,--local [machine]    Print local group accounts of \"machine\",\n"
+"                           from local machine if no machine specified.\n"
+"                           Automatically adding machine prefix for local\n"
+"                           machine depends on settings in /etc/nsswitch.conf.\n"
+"   -L,--Local machine      Ditto, but generate groupname with machine prefix.\n"
+"   -d,--domain [domain]    Print domain groups,\n"
+"                           from current domain if no domain specified.\n"
+"   -c,--current            Print current group.\n"
+"   -S,--separator char     For -L use character char as domain\\group\n"
+"                           separator in groupname instead of default '%s'.\n"
+"   -o,--id-offset offset   Change the default offset (0x10000) added to gids\n"
+"                           of foreign local machine accounts.  Use with -l/-L.\n"
+"   -g,--group groupname    Only return information for the specified group.\n"
+"                           One of -l, -d must be specified, too.\n"
+"   -b,--no-builtin         Don't print BUILTIN groups.\n"
+"   -U,--unix grouplist     Print UNIX groups when using -l on a UNIX Samba\n"
+"                           server.  Grouplist is a comma-separated list of\n"
 "                           groupnames or gid ranges (root,-25,50-100).\n"
-"                           (enumerating large ranges can take a long time!)\n"
-"   -h,--help               print this message\n"
-"   -v,--version            print version information and exit\n"
+"                           Enumerating large ranges can take a long time!\n"
+"   -h,--help               Print this message.\n"
+"   -v,--version            Print version information and exit.\n"
 "\n"
 "Default is to print local groups on stand-alone machines, plus domain\n"
 "groups on domain controllers and domain member machines.\n"
@@ -548,6 +550,7 @@ main (int argc, char **argv)
 {
   int print_domlist = 0;
   domlist_t domlist[32];
+  char cname[1024];
   char *opt, *p;
   int print_current = 0;
   int print_builtin = 1;
@@ -616,21 +619,48 @@ main (int argc, char **argv)
 		       program_invocation_short_name,
 		       domlist[i].domain ? "domain" : "machine",
 		       domlist[i].str);
-	      goto skip;
+	      break;
 	    }
 	domlist[print_domlist].str = opt;
 	if (opt && (p = strchr (opt, ',')))
 	  {
 	    if (p == opt)
 	      {
-		fprintf (stderr, "%s: Malformed machine,offset string '%s'.  "
+		fprintf (stderr, "%s: Malformed machine string '%s'.  "
 			 "Skipping...\n", program_invocation_short_name, opt);
 		break;
 	      }
 	    *p = '\0';
 	  }
-	domlist[print_domlist++].with_dom = (c == 'L');
-skip:
+	if (c == 'l' || c == 'L')
+	  {
+	    DWORD csize = sizeof cname;
+
+	    domlist[print_domlist].with_dom = (c == 'L');
+	    if (!opt)
+	      {
+		/* If the system uses /etc/group exclusively as account DB,
+		   create local group names the old fashioned way. */
+		if (cygwin_internal (CW_GETNSS_GRP_SRC) == NSS_SRC_FILES)
+		  {
+		    GetComputerNameExA (ComputerNameNetBIOS, cname, &csize);
+		    domlist[print_domlist].str = cname;
+		  }
+	      }
+	    else if (cygwin_internal (CW_GETNSS_GRP_SRC) != NSS_SRC_FILES)
+	      {
+		/* If the system uses Windows account DBs, check if machine
+		   name is local machine.  If so, remove the domain name to
+		   enforce system naming convention. */
+		if (GetComputerNameExA (strchr (opt, '.')
+					? ComputerNameDnsFullyQualified
+					: ComputerNameNetBIOS,
+					cname, &csize)
+		    && strcasecmp (opt, cname) == 0)
+		  domlist[print_domlist].str = NULL;
+	      }
+	  }
+	++print_domlist;
 	break;
       case 'S':
 	sep_char = optarg;
