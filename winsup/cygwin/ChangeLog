@@ -1,3 +1,21 @@
+2014-11-20  Corinna Vinschen  <corinna@vinschen.de>
+
+	* init.cc (dll_entry): Call _my_tls.remove with INFINITE wait period
+	to avoid SEGVs and subsequent hangs in _cygtls::find_tls.
+	* miscfuncs.cc (thread_wrapper): Ditto.
+
+2014-11-20  Iuliu Rus  <rus.iuliu@gmail.com>
+
+	* net.cc (fdsock): Change default values for socket buffers on 32 bit
+	to fix performance on 10Gb networks.
+
+2014-11-17  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Allow fetching of
+	NT SERVICE accounts by name.  Always prepend domain to NT SERVICE
+	accounts.  Add U-domain\username string to pw_gecos for predefined
+	builtin accounts as well.
+
 2014-11-14  Corinna Vinschen  <corinna@vinschen.de>
 
 	* fhandler_termios.cc (fhandler_termios::line_edit): Fix fatal typo in
