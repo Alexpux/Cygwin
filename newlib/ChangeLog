@@ -1,3 +1,13 @@
+2014-11-23  Joel Sherrill <joel.sherrill@oarcorp.com>
+
+	* libc/include/sys/resource.h: Add prototype for getrusage()
+	to <sys/resource.h>
+
+2014-11-21  Nick Clifton  <nickc@redhat.com>
+
+	PR target/63901
+	* configure.host (msp430): Add -mhwmult=none to newlib_cflags.
+
 2014-11-20  Peter A. Bigot  <pab@pabigot.com>
 
 	* libc/stdio/nano-vfprintf_i.c (_printf_i): Use LONGINT when void* is
