@@ -415,6 +415,7 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
             result = ROOTED_PATH;
         } else if ((n2 == '\'' || n2 == '"') && n3 == '/') {
             it += 3;
+            starts_with_minus = false;
             result = ROOTED_PATH;
         }
 
@@ -425,13 +426,16 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
 
         if ((n2 == '\'' || n2 == '"') && isalpha(n3) && n4 == ':' && n5 == '/') {
             *src = it + 3;
+            starts_with_minus = false;
             return SIMPLE_WINDOWS_PATH;
         }
     }
 
     for (const char* it2 = it; *it2 != '\0' && it2 != end; ++it2) {
         char ch = *it2;
-        if (ch == '=') {
+        if (ch == '\'' || ch == '"')
+            starts_with_minus = false;
+        if ((ch == '=') || (ch == ':' && starts_with_minus) || ((ch == '\'' || ch == '"') && result == NONE)) {
             *src = it2 + 1;
             return find_path_start_and_type(src, true, end);
         }
