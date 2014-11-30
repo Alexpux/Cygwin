@@ -466,19 +466,20 @@ mount_info::create_root_entry (const PWCHAR root)
 /* init: Initialize the mount table.  */
 
 void
-mount_info::init ()
+mount_info::init (bool user_init)
 {
   PWCHAR pathend;
   WCHAR path[PATH_MAX];
 
   pathend = wcpcpy (path, cygheap->installation_root);
-  create_root_entry (path);
-  pathend = wcpcpy (pathend, L"\\etc\\fstab");
+  if (!user_init)
+    create_root_entry (path);
 
-  from_fstab (false, path, pathend);
-  from_fstab (true, path, pathend);
-  
-  if (!got_usr_bin)
+  pathend = wcpcpy (pathend, L"\\etc\\fstab");
+  from_fstab (user_init, path, pathend);
+
+
+  if (!user_init && (!got_usr_bin || !got_usr_lib))
     {
       char native[PATH_MAX];
       if (root_idx < 0)
@@ -652,13 +653,13 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
       else if (cygdrive_win32_path (src_path, dst, unit))
 	{
       debug_printf ("cygdrive_win32_path (%s)", src_path);
-      set_flags (flags, (unsigned) cygdrive_flags);
+	  set_flags (flags, (unsigned) cygdrive_flags);
 	  goto out;
 	}
       else if (mount_table->cygdrive_len > 1)
       {
           debug_printf ("mount_table->cygdrive_len > 1 (%s)", src_path);
-    return ENOENT;
+	return ENOENT;
       }
     }
 
