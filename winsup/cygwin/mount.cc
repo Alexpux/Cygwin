@@ -479,7 +479,7 @@ mount_info::init (bool user_init)
   from_fstab (user_init, path, pathend);
 
 
-  if (!user_init && (!got_usr_bin || !got_usr_lib))
+  if (!user_init && !got_usr_bin)
     {
       char native[PATH_MAX];
       if (root_idx < 0)
