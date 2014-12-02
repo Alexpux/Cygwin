@@ -1,3 +1,96 @@
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* flock.cc (create_lock_in_parent): Make lf_obj handle inheritable.
+	Explain why.
+	(lockf_t::create_lock_obj): Use FALSE, rather than 0 for BOOL argument.
+	(lockf_t::del_lock_obj): Check if NtSetEvent succeeded and print system
+	message if not.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (fetch_windows_home): New function fetching Windows-compliant
+	home directory.  Include longish comment to explain what we're doing.
+	(cygheap_pwdgrp::get_home): Take additional sid parameter.  In
+	NSS_SCHEME_WINDOWS case, call fetch_windows_home to create home
+	directory.
+	(pwdgrp::fetch_account_from_windows): Call cygheap_pwdgrp::get_home
+	with additional sid argument.
+	* cygheap.h (cygheap_pwdgrp::get_home): Align declaration to above
+	change.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (cygheap_user::ontherange): Fix order of fallbacks creating
+	HOMEDRIVE/HOMEPATH values to be Windows-compliant.  Add comments.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (CreateProfile): Import.
+	(LoadUserProfileW): Import.
+	* registry.cc (get_registry_hive_path): Move to sec_auth.cc.
+	(load_registry_hive): Remove.
+	* registry.h (get_registry_hive_path): Drop declaration.
+	(load_registry_hive): Ditto.
+	* sec_auth.cc (get_user_profile_directory): Moved from registry.cc and
+	renamed.  Take third parameter with buffer length.
+	(load_user_profile): New function taking over for load_registry_hive.
+	Use official functions to load profile.  If profile is missing, create
+	it on Vista and later.
+	* security.h (get_user_profile_directory): Declare.
+	(load_user_profile): Declare.
+	* syscalls.cc (seteuid32): Replace call to load_registry_hive with call
+	to load_user_profile.
+	* uinfo.cc (cygheap_user::env_userprofile): Replace call to
+	get_registry_hive_path with call to get_user_profile_directory.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (fetch_from_description): Make static.
+	(fetch_from_path): Ditto.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (CreateEnvironmentBlock): Import.
+	(DestroyEnvironmentBlock): Import.
+	* environ.cc (env_compare): New static bsearch comparison function.
+	(build_env): Add parameter taking a user token.  If token is non-NULL,
+	fetch user's default Windows environment and merge it into the resulting
+	environment.  Explain what we do in preceeding comment.
+	* environ,h (build_env): Align prototype to above change.
+	* external.cc (create_winenv): Call build_env with NULL token.
+	* spawn.cc (child_info_spawn::worker): When spawning new process under
+	another user account, call build_env with new token to allow merging
+	user's default Windows environment.
+	* winlean.h (_USERENV_): Define to override dllimport.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* spawn.cc (child_info_spawn::worker): Fix formatting.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* sec_auth.cc (str2lsa): Remove.
+	(str2buf2lsa): Remove.
+	(lsaauth): Call RtlInitAnsiString instead of str2lsa and str2buf2lsa.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygheap.cc (init_cygheap::init_installation_root): Fix typo in
+	comment.
+
+2014-12-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (IdnToAscii): Use simpler, equivalent LoadDLLfuncEx.
+	(IdnToUnicode): Ditto.
+
+2014-12-01  Corinna Vinschen  <corinna@vinschen.de>
+
+	* wincap.cc (wincap_minimal): Remove.
+	(wincaps): Drop has_physical_mem_access.
+	(wincap_10): New global wincaps to support Windows 10.
+	(wincapc::init): Use wincap_10 for version >= 6.4 and as default.
+	* wincap.h (wincaps::has_physical_mem_access): remove.
+
 2014-11-28  Corinna Vinschen  <corinna@vinschen.de>
 
 	* cygheap.cc (init_cygheap::init_tls_list): Accommodate threadlist

@@ -566,8 +566,15 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       if (!real_path.iscygexec())
 	::cygheap->fdtab.set_file_pointers_for_exec ();
 
+      /* If we switch the user, merge the user's Windows environment. */
+      bool switch_user = ::cygheap->user.issetuid ()
+			 && (::cygheap->user.saved_uid
+			     != ::cygheap->user.real_uid);
       moreinfo->envp = build_env (envp, envblock, moreinfo->envc,
-				  real_path.iscygexec (), real_path.iscygexec ());
+				  real_path.iscygexec (),
+				  switch_user ? ::cygheap->user.primary_token ()
+					      : NULL,
+				  real_path.iscygexec ());
       if (!moreinfo->envp || !envblock)
 	{
 	  set_errno (E2BIG);
@@ -690,8 +697,8 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 		 make sense in terms of security to create a new window
 		 station for every logon of the same user.  It just fills up
 		 the system with window stations for no good reason. */
-	      hwst = CreateWindowStationW (::cygheap->user.get_windows_id (sid), 0,
-					   GENERIC_READ | GENERIC_WRITE, sa);
+	      hwst = CreateWindowStationW (::cygheap->user.get_windows_id (sid),
+					   0, GENERIC_READ | GENERIC_WRITE, sa);
 	      if (!hwst)
 		system_printf ("CreateWindowStation failed, %E");
 	      else if (!SetProcessWindowStation (hwst))

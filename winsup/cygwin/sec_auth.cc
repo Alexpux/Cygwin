@@ -20,10 +20,13 @@ details. */
 #include "fhandler.h"
 #include "dtable.h"
 #include "cygheap.h"
+#include "registry.h"
 #include "ntdll.h"
 #include "tls_pbuf.h"
 #include <lm.h>
 #include <iptypes.h>
+#include <wininet.h>
+#include <userenv.h>
 #include "cyglsa.h"
 #include "cygserver_setpwd.h"
 #include <cygwin/version.h>
@@ -172,21 +175,111 @@ cygwin_logon_user (const struct passwd *pw, const char *password)
   return hToken;
 }
 
-static void
-str2lsa (LSA_STRING &tgt, const char *srcstr)
+/* The buffer path points to should be at least MAX_PATH bytes. */
+PWCHAR
+get_user_profile_directory (PCWSTR sidstr, PWCHAR path, SIZE_T path_len)
 {
-  tgt.Length = strlen (srcstr);
-  tgt.MaximumLength = tgt.Length + 1;
-  tgt.Buffer = (PCHAR) srcstr;
+  if (!sidstr || !path)
+    return NULL;
+
+  UNICODE_STRING buf;
+  tmp_pathbuf tp;
+  tp.u_get (&buf);
+  NTSTATUS status;
+
+  RTL_QUERY_REGISTRY_TABLE tab[2] = {
+    { NULL, RTL_QUERY_REGISTRY_NOEXPAND | RTL_QUERY_REGISTRY_DIRECT
+           | RTL_QUERY_REGISTRY_REQUIRED,
+      L"ProfileImagePath", &buf, REG_NONE, NULL, 0 },
+    { NULL, 0, NULL, NULL, 0, NULL, 0 }
+  };
+
+  WCHAR key[wcslen (sidstr) + 16];
+  wcpcpy (wcpcpy (key, L"ProfileList\\"), sidstr);
+  status = RtlQueryRegistryValues (RTL_REGISTRY_WINDOWS_NT, key, tab,
+                                  NULL, NULL);
+  if (!NT_SUCCESS (status) || buf.Length == 0)
+    {
+      debug_printf ("ProfileImagePath for %W not found, status %y", sidstr,
+		    status);
+      return NULL;
+    }
+  ExpandEnvironmentStringsW (buf.Buffer, path, path_len);
+  debug_printf ("ProfileImagePath for %W: %W", sidstr, path);
+  return path;
 }
 
-static void
-str2buf2lsa (LSA_STRING &tgt, char *buf, const char *srcstr)
+/* The CreateProfile prototype is for some reason missing in our w32api headers,
+   even though it's defined upstream since Dec-2013. */
+extern "C" {
+  HRESULT WINAPI CreateProfile (LPCWSTR pszUserSid, LPCWSTR pszUserName,
+				LPWSTR pszProfilePath, DWORD cchProfilePath);
+}
+
+/* Load user profile if it's not already loaded.  If the user profile doesn't
+   exist on the machine, and if we're running Vista or later, try to create it. 
+
+   Return a handle to the loaded user registry hive only if it got actually
+   loaded here, not if it already existed.  There's no reliable way to know
+   when to unload the hive yet, so we're leaking this registry handle for now.
+   TODO: Try to find a way to reliably unload the user profile again. */
+HANDLE
+load_user_profile (HANDLE token, struct passwd *pw, cygpsid &usersid)
 {
-  tgt.Length = strlen (srcstr);
-  tgt.MaximumLength = tgt.Length + 1;
-  tgt.Buffer = (PCHAR) buf;
-  memcpy (buf, srcstr, tgt.MaximumLength);
+  WCHAR domain[DNLEN + 1];
+  WCHAR username[UNLEN + 1];
+  WCHAR sid[128];
+  HKEY hkey;
+  WCHAR userpath[MAX_PATH];
+  PROFILEINFOW pi;
+  WCHAR server[INTERNET_MAX_HOST_NAME_LENGTH + 3];
+  NET_API_STATUS nas = NERR_UserNotFound;
+  PUSER_INFO_3 ui;
+
+  extract_nt_dom_user (pw, domain, username);
+  usersid.string (sid);
+  debug_printf ("user: <%W> <%W>", username, sid);
+  /* Check if user hive is already loaded. */
+  if (!RegOpenKeyExW (HKEY_USERS, sid, 0, KEY_READ, &hkey))
+    {
+      debug_printf ("User registry hive for %W already exists", username);
+      RegCloseKey (hkey);
+      return NULL;
+    }
+  /* Check if the local profile dir has already been created. */
+  if (!get_user_profile_directory (sid, userpath, MAX_PATH))
+   {
+     /* No, try to create it.  This function exists only on Vista and later. */
+     HRESULT res = CreateProfile (sid, username, userpath, MAX_PATH);
+     if (res != S_OK)
+       {
+	 /* If res is 1 (S_FALSE), autoloading failed (XP or 2K3). */
+	 if (res != S_FALSE)
+	   debug_printf ("CreateProfile, HRESULT %x", res);
+	 return NULL;
+       }
+    }
+  /* Fill PROFILEINFO */
+  memset (&pi, 0, sizeof pi);
+  pi.dwSize = sizeof pi;
+  pi.dwFlags = PI_NOUI;
+  pi.lpUserName = username;
+  /* Check if user has a roaming profile and fill in lpProfilePath, if so. */
+  if (get_logon_server (domain, server, DS_IS_FLAT_NAME))
+    {
+      nas = NetUserGetInfo (server, username, 3, (PBYTE *) &ui);
+      if (NetUserGetInfo (server, username, 3, (PBYTE *) &ui) != NERR_Success)
+	debug_printf ("NetUserGetInfo, %u", nas);
+      else if (ui->usri3_profile && *ui->usri3_profile)
+	pi.lpProfilePath = ui->usri3_profile;
+    }
+
+  if (!LoadUserProfileW (token, &pi))
+    debug_printf ("LoadUserProfileW, %E");
+  /* Free buffer created by NetUserGetInfo */
+  if (nas == NERR_Success)
+    NetApiBufferFree (ui);
+  return pi.hProfile;
 }
 
 HANDLE
@@ -971,7 +1064,7 @@ lsaauth (cygsid &usersid, user_groups &new_groups, struct passwd *pw)
   push_self_privilege (SE_TCB_PRIVILEGE, true);
 
   /* Register as logon process. */
-  str2lsa (name, "MSYS");
+  RtlInitAnsiString (&name, "MSYS");
   SetLastError (0);
   status = LsaRegisterLogonProcess (&name, &lsa_hdl, &sec_mode);
   if (status != STATUS_SUCCESS)
@@ -986,7 +1079,7 @@ lsaauth (cygsid &usersid, user_groups &new_groups, struct passwd *pw)
       goto out;
     }
   /* Get handle to our own LSA package. */
-  str2lsa (name, CYG_LSA_PKGNAME);
+  RtlInitAnsiString (&name, CYG_LSA_PKGNAME);
   status = LsaLookupAuthenticationPackage (lsa_hdl, &name, &package_id);
   if (status != STATUS_SUCCESS)
     {
@@ -1000,7 +1093,8 @@ lsaauth (cygsid &usersid, user_groups &new_groups, struct passwd *pw)
     goto out;
 
   /* Create origin. */
-  str2buf2lsa (origin.str, origin.buf, "MSYS");
+  stpcpy (origin.buf, "MSYS");
+  RtlInitAnsiString (&origin.str, origin.buf);
   /* Create token source. */
   memcpy (ts.SourceName, "MSYS.2", 6);
   ts.SourceIdentifier.HighPart = 0;

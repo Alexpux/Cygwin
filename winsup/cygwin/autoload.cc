@@ -577,8 +577,8 @@ LoadDLLfuncEx (CancelSynchronousIo, 4, kernel32, 1)
 LoadDLLfunc (CreateSymbolicLinkW, 12, kernel32)
 LoadDLLfuncEx (GetNamedPipeClientProcessId, 8, kernel32, 1)
 LoadDLLfunc (GetSystemTimePreciseAsFileTime, 4, kernel32)
-LoadDLLfuncEx2 (IdnToAscii, 20, kernel32, 1, 0)
-LoadDLLfuncEx2 (IdnToUnicode, 20, kernel32, 1, 0)
+LoadDLLfuncEx (IdnToAscii, 20, kernel32, 1)
+LoadDLLfuncEx (IdnToUnicode, 20, kernel32, 1)
 LoadDLLfunc (LocaleNameToLCID, 8, kernel32)
 
 /* ldap functions are cdecl! */
@@ -674,6 +674,11 @@ LoadDLLfunc (SetClipboardData, 8, user32)
 LoadDLLfunc (SetParent, 8, user32)
 LoadDLLfunc (SetProcessWindowStation, 4, user32)
 LoadDLLfunc (SetThreadDesktop, 4, user32)
+
+LoadDLLfunc (CreateEnvironmentBlock, 12, userenv)
+LoadDLLfuncEx2 (CreateProfile, 16, userenv, 1, 1)
+LoadDLLfunc (DestroyEnvironmentBlock, 4, userenv)
+LoadDLLfunc (LoadUserProfileW, 8, userenv)
 
 LoadDLLfuncEx3 (waveInAddBuffer, 12, winmm, 1, 0, 1)
 LoadDLLfuncEx3 (waveInClose, 4, winmm, 1, 0, 1)

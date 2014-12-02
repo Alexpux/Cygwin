@@ -320,9 +320,6 @@ cuserid (char *src)
 const char *
 cygheap_user::ontherange (homebodies what, struct passwd *pw)
 {
-  PUSER_INFO_3 ui = NULL;
-  WCHAR wuser[UNLEN + 1];
-  NET_API_STATUS ret;
   char homedrive_env_buf[3];
   char *newhomedrive = NULL;
   char *newhomepath = NULL;
@@ -353,42 +350,56 @@ cygheap_user::ontherange (homebodies what, struct passwd *pw)
 	}
     }
 
-  if (what != CH_HOME && homepath == NULL && newhomepath == NULL)
+  if (what != CH_HOME && homepath == NULL)
     {
+      WCHAR wuser[UNLEN + 1];
+      WCHAR wlogsrv[INTERNET_MAX_HOST_NAME_LENGTH + 3];
+      PUSER_INFO_3 ui = NULL;
       char *homepath_env_buf = tp.c_get ();
-      if (!pw)
-	pw = internal_getpwnam (name ());
+      WCHAR profile[MAX_PATH];
+      WCHAR win_id[UNLEN + 1]; /* Large enough for SID */
+
+      homepath_env_buf[0] = homepath_env_buf[1] = '\0';
+      /* Use Cygwin home as HOMEDRIVE/HOMEPATH in the first place.  This
+	 should cover it completely, in theory.  Still, it might be the
+	 wrong choice in the long run, which might demand to set HOMEDRIVE/
+	 HOMEPATH to the correct values per Windows.  Keep the entire rest
+	 of the code mainly for this reason, so switching is easy. */
+      pw = internal_getpwsid (sid ());
       if (pw && pw->pw_dir && *pw->pw_dir)
 	cygwin_conv_path (CCP_POSIX_TO_WIN_A, pw->pw_dir, homepath_env_buf,
 			  NT_MAX_PATH);
-      else
+      /* First fallback: Windows path per Windows user DB. */
+      else if (logsrv ())
 	{
-	  homepath_env_buf[0] = homepath_env_buf[1] = '\0';
-	  if (logsrv ())
+	  sys_mbstowcs (wlogsrv, sizeof (wlogsrv) / sizeof (*wlogsrv),
+			logsrv ());
+	  sys_mbstowcs (wuser, sizeof wuser / sizeof *wuser, winname ());
+	  if (NetUserGetInfo (wlogsrv, wuser, 3, (LPBYTE *) &ui)
+	      == NERR_Success)
 	    {
-	      WCHAR wlogsrv[INTERNET_MAX_HOST_NAME_LENGTH + 3];
-	      sys_mbstowcs (wlogsrv, sizeof (wlogsrv) / sizeof (*wlogsrv),
-			    logsrv ());
-	      sys_mbstowcs (wuser, sizeof wuser / sizeof *wuser, winname ());
-	      if (!(ret = NetUserGetInfo (wlogsrv, wuser, 3, (LPBYTE *) &ui)))
+	      if (ui->usri3_home_dir_drive && *ui->usri3_home_dir_drive)
 		{
 		  sys_wcstombs (homepath_env_buf, NT_MAX_PATH,
-				ui->usri3_home_dir);
-		  if (!homepath_env_buf[0])
-		    {
-		      sys_wcstombs (homepath_env_buf, NT_MAX_PATH,
-				    ui->usri3_home_dir_drive);
-		      if (homepath_env_buf[0])
-			strcat (homepath_env_buf, "\\");
-		      else
-			cygwin_conv_path (CCP_POSIX_TO_WIN_A | CCP_ABSOLUTE,
-					  "/", homepath_env_buf, NT_MAX_PATH);
-		    }
+				ui->usri3_home_dir_drive);
+		  strcat (homepath_env_buf, "\\");
 		}
+	      else if (ui->usri3_home_dir && *ui->usri3_home_dir)
+		sys_wcstombs (homepath_env_buf, NT_MAX_PATH,
+			      ui->usri3_home_dir);
 	    }
 	  if (ui)
 	    NetApiBufferFree (ui);
 	}
+      /* Second fallback: Windows profile dir. */
+      if (!homepath_env_buf[0]
+	  && get_user_profile_directory (get_windows_id (win_id),
+					 profile, MAX_PATH))
+	sys_wcstombs (homepath_env_buf, NT_MAX_PATH, profile);
+      /* Last fallback: Cygwin root dir. */
+      if (!homepath_env_buf[0])
+	cygwin_conv_path (CCP_POSIX_TO_WIN_A | CCP_ABSOLUTE,
+			  "/", homepath_env_buf, NT_MAX_PATH);
 
       if (homepath_env_buf[1] != ':')
 	{
@@ -482,13 +493,13 @@ cygheap_user::env_userprofile (const char *name, size_t namelen)
   if (test_uid (puserprof, name, namelen))
     return puserprof;
 
-  /* User hive path is never longer than MAX_PATH. */
-  WCHAR userprofile_env_buf[MAX_PATH];
+  /* User profile path is never longer than MAX_PATH. */
+  WCHAR profile[MAX_PATH];
   WCHAR win_id[UNLEN + 1]; /* Large enough for SID */
 
   cfree_and_set (puserprof, almost_null);
-  if (get_registry_hive_path (get_windows_id (win_id), userprofile_env_buf))
-    sys_wcstombs_alloc (&puserprof, HEAP_STR, userprofile_env_buf);
+  if (get_user_profile_directory (get_windows_id (win_id), profile, MAX_PATH))
+    sys_wcstombs_alloc (&puserprof, HEAP_STR, profile);
 
   return puserprof;
 }
@@ -803,11 +814,41 @@ cygheap_pwdgrp::nss_init_line (const char *line)
     }
 }
 
+static char *
+fetch_windows_home (PCWSTR home_from_db, cygpsid &sid)
+{
+  char *home = NULL;
+
+  if (home_from_db && *home_from_db)
+    home = (char *) cygwin_create_path (CCP_WIN_W_TO_POSIX, home_from_db);
+  else
+    {
+      /* The db fields are empty, so we have to evaluate the local profile
+	 path, which is the same thing as the default home directory on
+	 Windows.  So what we do here is to try to find out if the user
+	 already has a profile on this machine.
+	 Note that we don't try to generate the profile if it doesn't exist.
+	 Think what would happen if we actually have the permissions to do
+	 so and call getpwent... in a domain environment.  The problem is,
+	 of course, that we can't know the profile path, unless the OS
+	 created it.
+	 The only reason this could occur is if a user account, which never
+	 logged on to the machine before, tries to logon via a Cygwin service
+	 like sshd. */
+      WCHAR profile[MAX_PATH];
+      WCHAR sidstr[128];
+
+      if (get_user_profile_directory (sid.string (sidstr), profile, MAX_PATH))
+      	home = (char *) cygwin_create_path (CCP_WIN_W_TO_POSIX, profile);
+    }
+  return home;
+}
+
 /* Local SAM accounts have only a handful attributes available to home users.
    Therefore, allow to fetch additional passwd/group attributes from the
    "Comment" field in XML short style.  For symmetry, this is also allowed
    from the equivalent "description" AD attribute. */
-char *
+static char *
 fetch_from_description (PCWSTR desc, PCWSTR search, size_t len)
 {
   PWCHAR s, e;
@@ -838,7 +879,7 @@ fetch_from_description (PCWSTR desc, PCWSTR search, size_t len)
   return ret;
 }
 
-char *
+static char *
 fetch_from_path (PCWSTR str, PCWSTR dom, PCWSTR name, bool full_qualified)
 {
   tmp_pathbuf tp;
@@ -886,8 +927,8 @@ fetch_from_path (PCWSTR str, PCWSTR dom, PCWSTR name, bool full_qualified)
 }
 
 char *
-cygheap_pwdgrp::get_home (cyg_ldap *pldap, PCWSTR dom, PCWSTR name,
-			  bool full_qualified)
+cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
+			  PCWSTR name, bool full_qualified)
 {
   PWCHAR val;
   char *home = NULL;
@@ -902,8 +943,7 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, PCWSTR dom, PCWSTR name,
 	  val = pldap->get_string_attribute (L"homeDrive");
 	  if (!val || !*val)
 	    val = pldap->get_string_attribute (L"homeDirectory");
-	  if (val && *val)
-	    home = (char *) cygwin_create_path (CCP_WIN_W_TO_POSIX, val);
+	  home = fetch_windows_home (val, sid);
 	  break;
 	case NSS_SCHEME_CYGWIN:
 	  val = pldap->get_string_attribute (L"cygwinHome");
@@ -940,9 +980,10 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, PCWSTR dom, PCWSTR name,
 }
 
 char *
-cygheap_pwdgrp::get_home (PUSER_INFO_3 ui, PCWSTR dom, PCWSTR name,
-			  bool full_qualified)
+cygheap_pwdgrp::get_home (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
+			  PCWSTR name, bool full_qualified)
 {
+  PWCHAR val = NULL;
   char *home = NULL;
 
   for (uint16_t idx = 0; !home && idx < NSS_SCHEME_MAX; ++idx)
@@ -953,11 +994,10 @@ cygheap_pwdgrp::get_home (PUSER_INFO_3 ui, PCWSTR dom, PCWSTR name,
 	  return NULL;
 	case NSS_SCHEME_WINDOWS:
 	  if (ui->usri3_home_dir_drive && *ui->usri3_home_dir_drive)
-	    home = (char *) cygwin_create_path (CCP_WIN_W_TO_POSIX,
-						ui->usri3_home_dir_drive);
+	    val = ui->usri3_home_dir_drive;
 	  else if (ui->usri3_home_dir && *ui->usri3_home_dir)
-	    home = (char *) cygwin_create_path (CCP_WIN_W_TO_POSIX,
-						ui->usri3_home_dir);
+	    val = ui->usri3_home_dir;
+	  home = fetch_windows_home (val, sid);
 	  break;
 	case NSS_SCHEME_CYGWIN:
 	case NSS_SCHEME_UNIX:
@@ -2024,7 +2064,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		    gid = posix_offset + id_val;
 		  if (!is_group ())
 		    {
-		      home = cygheap->pg.get_home (cldap, dom, name,
+		      home = cygheap->pg.get_home (cldap, sid, dom, name,
 						   fully_qualified_name);
 		      shell = cygheap->pg.get_shell (cldap, dom, name,
 						     fully_qualified_name);
@@ -2080,7 +2120,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 			}
 		    }
 		  /* Fetch user attributes. */
-		  home = cygheap->pg.get_home (ui, dom, name,
+		  home = cygheap->pg.get_home (ui, sid, dom, name,
 					       fully_qualified_name);
 		  shell = cygheap->pg.get_shell (ui, dom, name,
 						 fully_qualified_name);
