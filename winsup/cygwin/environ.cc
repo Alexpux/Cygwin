@@ -802,41 +802,8 @@ ucenv (char *p, const char *eq)
 	}
 }
 
-#ifndef __MSYS__
-/* Set options from the registry. */
-static bool __stdcall
-regopt (PCWSTR name, char *buf)
-{
-  bool parsed_something = false;
-  UNICODE_STRING lname;
-  size_t len = (wcslen(name) + 1) * sizeof (WCHAR);
-  WCHAR lbuf[1024];	/* Use reasonable size to lower stack pressure.
-			   get_string alloca's this additionally and 1024
-			   is more than enough for CYGWIN env var values. */
-
-  RtlInitEmptyUnicodeString(&lname, (PWCHAR) alloca (len), len);
-  wcscpy(lname.Buffer, name);
-  RtlDowncaseUnicodeString(&lname, &lname, FALSE);
-
-  for (int i = 0; i < 2; i++)
-    {
-      reg_key r (i, KEY_READ, _WIDE (CYGWIN_INFO_PROGRAM_OPTIONS_NAME), NULL);
-      if (NT_SUCCESS (r.get_string (lname.Buffer, lbuf, 1024, L"")))
-	{
-	  sys_wcstombs (buf, NT_MAX_PATH, lbuf);
-	  parse_options (buf);
-	  parsed_something = true;
-	  break;
-	}
-    }
-
-  MALLOC_CHECK;
-  return parsed_something;
-}
-#endif
-
-/* Initialize the environ array.  Look for the MSYS environment
-   environment variable and set appropriate options from it.  */
+/* Initialize the environ array.  Look for the MSYS environment variable and
+   set appropriate options from it.  */
 void
 environ_init (char **envp, int envc)
 {
@@ -846,22 +813,12 @@ environ_init (char **envp, int envc)
   char *newp;
   int sawTERM = 0;
   bool envp_passed_in;
-#ifndef __MSYS__
-  bool got_something_from_registry;
-#endif
   static char NO_COPY cygterm[] = "TERM=cygwin";
   tmp_pathbuf tp;
 
   __try
     {
       char *tmpbuf = tp.t_get ();
-#ifndef __MSYS__
-      got_something_from_registry = regopt (L"default", tmpbuf);
-      if (myself->progname[0])
-	got_something_from_registry = regopt (myself->progname, tmpbuf)
-				      || got_something_from_registry;
-#endif
-
       if (!envp)
 	envp_passed_in = 0;
       else
@@ -935,12 +892,6 @@ environ_init (char **envp, int envc)
 	  if (p)
 	    parse_options (p);
 	}
-
-#ifndef __MSYS__
-      if (got_something_from_registry)
-	parse_options (NULL);	/* possibly export registry settings to
-				       environment */
-#endif
       MALLOC_CHECK;
     }
   __except (NO_ERROR)
