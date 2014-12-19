@@ -31,6 +31,11 @@ representing POSIX permission bits.
 </para></listitem>
 
 <listitem><para>
+Add -k/--remove-default option to setfacl to remove all default ACL entries
+from an ACL.
+</para></listitem>
+
+<listitem><para>
 Revamp Solaris ACL implementation to more closely work like POSIX ACLs
 are supposed to work.  Finally implement a CLASS_OBJ emulation.  Update
 getfacl(1)/setfacl(1) accordingly.
@@ -53,6 +58,19 @@ default Windows environment into the new process' environment.
 
 <listitem><para>
 New APIs: qsort_r, __bsd_qsort_r.
+</para></listitem>
+
+<listitem><para>
+New APIs: __fbufsize, __flbf, __fpending, __freadable, __freading,
+__fsetlocking, __fwritable, __fwriting.
+</para></listitem>
+
+<listitem><para>
+New APIs: clearerr_unlocked, feof_unlocked, ferror_unlocked, fflush_unlocked,
+fgetc_unlocked, fgets_unlocked, fgetwc_unlocked, fgetws_unlocked,
+fileno_unlocked, fputc_unlocked, fputs_unlocked, fputwc_unlocked,
+fputws_unlocked, fread_unlocked, fwrite_unlocked, getwc_unlocked,
+getwchar_unlocked, putwc_unlocked, putwchar_unlocked.
 </para></listitem>
 
 </itemizedlist>

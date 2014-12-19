@@ -1,3 +1,212 @@
+2014-12-18  Jeff Johnston  <jjohnstn@redhat.com>
+
+        * NEWS: Update with 2.2.0 info.
+        * README: Ditto.
+        * acinclude.m4: Change version number to 2.2.0.
+        * libc/libc.texinfo: Ditto.
+        * libm/libm.texinfo: Ditto.
+        * configure: Regenerated.
+        * Makefile.in: Regenerated.
+        * doc/configure: Ditto.
+        * libc/*/configure: Ditto.
+        * libm/*/configure: Ditto.
+        * libc/sys/linux/shared.ld: Add VERS_2.2
+
+2013-12-23  Jeff Johnston  <jjohnstn@redhat.com>
+
+        * NEWS: Update with 2.1.0 info.
+        * README: Ditto.
+        * acinclude.m4: Change version number to 2.1.0.
+        * aclocal.m4: Regenerated.
+        * configure: Ditto.
+        * Makefile.in: Regenerated.
+        * doc/aclocal.m4: Ditto.
+        * doc/configure: Ditto.
+        * libc/*/aclocal.m4: Ditto.
+        * libc/*/configure: Ditto.
+        * libc/libc.texinfo: Ditto.
+        * libm/*/aclocal.m4: Ditto.
+        * libm/*/configure: Ditto.
+        * libm/libm.texinfo: Ditto.
+        * libc/sys/linux/shared.ld: Add VERS_2.1
+
+2014-12-18  Yaakov Selkowitz  <yselkowi@redhat.com>
+
+	Implement BSD/GNU unlocked stdio extensions.
+	* libc/include/stdio.h (clearerr_unlocked, feof_unlocked,
+	ferror_unlocked, fflush_unlocked, fgetc_unlocked, fgets_unlocked,
+	fileno_unlocked, fputc_unlocked, fputs_unlocked, fread_unlocked,
+	fwrite_unlocked): Declare.
+	* libc/include/wchar.h (fgetwc_unlocked, fgetws_unlocked,
+	fputwc_unlocked, fputws_unlocked, getwc_unlocked, getwchar_unlocked,
+	putwc_unlocked, putwchar_unlocked): Declare.
+	* libc/stdio/Makefile.am (ELIX_4_SOURCES): Add clearerr_u.c,
+	feof_u.c, ferror_u.c, fflush_u.c, fgetc_u.c, fgets_u.c, fgetwc_u.c,
+	fgetws_u.c, fileno_u.c, fputc_u.c, fputs_u.c, fputwc_u.c, fputws_u.c,
+	fread_u.c, fwrite_u.c, getwc_u.c, getwchar_u.c, putwc_u.c, putwchar_u.c.
+	Add necessary dependencies.
+	* libc/stdio/Makefile.in: Regenerate.
+	* libc/stdio/clearerr.c: Document unlocked variant.
+	* libc/stdio/clearerr_u.c: New file.
+	* libc/stdio/feof.c: Document unlocked variant.
+	* libc/stdio/feof_u.c: New file.
+	* libc/stdio/ferror.c: Document unlocked variant.
+	* libc/stdio/ferror_u.c: New file.
+	* libc/stdio/fflush.c: Add __IMPL_UNLOCKED__ overrides.
+	Document unlocked variants.
+	* libc/stdio/fflush_u.c: New file.
+	* libc/stdio/fgetc.c: Document unlocked variants.
+	* libc/stdio/fgetc_u.c: New file.
+	* libc/stdio/fgets.c: Add __IMPL_UNLOCKED__ overrides.
+	Document unlocked variants.
+	* libc/stdio/fgets_u.c: New file.
+	* libc/stdio/fgetwc.c: Document unlocked variants.
+	(__fgetwc): Make non-static.
+	* libc/stdio/fgetwc_u.c: New file.
+	* libc/stdio/fgetws.c: Add __IMPL_UNLOCKED__ overrides.
+	Document unlocked variants.
+	* libc/stdio/fgetws_u.c: New file.
+	* libc/stdio/fileno.c: Document unlocked variant.
+	* libc/stdio/fileno_u.c: New file.
+	* libc/stdio/fputc.c: Document unlocked variants.
+	* libc/stdio/fputc_u.c: New file.
+	* libc/stdio/fputs.c: Add __IMPL_UNLOCKED__ overrides.
+	Document unlocked variants.
+	* libc/stdio/fputs_u.c: New file.
+	* libc/stdio/fputwc.c: Document unlocked variants.
+	(__fputwc): Make non-static.
+	* libc/stdio/fputwc_u.c: New file.
+	* libc/stdio/fputws.c: Add __IMPL_UNLOCKED__ overrides.
+	Document unlocked variants.
+	* libc/stdio/fputws_u.c: New file.
+	* libc/stdio/fread.c: Add __IMPL_UNLOCKED__ overrides.
+	Document unlocked variants.
+	* libc/stdio/fread_u.c: New file.
+	* libc/stdio/fwrite.c: Add __IMPL_UNLOCKED__ overrides.
+	Document unlocked variants.
+	* libc/stdio/fwrite_u.c: New file.
+	* libc/stdio/getwc_u.c: New file.
+	* libc/stdio/getwchar.c: Document unlocked variants.
+	* libc/stdio/getwchar_u.c: New file.
+	* libc/stdio/local.h: Define locking macros as empty ifdef
+	__IMPL_UNLOCKED__.
+	(__fgetwc, __fputwc): Declare.
+	* libc/stdio/putwc_u.c: New file.
+	* libc/stdio/putwchar.c: Document unlocked variants.
+	* libc/stdio/putwchar_u.c: New file.
+
+2014-12-18  Corinna Vinschen  <vinschen@redhat.com>
+
+	* stdio.tex: Add menu entries for __fsetlocking and stdio_ext.
+	* stdio_ext.c: Add "stdio_ext" to synopsis.
+
+2014-12-16  DJ Delorie  <dj@redhat.com>
+
+	* libc/stdlib/nano-mallocr.c (ALIGN_TO): Do not assume that
+	integers are as big as pointers.
+
+2014-12-16  Richard Earnshaw  <rearnsha@arm.com>
+
+	* libc/machine/aarch64/strcpy.S: Improve handling of short strings.
+
+2014-12-16  Jon Beniston  <jon@beniston.com>
+
+	* libc/include/stdlib.h (__itoa):  Declare prototype.
+	(__utoa): Ditto.
+	(itoa): Ditto, non-strict-ANSI only.
+	(utoa): Ditto.
+	* libc/stdlib/Makefile.am: Add itoa.c and utoa.c.
+	* libc/stdlib/Makefile.in: Regenerate.
+	* libc/stdlib/itoa.c: New file.
+	* libc/stdlib/utoa.c: New file.
+
+2014-12-15  Jonathan Roelofs  <jonathan@codesourcery.com>
+
+	* libc/include/math.h: Add log2l,logbl,nexttowardf,
+	* nexttoward,nexttowardl
+	* libm/common/Makefile.am: Reference new files
+	* libm/common/Makefile.in: Reference new files
+	* libm/common/log2l.c: New File
+	* libm/common/logbl.c: Likewise
+	* libm/common/nexttowardf.c: Likewise
+	* libm/common/nexttoward.c: Likewise
+	* libm/common/nexttowardl.c: Likewise
+
+2014-12-15  Yaakov Selkowitz  <yselkowi@redhat.com>
+
+	* libc/include/stdio.h (__SNLK): Define.
+	* libc/include/stdio_ext.h (FSETLOCKING_QUERY, FSETLOCKING_INTERNAL,
+	FSETLOCKING_BYCALLER): Define.
+	(__fsetlocking): Declare.
+	* libc/stdio/Makefile.am: Build fsetlocking.c.
+	* libc/stdio/Makefile.in: Regenerate.
+	* libc/stdio/fsetlocking.c: New file.
+	* libc/stdio/local.h (_newlib_flockfile_start): Make _flockfile
+	call dependent on __SNLK flag.
+	(_newlib_flockfile_exit, _newlib_flockfile_end): Ditto for
+	_funlockfile calls.
+	Define all locking macros as empty if __SINGLE_THREAD__.
+	* libc/stdio/stdio.tex: Include fsetlocking.def.
+
+2014-12-15  Nick Hung  <nick@andestech.com>
+
+	* newlib/libc/include/machine/setjmp.h: Add FPU support.
+	* newlib/libc/machine/nds32/setjmp.S: Add FPU support.
+
+2014-12-15  Nick Hung  <nick@andestech.com>
+
+	* configure.host: Add libm nds32 machine directory.
+	* libm/machine/configure: Regenerated.
+	* libm/machine/configure.in: Add nds32 AC_CONFIG.
+	* libm/machine/nds32/Makefile.am: New file.
+	* libm/machine/nds32/Makefile.in: Generated.
+	* libm/machine/nds32/aclocal.m4: Generated.
+	* libm/machine/nds32/configure: Generated.
+	* libm/machine/nds32/configure.in: New file.
+	* libm/machine/nds32/w_sqrt.S: New file.
+	* libm/machine/nds32/wf_sqrt.S: New file.
+
+2014-12-15  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdlib.h: Include sys/cdefs.h to avoid undefined
+	__ASMNAME.
+
+2014-12-12  Stefan Wallentowitz  <stefan.wallentowitz@tum.de>
+
+	* configure.host: or1knd support, OpenRISC without delay slot
+	* libc/include/machine/setjmp.h: Add or1knd
+	* libc/machine/or1k/setjmp.S: Optional delay slot
+
+2014-12-12  Stefan Wallentowitz  <stefan.wallentowitz@tum.de>
+
+	* libc/machine/or1k/setjmp.S: Remove save/restore of r3-r8
+
+2014-12-11  Jonathan Roelofs  <jonathan@codesourcery.com>
+	    Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdio.h: Fix type signature of __sfeof and __sferror 
+	for C++.
+
+2014-12-11  Yaakov Selkowitz  <yselkowi@redhat.com>
+
+	* libc/include/stdio_ext.h: Rename __fwriteable to __fwritable.
+	[!__GNUC__]: Declare real functions for the macros, and make
+	the macros conditional on !__cplusplus.
+	* libc/stdio/Makefile.am (ELIX_4_SOURCES): Add stdio_ext.c.
+	(CHEWOUT_FILES): Add stdio_ext.def.
+	* libc/stdio/Makefile.in: Regenerate.
+	* libc/stdio/stdio.tex: Include stdio_ext.def.
+	* libc/stdio/stdio_ext.c: New file.
+
+2014-12-04  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/include/stdio_ext.h: Remove excess "inline".
+
+2014-12-10  Richard Earnshaw  <rearnsha@arm.com>
+
+	* libc/machine/aarch64/strchrnul.S (vrepmask): Use a call-clobbered
+	register.
+
 2014-12-08  Richard Earnshaw  <rearnsha@arm.com>
 
 	* libc/machine/aarch64/strrchr.S: New file.

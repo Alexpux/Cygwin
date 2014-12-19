@@ -81,12 +81,12 @@ suffix_info stat_suffixes[] =
 struct symlink_info
 {
   char contents[SYMLINK_MAX + 1];
-  char *ext_here;  // The pointer to the extention
-  int extn;        // The end of the path string
+  char *ext_here;
+  int extn;
   unsigned pflags;
   DWORD fileattr;
   int issymlink;
-  bool ext_tacked_on;  // We added the extention, e.g.: ".exe"
+  bool ext_tacked_on;
   int error;
   bool isdevice;
   _major_t major;
@@ -525,16 +525,21 @@ warn_msdos (const char *src)
     return;
   tmp_pathbuf tp;
   char *posix_path = tp.c_get ();
-  small_printf ("MSYS warning:\n");
+  small_printf ("Cygwin WARNING:\n");
   if (cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_RELATIVE, src,
 			posix_path, NT_MAX_PATH))
-    small_printf ("  MS-DOS style path detected: %ls\n  POSIX equivalent preferred.\n",
+    small_printf (
+"  MS-DOS style path detected: %ls\n  POSIX equivalent preferred.\n",
 		  src);
   else
-    small_printf ("  MS-DOS style path detected: %ls\n  Preferred POSIX equivalent is: %ls\n",
+    small_printf (
+"  MS-DOS style path detected: %ls\n"
+"  Preferred POSIX equivalent is: %ls\n",
 		  src, posix_path);
-  small_printf ("  MSYS environment variable option \"nodosfilewarning\" turns off this warning.\n"
-		"  Consult the user's guide for more details about POSIX paths:\n");
+  small_printf (
+"  CYGWIN environment variable option \"nodosfilewarning\" turns off this\n"
+"  warning.  Consult the user's guide for more details about POSIX paths:\n"
+"  http://cygwin.com/cygwin-ug-net/using.html#using-pathnames\n");
   user_shared->warned_msdos = true;
 }
 
@@ -4421,9 +4426,11 @@ find_fast_cwd ()
      used on the system. */
   fcwd_access_t **f_cwd_ptr = find_fast_cwd_pointer ();
   if (!f_cwd_ptr)
-    system_printf ("WARNING: Couldn't compute FAST_CWD pointer.  "
-		   "Please report this problem to\nthe public mailing "
-		   "list cygwin@cygwin.com");
+    small_printf ("Cygwin WARNING:\n"
+"  Couldn't compute FAST_CWD pointer.  This typically occurs if you're using\n"
+"  an older Cygwin version on a newer Windows.  Please update to the latest\n"
+"  available Cygwin version from https://cygwin.com/.  If the problem persists,\n"
+"  please see https://cygwin.com/problems.html\n\n");
   if (f_cwd_ptr && *f_cwd_ptr)
     {
       /* Just evaluate structure version. */

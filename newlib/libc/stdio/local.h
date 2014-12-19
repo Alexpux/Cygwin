@@ -60,7 +60,16 @@
 #define _STDIO_WITH_THREAD_CANCELLATION_SUPPORT
 #endif
 
-#ifdef _STDIO_WITH_THREAD_CANCELLATION_SUPPORT
+#if defined(__SINGLE_THREAD__) || defined(__IMPL_UNLOCKED__)
+
+# define _newlib_flockfile_start(_fp)
+# define _newlib_flockfile_exit(_fp)
+# define _newlib_flockfile_end(_fp)
+# define _newlib_sfp_lock_start()
+# define _newlib_sfp_lock_exit()
+# define _newlib_sfp_lock_end()
+
+#elif defined(_STDIO_WITH_THREAD_CANCELLATION_SUPPORT)
 #include <pthread.h>
 
 /* Start a stream oriented critical section: */
@@ -68,16 +77,19 @@
 	{ \
 	  int __oldfpcancel; \
 	  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, &__oldfpcancel); \
-	  _flockfile (_fp)
+	  if (!(_fp->_flags2 & __SNLK)) \
+	    _flockfile (_fp)
 
 /* Exit from a stream oriented critical section prematurely: */
 # define _newlib_flockfile_exit(_fp) \
-	  _funlockfile (_fp); \
+	  if (!(_fp->_flags2 & __SNLK)) \
+	    _funlockfile (_fp); \
 	  pthread_setcancelstate (__oldfpcancel, &__oldfpcancel);
 
 /* End a stream oriented critical section: */
 # define _newlib_flockfile_end(_fp) \
-	  _funlockfile (_fp); \
+	  if (!(_fp->_flags2 & __SNLK)) \
+	    _funlockfile (_fp); \
 	  pthread_setcancelstate (__oldfpcancel, &__oldfpcancel); \
 	}
 
@@ -99,17 +111,20 @@
 	  pthread_setcancelstate (__oldsfpcancel, &__oldsfpcancel); \
 	}
 
-#else /* !_STDIO_WITH_THREAD_CANCELLATION_SUPPORT */
+#else /* !__SINGLE_THREAD__ && !__IMPL_UNLOCKED__ && !_STDIO_WITH_THREAD_CANCELLATION_SUPPORT */
 
 # define _newlib_flockfile_start(_fp) \
 	{ \
-		_flockfile(_fp)
+		if (!(_fp->_flags2 & __SNLK)) \
+		  _flockfile (_fp)
 
 # define _newlib_flockfile_exit(_fp) \
-		_funlockfile(_fp); \
+		if (!(_fp->_flags2 & __SNLK)) \
+		  _funlockfile(_fp); \
 
 # define _newlib_flockfile_end(_fp) \
-		_funlockfile(_fp); \
+		if (!(_fp->_flags2 & __SNLK)) \
+		  _funlockfile(_fp); \
 	}
 
 # define _newlib_sfp_lock_start() \
@@ -123,8 +138,10 @@
 		__sfp_lock_release (); \
 	}
 
-#endif /* _STDIO_WITH_THREAD_CANCELLATION_SUPPORT */
+#endif /* __SINGLE_THREAD__ || __IMPL_UNLOCKED__ */
 
+extern wint_t _EXFUN(__fgetwc, (struct _reent *, FILE *));
+extern wint_t _EXFUN(__fputwc, (struct _reent *, wchar_t, FILE *));
 extern u_char *_EXFUN(__sccl, (char *, u_char *fmt));
 extern int    _EXFUN(__svfscanf_r,(struct _reent *,FILE *, _CONST char *,va_list));
 extern int    _EXFUN(__ssvfscanf_r,(struct _reent *,FILE *, _CONST char *,va_list));
