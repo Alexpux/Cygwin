@@ -1,3 +1,28 @@
+2015-01-08  Corinna Vinschen  <vinschen@redhat.com>
+
+	* libc/time/strftime.c (__strftime): Utilize __TM_GMTOFF and __TM_ZONE
+	on systems where available.  On Cygwin, call function to get values.
+	Add comment to explain why.  Drop TZ_LOCK/TZ_UNLOCK in 'z' case since
+	it's not necessary.  In 'Z' case, add a comment to document a potential
+	codeset problem.
+
+2015-01-08  Renlin Li  <renlin.li@arm.com>
+
+	* testsuite/newlib.wctype/twctrans.c (main): Use towlower and towupper.
+
+2015-01-06  Richard Earnshaw  <rearnsha@arm.com>
+
+	* libc/machine/aarch64/strcpy.S (strcpy): Further performance
+	improvements.  Adjust to allow building as stpcpy.
+	* libc/machine/aarch64/stpcpy.S: New file.
+	* libc/machine/aarch64/stpcpy-stub.c: New file.
+	* libc/machine/aarch64/Makefile.am (lib_a_SOURCES): Build stpcpy.
+	* libc/machine/aarch64/Makefile.in: Regenerated.
+
+2014-12-26  Freddie Chopin  <freddie_chopin@op.pl>
+
+	* libc/include/sys/features.h: update newlib version and copyright year
+
 2014-12-18  Jeff Johnston  <jjohnstn@redhat.com>
 
         * NEWS: Update with 2.2.0 info.
@@ -11,24 +36,6 @@
         * libc/*/configure: Ditto.
         * libm/*/configure: Ditto.
         * libc/sys/linux/shared.ld: Add VERS_2.2
-
-2013-12-23  Jeff Johnston  <jjohnstn@redhat.com>
-
-        * NEWS: Update with 2.1.0 info.
-        * README: Ditto.
-        * acinclude.m4: Change version number to 2.1.0.
-        * aclocal.m4: Regenerated.
-        * configure: Ditto.
-        * Makefile.in: Regenerated.
-        * doc/aclocal.m4: Ditto.
-        * doc/configure: Ditto.
-        * libc/*/aclocal.m4: Ditto.
-        * libc/*/configure: Ditto.
-        * libc/libc.texinfo: Ditto.
-        * libm/*/aclocal.m4: Ditto.
-        * libm/*/configure: Ditto.
-        * libm/libm.texinfo: Ditto.
-        * libc/sys/linux/shared.ld: Add VERS_2.1
 
 2014-12-18  Yaakov Selkowitz  <yselkowi@redhat.com>
 
