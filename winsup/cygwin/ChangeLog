@@ -1,3 +1,31 @@
+2015-01-14  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (fetch_windows_home): Disable fetching from homeDrive or
+	usri3_home_dir_drive.  Add comment.
+
+2015-01-14  Corinna Vinschen  <corinna@vinschen.de>
+
+	* environ.cc (renv_arr): Drop variables not usually in a Windows
+	environment and all variables being uppercase anyway.  But keep
+	TMP and TEMP for paranoia.
+
+2015-01-14  Corinna Vinschen  <corinna@vinschen.de>
+
+	* environ.cc (build_env): When merging the user's Windows environment,
+	explicitely skip the variables needing conversion to avoid collisions.
+	Extend comment to explain.
+
+2015-01-13  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Drop code from
+	2014-11-17, always prepending domain to NT SERVICE accounts when
+	searching by name.  Fix test expression to allow fully qualified
+	names for NT SERVICE accounts.  Extend comment to explain a bit.
+
+2015-01-12  Pierre A. Humblet <pierre@phumblet.no-ip.org>
+
+	* minires-os-if.c (cygwin_query): Change questions into answers.
+
 2015-01-08  Corinna Vinschen  <corinna@vinschen.de>
 
 	* cygheap.h (cygheap_pwdgrp::get_shell): Add sid to argument list.

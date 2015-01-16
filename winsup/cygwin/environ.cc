@@ -1,8 +1,8 @@
-/* environ.cc: Msys-adopted functions from newlib to manipulate
+/* environ.cc: Cygwin-adopted functions from newlib to manipulate
    process's environment.
 
    Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011, 2012, 2013, 2014 Red Hat, Inc.
+   2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015 Red Hat, Inc.
 
 This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
@@ -35,7 +35,7 @@ details. */
 
 static char **lastenviron;
 
-/* Parse MSYS options */
+/* Parse CYGWIN options */
 
 static NO_COPY bool export_settings = false;
 
@@ -104,7 +104,7 @@ set_winsymlinks (const char *buf)
 }
 
 /* The structure below is used to set up an array which is used to
-   parse the MSYS environment variable or, if enabled, options from
+   parse the CYGWIN environment variable or, if enabled, options from
    the registry.  */
 static struct parse_thing
   {
@@ -558,7 +558,7 @@ getenv (const char *name)
 }
 
 /* This function is required so that newlib uses the same environment
-   as Msys. */
+   as Cygwin. */
 extern "C" char *
 _getenv_r (struct _reent *, const char *name)
 {
@@ -649,7 +649,7 @@ _addenv (const char *name, const char *value, int overwrite)
       strcpy (envhere + namelen + 1, value);
     }
 
-  /* Update msys's cache, if appropriate */
+  /* Update cygwin's cache, if appropriate */
   win_env *spenv;
   if ((spenv = getwinenv (envhere)))
     spenv->add_cache (value);
@@ -736,49 +736,35 @@ static struct renv {
 	const char *name;
 	const size_t namelen;
 } renv_arr[] = {
-	{ NL("ALLUSERSPROFILE=") },		// 0
-	{ NL("COMMONPROGRAMFILES=") },		// 1
-	{ NL("COMPUTERNAME=") },
+	{ NL("COMMONPROGRAMFILES=") },		// 0
 	{ NL("COMSPEC=") },
-	{ NL("HOME=") },			// 4
-	{ NL("HOMEDRIVE=") },
-	{ NL("HOMEPATH=") },
 #ifdef __MSYS__
-	{ NL("MSYSTEM=") },		// 7
+	{ NL("MSYSTEM=") },			// 2
 #endif /* __MSYS__ */
-	{ NL("NUMBER_OF_PROCESSORS=") },	// 7
-	{ NL("OS=") },				// 8
-	{ NL("PATH=") },			// 9
-	{ NL("PATHEXT=") },
-	{ NL("PROCESSOR_ARCHITECTURE=") },
-	{ NL("PROCESSOR_IDENTIFIER=") },
-	{ NL("PROCESSOR_LEVEL=") },
-	{ NL("PROCESSOR_REVISION=") },
+	{ NL("PATH=") },			// 2
 	{ NL("PROGRAMFILES=") },
-	{ NL("SYSTEMDRIVE=") },			// 16
+	{ NL("SYSTEMDRIVE=") },			// 4
 	{ NL("SYSTEMROOT=") },
-	{ NL("TEMP=") },			// 18
-	{ NL("TERM=") },
+	{ NL("TEMP=") },			// 6
 	{ NL("TMP=") },
-	{ NL("TMPDIR=") },
-	{ NL("WINDIR=") }			// 22
+	{ NL("WINDIR=") }			// 8
 };
 #define RENV_SIZE (sizeof (renv_arr) / sizeof (renv_arr[0]))
 
 /* Set of first characters of the above list of variables. */
 static const char idx_arr[] = 
 #ifdef __MSYS__
-	"ACHMNOPSTW";
+	"CMPSTW";
 #else
-	"ACHNOPSTW";
+	"CPSTW";
 #endif
 /* Index into renv_arr at which the variables with this specific character
    starts. */
 static const int start_at[] = { 0, 1, 4, 
 #ifdef __MSYS__ 
-								7, 8, 9, 10, 17, 19, 23
+				0, 2, 3, 5, 7, 9
 #else
-								7, 8, 9, 16, 18, 22
+				0, 2, 4, 6, 8
 #endif
 								};
 
@@ -802,7 +788,7 @@ ucenv (char *p, const char *eq)
 	}
 }
 
-/* Initialize the environ array.  Look for the MSYS environment variable and
+/* Initialize the environ array.  Look for the CYGWIN environment variable and
    set appropriate options from it.  */
 void
 environ_init (char **envp, int envc)
@@ -870,8 +856,13 @@ environ_init (char **envp, int envc)
 	  ucenv (newp, eq);	/* uppercase env vars which need it */
 	  if (*newp == 'T' && strncmp (newp, "TERM=", 5) == 0)
 	    sawTERM = 1;
+#ifdef __MSYS__
 	  else if (*newp == 'M' && strncmp (newp, "MSYS=", 5) == 0)
 	    parse_options (newp + 5);
+#else
+	  else if (*newp == 'C' && strncmp (newp, "CYGWIN=", 7) == 0)
+	    parse_options (newp + 7);
+#endif
 	  if (*eq)
 	    posify_maybe (envp + i, *++eq ? eq : --eq, tmpbuf);
 	  debug_printf ("%p: %s", envp[i], envp[i]);
@@ -888,7 +879,11 @@ environ_init (char **envp, int envc)
       update_envptrs ();
       if (envp_passed_in)
 	{
+#ifdef __MSYS__
 	  p = getenv ("MSYS");
+#else
+	  p = getenv ("CYGWIN");
+#endif
 	  if (p)
 	    parse_options (p);
 	}
@@ -1086,9 +1081,11 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 	    sys_wcstombs_alloc (&winenv[winnum], HEAP_NOTHEAP, var);
 	}
       DestroyEnvironmentBlock (cwinenv);
-      /* Eliminate variables which are already available in envp.  The windows
-	 env is sorted, so we can use bsearch.  We're doing this first step,
-	 so the following code doesn't allocate too much memory. */
+      /* Eliminate variables which are already available in envp, as well as
+	 the small set of crucial variables needing POSIX conversion and
+	 potentially collide.  The windows env is sorted, so we can use
+	 bsearch.  We're doing this first step, so the following code doesn't
+	 allocate too much memory. */
       if (winenv)
 	{
 	  for (srcp = envp; *srcp; srcp++)
@@ -1105,6 +1102,20 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 			   (winnum - (elem - winenv)) * sizeof *elem);
 		  --winnum;
 		}
+	    }
+	  for (char **elem = winenv; *elem; elem++)
+	    {
+	      if (match_first_char (*elem, WC))
+		for (int i = 0; conv_envvars[i].name != NULL; i++)
+		  if (strncmp (*elem, conv_envvars[i].name,
+			       conv_envvars[i].namelen) == 0)
+		    {
+		      free (*elem);
+		      memmove (elem, elem + 1,
+			       (winnum - (elem - winenv)) * sizeof *elem);
+		      --winnum;
+		      --elem;
+		    }
 	    }
 	}
     }
