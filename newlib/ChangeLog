@@ -1,3 +1,16 @@
+2015-01-20  Stefan Wallentowitz  <stefan.wallentowitz@tum.de>
+
+	* libc/sys/configure.in: Add OpenRISC.
+	* libc/sys/configure: Regenerate.
+
+2015-01-20  Wilco Dijkstra  <wdijkstr@arm.com>
+
+	* libc/machine/aarch64/strlen.S (strlen): Improve performance.
+
+2015-01-20  Stefan Wallentowitz  <stefan.wallentowitz@tum.de>
+
+	* configure.host: Add extra system for OpenRISC baremetal.
+
 2015-01-14  Joel Sherrill <joel.sherrill@oarcorp.com>
 
 	* libc/include/sys/unistd.h [__BSD_VISIBLE]: Add issetugid() prototype.
