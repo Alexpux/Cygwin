@@ -760,7 +760,7 @@ static const char idx_arr[] =
 #endif
 /* Index into renv_arr at which the variables with this specific character
    starts. */
-static const int start_at[] = { 0, 1, 4, 
+static const int start_at[] = {
 #ifdef __MSYS__ 
 				0, 2, 3, 5, 7, 9
 #else
