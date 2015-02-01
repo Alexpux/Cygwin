@@ -604,7 +604,7 @@ uninstall-man:
 	done
 
 clean:
-	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc *.exe *.d *stamp* *_magic.h sigfe.s cygwin.def globals.h $(srcdir)/$(TLSOFFSETS_H) $(srcdir)/devices.cc
+	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc *.exe *.d *stamp* *_magic.h sigfe.s msys.def globals.h $(srcdir)/$(TLSOFFSETS_H) $(srcdir)/devices.cc
 	-@$(MAKE) -C ${cygserver_blddir} libclean
 
 maintainer-clean realclean: clean
@@ -621,7 +621,7 @@ $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIB
 	$(CXX) $(CXXFLAGS) \
 	-mno-use-libstdc-wrappers -L${WINDOWS_LIBDIR} \
 	-Wl,--gc-sections $(nostdlib) -Wl,-T$(firstword $^) -static \
-	-Wl,--heap=0 -Wl,--out-implib,cygdll.a -shared -o $@ \
+	-Wl,--heap=0 -Wl,--out-implib,msysdll.a -shared -o $@ \
 	-e $(DLL_ENTRY) $(DEF_FILE) $(DLL_OFILES) $(VERSION_OFILES) \
 	$(MALLOC_OBJ) $(LIBSERVER) $(LIBM) $(LIBC) \
 	-lgcc $(DLL_IMPORTS) -Wl,-Map,msys.map
