@@ -1,3 +1,47 @@
+2015-02-06  Corinna Vinschen  <corinna@vinschen.de>
+
+	* posix.xml (std-susv4): Move cabsl, cimagl, creall, hypotl, sqrtl here
+	from std-notimpl.  Add finitel.
+
+2015-02-04  Corinna Vinschen  <corinna@vinschen.de>
+
+	* posix.xml (std-susv4): Move wcstold here from std-notimpl.
+
+2015-02-04  Corinna Vinschen  <corinna@vinschen.de>
+
+	* new-features.xml (ov-new1.7.34): Add wcstold.
+
+2015-02-04  Corinna Vinschen  <corinna@vinschen.de>
+
+	* faq-using.xml (faq.using.ssh-pubkey-stops-working): New entry.
+	(faq.using.same-with-rhosts): Ditto.
+
+2015-02-03  Corinna Vinschen  <corinna@vinschen.de>
+
+	* utils.xml (regtool): Clarify save action.  Add description for
+	restore action.
+	* new-features.xml (ov-new1.7.34): Add regtool restore.
+
+2015-02-03  Corinna Vinschen  <corinna@vinschen.de>
+
+	* Throughout, replace http with https as far as cygwin.com and
+	sourceware.org URLs are concerned.
+	* Throughout, simplify ulink expressions if the visible text is the
+	URL anyway.
+	* faq-programming.xml (faq.programming.dll-relocatable): Remove.
+	* faq-setup.xml (faq.setup.name-with-space): Change for 1.7.34.
+	(faq.setup.home): Ditto.
+	* faq-using.xml (faq.using.printing): Clarify old links and availability
+	of a2ps and file.
+	(faq.using.xemacs): Drop outdated version info and pointers to native
+	XEmacs.
+	(faq.using.ntemacs): Remove.
+	* faq-what.xml (faq.what.what): Rephrase to reflect reality.
+	(faq.what.supported): Ditto.
+	(faq.what.who): Rephrase slightly.
+	* legal.xml: Bump copyright.
+	* setup-net.xml (internet-setup): Fix references to setup executables.
+
 2015-01-23  Pierre A. Humblet  <phumblet@phumblet.no-ip.org>
 	    Corinna Vinschen  <corinna@vinschen.de>
 

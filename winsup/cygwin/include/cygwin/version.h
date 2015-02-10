@@ -466,12 +466,14 @@ details. */
            fread_unlocked, fwrite_unlocked, getwc_unlocked, getwchar_unlocked,
            putwc_unlocked, putwchar_unlocked.
       284: Export sockatmark.
+      285: Export wcstold.
+      286: Export cabsl, cimagl, creall, finitel, hypotl, sqrtl.
      */
 
      /* Note that we forgot to bump the api for ualarm, strtoll, strtoull */
 
 #define CYGWIN_VERSION_API_MAJOR 0
-#define CYGWIN_VERSION_API_MINOR 284
+#define CYGWIN_VERSION_API_MINOR 286
 
      /* There is also a compatibity version number associated with the
 	shared memory regions.  It is incremented when incompatible

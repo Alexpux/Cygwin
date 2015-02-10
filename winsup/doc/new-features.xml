@@ -36,6 +36,10 @@ from an ACL.
 </para></listitem>
 
 <listitem><para>
+Add restore action to regtool.
+</para></listitem>
+
+<listitem><para>
 Make gethostbyname2 handle numeric host addresses as well as the
 reserved domain names "localhost" and "invalid" per RFC 6761.
 </para></listitem>
@@ -63,6 +67,10 @@ default Windows environment into the new process' environment.
 
 <listitem><para>
 New APIs: qsort_r, __bsd_qsort_r.
+</para></listitem>
+
+<listitem><para>
+New API: wcstold.
 </para></listitem>
 
 <listitem><para>
@@ -1460,7 +1468,7 @@ Getting a domain user's groups is hopefully more bulletproof now.
 Cygwin now comes with a real LSA authentication package.  This must be
 manually installed by a privileged user using the /bin/cyglsa-config
 script.  The advantages and disadvantages are noted in
-http://cygwin.com/ml/cygwin-developers/2006-11/msg00000.html
+https://cygwin.com/ml/cygwin-developers/2006-11/msg00000.html
 </para></listitem>
 
 <listitem><para>
