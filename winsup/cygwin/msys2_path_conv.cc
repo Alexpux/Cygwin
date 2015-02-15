@@ -336,6 +336,13 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
 
     if (*it == '\0' || it == end) return NONE;
 
+    /* Let's not convert ~/.file to ~C:\msys64\.file */
+    if (*it == '~') {
+skip_p2w:
+        *src = end;
+        return NONE;
+    }
+
     while (!isalnum(*it) && *it != '/' && *it != '\\' && *it != ':' && *it != '-' && *it != '.') {
         recurse = true;
         it = ++*src;
