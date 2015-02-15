@@ -1150,7 +1150,12 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 #ifdef __MSYS__
       /* Don't pass timezone environment to non-msys applications */
       if (!keep_posix && ascii_strncasematch(*srcp, "TZ=", 3))
-        goto next1;
+        {
+          *dstp = (char *) cmalloc (HEAP_1_STR, strlen (*srcp) + 7);
+          strcpy (*dstp, "MSYS2_");
+          strcpy (*dstp + 6, *srcp);
+          goto next0;
+        }
 #endif
       /* Look for entries that require special attention */
       for (unsigned i = 0; i < SPENVS_SIZE; i++)
