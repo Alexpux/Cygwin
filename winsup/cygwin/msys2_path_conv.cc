@@ -337,9 +337,16 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
 
     /* Let's not convert ~/.file to ~C:\msys64\.file */
     if (*it == '~') {
+skip_p2w:
         *src = end;
         return NONE;
     }
+
+    /*
+     * Prevent Git's :file.txt and :/message syntax from beeing modified.
+     */
+    if (*it == ':')
+        goto skip_p2w;
 
     while (!isalnum(*it) && *it != '/' && *it != '\\' && *it != ':' && *it != '-' && *it != '.') {
         recurse = true;
