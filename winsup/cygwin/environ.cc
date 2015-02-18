@@ -1244,7 +1244,7 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 	     Note that this doesn't stop invalid strings without '=' in it
 	     etc., but we're opting for speed here for now.  Adding complete
 	     checking would be pretty expensive. */
-	  if (len == 1 || !*rest)
+	  if (len == 1)
 	    continue;
 
 	  /* See if this entry requires posix->win32 conversion. */
