@@ -1,7 +1,7 @@
 /* sec_acl.cc: Sun compatible ACL functions.
 
    Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011, 2012, 2014 Red Hat, Inc.
+   2011, 2012, 2014, 2015 Red Hat, Inc.
 
    Written by Corinna Vinschen <corinna@vinschen.de>
 
@@ -125,6 +125,9 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
 
   writable = false;
 
+  bool *invalid = (bool *) tp.c_get ();
+  memset (invalid, 0, nentries * sizeof *invalid);
+
   /* Pre-compute owner, group, and other permissions to allow creating
      matching deny ACEs as in alloc_sd. */
   DWORD owner_allow = 0, group_allow = 0, other_allow = 0;
@@ -135,7 +138,8 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
 	{
 	case USER_OBJ:
 	  allow = &owner_allow;
-	  *allow = STANDARD_RIGHTS_ALL;
+	  *allow = STANDARD_RIGHTS_ALL
+		   | (pc.fs_is_samba () ? 0 : FILE_WRITE_ATTRIBUTES);
 	  break;
 	case GROUP_OBJ:
 	  allow = &group_allow;
@@ -163,7 +167,7 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
 	  && (aclbufp[i].a_type == USER_OBJ
 	      || !(null_mask & FILE_READ_DATA)))
 	*allow |= FILE_DELETE_CHILD;
-      aclbufp[i].a_type = 0;
+      invalid[i] = true;
     }
   bool isownergroup = (owner_sid == group_sid);
   DWORD owner_deny = ~owner_allow & (group_allow | other_allow);
@@ -210,7 +214,7 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
     {
       DWORD allow;
       /* Skip invalidated entries. */
-      if (!aclbufp[i].a_type)
+      if (invalid[i])
 	continue;
 
       allow = STANDARD_RIGHTS_READ
@@ -249,7 +253,7 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
 	{
 	  inheritance = CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE;
 	  /* invalidate the corresponding default entry. */
-	  aclbufp[i + 1 + pos].a_type = 0;
+	  invalid[i + 1 + pos] = true;
 	}
       switch (aclbufp[i].a_type)
 	{

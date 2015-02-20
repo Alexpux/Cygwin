@@ -1,7 +1,7 @@
 /* syscalls.cc: syscalls
 
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-   2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014 Red Hat, Inc.
+   2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015 Red Hat, Inc.
 
 This file is part of Cygwin.
 
@@ -1720,10 +1720,21 @@ void
 fhandler_base::stat_fixup (struct stat *buf)
 {
   /* For devices, set inode number to device number.  This gives us a valid,
-     unique inode number without having to call hash_path_name. */
+     unique inode number without having to call hash_path_name.  /dev/tty needs
+     a bit of persuasion to get the same st_ino value in stat and fstat. */
   if (!buf->st_ino)
-    buf->st_ino = (get_major () == DEV_VIRTFS_MAJOR) ? get_ino ()
-						     : get_device ();
+    {
+      if (get_major () == DEV_VIRTFS_MAJOR)
+	buf->st_ino = get_ino ();
+      else if (dev () == FH_TTY ||
+	       ((get_major () == DEV_PTYS_MAJOR
+		 || get_major () == DEV_CONS_MAJOR)
+		&& !strcmp (get_name (), "/dev/tty")))
+	buf->st_ino = FH_TTY;
+      else
+	buf->st_ino = get_device ();
+      	
+    }
   /* For /dev-based devices, st_dev must be set to the device number of /dev,
      not it's own device major/minor numbers.  What we do here to speed up
      the process is to fetch the device number of /dev only once, liberally
@@ -2190,7 +2201,7 @@ rename (const char *oldpath, const char *newpath)
 	  set_errno (ENOTDIR);
 	  __leave;
 	}
-      if (oldpc.known_suffix
+      if (oldpc.known_suffix ()
 	   && (ascii_strcasematch (oldpath + olen - 4, ".lnk")
 	       || ascii_strcasematch (oldpath + olen - 4, ".exe")))
 	old_explicit_suffix = true;
@@ -2237,7 +2248,7 @@ rename (const char *oldpath, const char *newpath)
 	  set_errno (newpc.isdir () ? EISDIR : ENOTDIR);
 	  __leave;
 	}
-      if (newpc.known_suffix
+      if (newpc.known_suffix ()
 	  && (ascii_strcasematch (newpath + nlen - 4, ".lnk")
 	      || ascii_strcasematch (newpath + nlen - 4, ".exe")))
 	new_explicit_suffix = true;
@@ -2302,7 +2313,7 @@ rename (const char *oldpath, const char *newpath)
 						  &ro_u_lnk, TRUE))
 	    rename_append_suffix (newpc, newpath, nlen, ".lnk");
 	  else if (oldpc.is_binary () && !old_explicit_suffix
-		   && oldpc.known_suffix
+		   && oldpc.known_suffix ()
 		   && !nt_path_has_executable_suffix
 		   				(newpc.get_nt_native_path ()))
 	    /* Never append .exe suffix if oldpath had .exe suffix given
@@ -2342,7 +2353,7 @@ rename (const char *oldpath, const char *newpath)
 		 explicitely, or if newfile is a binary (in which case the given
 		 name probably makes sense as it is), or if the destination
 		 filename has one of the blessed executable suffixes. */
-	      if (!old_explicit_suffix && oldpc.known_suffix
+	      if (!old_explicit_suffix && oldpc.known_suffix ()
 		  && !newpc.is_binary ()
 		  && !nt_path_has_executable_suffix
 		  				(newpc.get_nt_native_path ()))
@@ -3653,7 +3664,7 @@ chroot (const char *newroot)
   else
     {
       getwinenv("PATH="); /* Save the native PATH */
-      cygheap->root.set (path.normalized_path, path.get_win32 (),
+      cygheap->root.set (path.get_posix (), path.get_win32 (),
 			 !!path.objcaseinsensitive ());
       ret = 0;
     }
@@ -4703,7 +4714,7 @@ linkat (int olddirfd, const char *oldpathname,
 	      set_errno (old_name.error);
 	      __leave;
 	    }
-	  strcpy (oldpath, old_name.normalized_path);
+	  strcpy (oldpath, old_name.get_posix ());
 	}
       return link (oldpath, newpath);
     }

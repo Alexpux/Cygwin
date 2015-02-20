@@ -1,6 +1,6 @@
 /* ldap.h.
 
-   Copyright 2014 Red Hat, Inc.
+   Copyright 2014, 2015 Red Hat, Inc.
 
 This file is part of Cygwin.
 
@@ -25,18 +25,19 @@ details. */
 
 class cyg_ldap {
   PLDAP lh;
-  PWCHAR rootdse;
+  PWCHAR def_context;
   PLDAPMessage msg, entry;
   PWCHAR *val;
   PWCHAR *attr;
   bool isAD;
   PLDAPSearch srch_id;
   PLDAPMessage srch_msg, srch_entry;
+  cygsid last_fetched_sid;
 
   inline int map_ldaperr_to_errno (ULONG lerr);
   inline int wait (cygthread *thr);
   inline int connect (PCWSTR domain);
-  inline int search (PWCHAR base, PWCHAR filter, PWCHAR *attrs);
+  inline int search (PWCHAR base, ULONG scope, PWCHAR filter, PWCHAR *attrs);
   inline int next_page ();
   bool fetch_unix_sid_from_ad (uint32_t id, cygsid &sid, bool group);
   PWCHAR fetch_unix_name_from_rfc2307 (uint32_t id, bool group);
@@ -44,16 +45,18 @@ class cyg_ldap {
   uint32_t get_num_attribute (int idx);
 
 public:
-  cyg_ldap () : lh (NULL), rootdse (NULL), msg (NULL), entry (NULL), val (NULL),
-		isAD (false), srch_id (NULL), srch_msg (NULL), srch_entry (NULL)
+  cyg_ldap () : lh (NULL), def_context (NULL), msg (NULL), entry (NULL),
+		val (NULL), isAD (false), srch_id (NULL), srch_msg (NULL),
+		srch_entry (NULL), last_fetched_sid (NO_SID)
   {}
   ~cyg_ldap () { close (); }
 
   ULONG connect_ssl (PCWSTR domain);
   ULONG connect_non_ssl (PCWSTR domain);
-  ULONG search_s (PWCHAR base, PWCHAR filter, PWCHAR *attrs);
+  ULONG search_s (PWCHAR base, ULONG scope, PWCHAR filter, PWCHAR *attrs);
   ULONG next_page_s ();
 
+  bool is_open () const { return !!lh; }
   operator PLDAP () const { return lh; }
   int open (PCWSTR in_domain);
   void close ();
