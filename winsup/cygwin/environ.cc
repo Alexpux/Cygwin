@@ -1135,7 +1135,12 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
       bool calc_tl = !no_envblock;
       /* Don't pass timezone environment to non-msys applications */
       if (!keep_posix && ascii_strncasematch(*srcp, "TZ=", 3))
-        goto next1;
+        {
+          *dstp = (char *) cmalloc (HEAP_1_STR, strlen (*srcp) + 7);
+          strcpy (*dstp, "MSYS2_");
+          strcpy (*dstp + 6, *srcp);
+          goto next0;
+        }
       /* Look for entries that require special attention */
       for (unsigned i = 0; i < SPENVS_SIZE; i++)
 	if (!saw_spenv[i] && (*dstp = spenvs[i].retrieve (no_envblock, *srcp)))
@@ -1239,7 +1244,7 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 	     Note that this doesn't stop invalid strings without '=' in it
 	     etc., but we're opting for speed here for now.  Adding complete
 	     checking would be pretty expensive. */
-	  if (len == 1 || !*rest)
+	  if (len == 1)
 	    continue;
 
 	  /* See if this entry requires posix->win32 conversion. */
