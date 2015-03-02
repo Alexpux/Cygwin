@@ -519,7 +519,7 @@ void rp_convert(const char** from, const char* to, char** dst, const char* dsten
         posix_to_win32_path(it, real_to, dst, dstend);
     }
 
-    if (real_to != to) {
+    if (*dst != dstend && real_to != to) {
         **dst = *real_to;
         *dst += 1;
     }
@@ -567,6 +567,9 @@ void ppl_convert(const char** from, const char* to, char** dst, const char* dste
             prev_was_simc = 1;
             subp_convert(&beg, it, is_url, dst, dstend);
             is_url = 0;
+
+            if (*dst == dstend)
+	        break;
 
             **dst = ';';
             *dst += 1;
