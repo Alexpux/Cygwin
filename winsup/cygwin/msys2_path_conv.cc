@@ -282,6 +282,7 @@ const char* convert(char *dst, size_t dstlen, const char *src) {
         *dstit = '\0';
         return dst;
     }
+    *dstend = '\0';
 
     const char* srcit = src;
     const char* srcbeg = src;
@@ -555,6 +556,7 @@ void subp_convert(const char** from, const char* end, int is_url, char** dst, co
 }
 
 void ppl_convert(const char** from, const char* to, char** dst, const char* dstend) {
+    const char *orig_dst = *dst;
     const char* it = *from;
     const char* beg = it;
     int prev_was_simc = 0;
@@ -579,8 +581,10 @@ void ppl_convert(const char** from, const char* to, char** dst, const char* dste
             subp_convert(&beg, it, is_url, dst, dstend);
             is_url = 0;
 
-            if (*dst == dstend)
-	        break;
+            if (*dst == dstend) {
+                system_printf("Path cut off during conversion: %s\n", orig_dst);
+                break;
+            }
 
             **dst = ';';
             *dst += 1;
