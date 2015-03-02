@@ -3464,6 +3464,10 @@ arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, 
   // Don't allocate memory if no conversion happened.
   if (!strcmp (arg, stack_path))
     {
+      if (arg != stack_path)
+        {
+          free (stack_path);
+        }
       return ((char *)arg);
     }
   arg_result = (char *)realloc (stack_path, strlen (stack_path)+1);
