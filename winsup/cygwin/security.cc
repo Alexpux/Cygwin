@@ -1,7 +1,7 @@
 /* security.cc: NT file access control functions
 
    Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011, 2012, 2013, 2014 Red Hat, Inc.
+   2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015 Red Hat, Inc.
 
    Originaly written by Gunther Ebert, gunther.ebert@ixos-leipzig.de
    Completely rewritten by Corinna Vinschen <corinna@vinschen.de>
@@ -239,9 +239,10 @@ get_attribute_from_acl (mode_t *attribute, PACL acl, PSID owner_sid,
 			PSID group_sid, bool grp_member)
 {
   ACCESS_ALLOWED_ACE *ace;
-  int allow = 0;
-  int deny = 0;
-  int *flags, *anti;
+  mode_t allow = 0;
+  mode_t deny = 0;
+  mode_t *flags, *anti;
+  bool isownergroup = RtlEqualSid (owner_sid, group_sid);
 
   for (DWORD i = 0; i < acl->AceCount; ++i)
     {
@@ -268,15 +269,15 @@ get_attribute_from_acl (mode_t *attribute, PACL acl, PSID owner_sid,
 	{
 	  if (ace->Mask & FILE_READ_BITS)
 	    *flags |= ((!(*anti & S_IROTH)) ? S_IROTH : 0)
-		      | ((!(*anti & S_IRGRP)) ? S_IRGRP : 0)
+		      | ((!isownergroup && !(*anti & S_IRGRP)) ? S_IRGRP : 0)
 		      | ((!(*anti & S_IRUSR)) ? S_IRUSR : 0);
 	  if (ace->Mask & FILE_WRITE_BITS)
 	    *flags |= ((!(*anti & S_IWOTH)) ? S_IWOTH : 0)
-		      | ((!(*anti & S_IWGRP)) ? S_IWGRP : 0)
+		      | ((!isownergroup && !(*anti & S_IWGRP)) ? S_IWGRP : 0)
 		      | ((!(*anti & S_IWUSR)) ? S_IWUSR : 0);
 	  if (ace->Mask & FILE_EXEC_BITS)
 	    *flags |= ((!(*anti & S_IXOTH)) ? S_IXOTH : 0)
-		      | ((!(*anti & S_IXGRP)) ? S_IXGRP : 0)
+		      | ((!isownergroup && !(*anti & S_IXGRP)) ? S_IXGRP : 0)
 		      | ((!(*anti & S_IXUSR)) ? S_IXUSR : 0);
 	  if ((S_ISDIR (*attribute)) &&
 	      (ace->Mask & (FILE_WRITE_DATA | FILE_EXECUTE | FILE_DELETE_CHILD))
@@ -301,6 +302,17 @@ get_attribute_from_acl (mode_t *attribute, PACL acl, PSID owner_sid,
 	    *flags |= ((!(*anti & S_IWUSR)) ? S_IWUSR : 0);
 	  if (ace->Mask & FILE_EXEC_BITS)
 	    *flags |= ((!(*anti & S_IXUSR)) ? S_IXUSR : 0);
+	  /* Apply deny mask to group if group SID == owner SID. */
+	  if (group_sid && isownergroup
+	      && ace->Header.AceType == ACCESS_DENIED_ACE_TYPE)
+	    {
+	      if (ace->Mask & FILE_READ_BITS)
+		*flags |= ((!(*anti & S_IRUSR)) ? S_IRGRP : 0);
+	      if (ace->Mask & FILE_WRITE_BITS)
+		*flags |= ((!(*anti & S_IWUSR)) ? S_IWGRP : 0);
+	      if (ace->Mask & FILE_EXEC_BITS)
+		*flags |= ((!(*anti & S_IXUSR)) ? S_IXGRP : 0);
+	    }
 	}
       else if (ace_sid == group_sid)
 	{
@@ -331,6 +343,11 @@ get_attribute_from_acl (mode_t *attribute, PACL acl, PSID owner_sid,
 	}
     }
   *attribute &= ~(S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX | S_ISGID | S_ISUID);
+#if 0
+  /* Disable owner/group permissions equivalence if owner SID == group SID.
+     It's technically not quite correct, but it helps in case a security
+     conscious application checks if a file has too open permissions.  In
+     fact, since owner == group, there's no security issue here. */
   if (owner_sid && group_sid && RtlEqualSid (owner_sid, group_sid)
       /* FIXME: temporary exception for /var/empty */
       && well_known_system_sid != group_sid)
@@ -340,6 +357,7 @@ get_attribute_from_acl (mode_t *attribute, PACL acl, PSID owner_sid,
 		| ((allow & S_IWUSR) ? S_IWGRP : 0)
 		| ((allow & S_IXUSR) ? S_IXGRP : 0));
     }
+#endif
   *attribute |= allow;
 }
 
@@ -691,7 +709,7 @@ alloc_sd (path_conv &pc, uid_t uid, gid_t gid, int attribute,
 			       owner_sid, acl_len, NO_INHERITANCE))
     return NULL;
   /* Set deny ACE for group, if still needed. */
-  if (group_deny & owner_allow && !isownergroup
+  if ((group_deny & owner_allow) && !isownergroup
       && !add_access_denied_ace (acl, ace_off++, group_deny,
 				 group_sid, acl_len, NO_INHERITANCE))
     return NULL;
@@ -775,12 +793,30 @@ alloc_sd (path_conv &pc, uid_t uid, gid_t gid, int attribute,
 		 opening a file's security tab.  Explorer complains if
 		 inheritable ACEs are preceding non-inheritable ACEs. */
 	      ace->Header.AceFlags &= ~INHERITED_ACE;
+	      /* However, if the newly created object is a directory,
+	         it inherits the default ACL from its parent, so mark
+		 all unrelated, inherited ACEs inheritable. */
+	      if (S_ISDIR (attribute))
+		ace->Header.AceFlags |= CONTAINER_INHERIT_ACE
+					| OBJECT_INHERIT_ACE;
 	    }
-	  /*
-	   * Add unrelated ACCESS_DENIED_ACE to the beginning but
-	   * behind the owner_deny, ACCESS_ALLOWED_ACE to the end.
-	   * FIXME: this would break the order of the inherit-only ACEs
-	   */
+	  else if (uid == ILLEGAL_UID && gid == ILLEGAL_UID
+		   && ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE
+		   && ace_sid != well_known_creator_group_sid
+		   && ace_sid != well_known_creator_owner_sid
+		   && ace_sid != well_known_world_sid)
+	    {
+	      /* FIXME: Temporary workaround for the problem that chmod does
+		 not affect the group permissions if other users and groups
+		 in the ACL have more permissions than the primary group due
+		 to the CLASS_OBJ emulation.  The temporary workaround is to
+		 disallow any secondary ACE in the ACL more permissions than
+		 the primary group when writing a new ACL via chmod. */
+	      ace->Mask &= group_allow;
+	    }
+	  /* Add unrelated ACCESS_DENIED_ACE to the beginning but behind
+	     the owner_deny, ACCESS_ALLOWED_ACE to the end.  FIXME: this
+	     would break the order of the inherit-only ACEs. */
 	  status = RtlAddAce (acl, ACL_REVISION,
 			      ace->Header.AceType == ACCESS_DENIED_ACE_TYPE
 			      ?  (owner_deny ? 1 : 0) : MAXDWORD,
@@ -801,32 +837,11 @@ alloc_sd (path_conv &pc, uid_t uid, gid_t gid, int attribute,
     {
       const DWORD inherit = CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE
 			    | INHERIT_ONLY_ACE;
-#if 0 /* FIXME: Not done currently as this breaks the canonical order */
-      /* Set deny ACE for owner. */
-      if (owner_deny
-	  && !add_access_denied_ace (acl, ace_off++, owner_deny,
-				     well_known_creator_owner_sid, acl_len, inherit))
-	return NULL;
-      /* Set deny ACE for group here to respect the canonical order,
-	 if this does not impact owner */
-      if (group_deny && !(group_deny & owner_allow)
-	  && !add_access_denied_ace (acl, ace_off++, group_deny,
-				     well_known_creator_group_sid, acl_len, inherit))
-	return NULL;
-#endif
       /* Set allow ACE for owner. */
       if (!add_access_allowed_ace (acl, ace_off++, owner_allow,
 				   well_known_creator_owner_sid, acl_len,
 				   inherit))
 	return NULL;
-#if 0 /* FIXME: Not done currently as this breaks the canonical order and
-	 won't be preserved on chown and chmod */
-      /* Set deny ACE for group, conflicting with owner_allow. */
-      if (group_deny & owner_allow
-	  && !add_access_denied_ace (acl, ace_off++, group_deny,
-				     well_known_creator_group_sid, acl_len, inherit))
-	return NULL;
-#endif
       /* Set allow ACE for group. */
       if (!add_access_allowed_ace (acl, ace_off++, group_allow,
 				   well_known_creator_group_sid, acl_len,

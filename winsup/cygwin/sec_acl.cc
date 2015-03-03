@@ -169,7 +169,7 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
 	*allow |= FILE_DELETE_CHILD;
       invalid[i] = true;
     }
-  bool isownergroup = (owner_sid == group_sid);
+  bool isownergroup = (owner == group);
   DWORD owner_deny = ~owner_allow & (group_allow | other_allow);
   owner_deny &= ~(STANDARD_RIGHTS_READ
 		  | FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES);
@@ -179,27 +179,27 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
   /* Set deny ACE for owner. */
   if (owner_deny
       && !add_access_denied_ace (acl, ace_off++, owner_deny,
-				 owner_sid, acl_len, NO_INHERITANCE))
+				 owner, acl_len, NO_INHERITANCE))
     return -1;
   /* Set deny ACE for group here to respect the canonical order,
      if this does not impact owner */
   if (group_deny && !(group_deny & owner_allow) && !isownergroup
       && !add_access_denied_ace (acl, ace_off++, group_deny,
-				 group_sid, acl_len, NO_INHERITANCE))
+				 group, acl_len, NO_INHERITANCE))
     return -1;
   /* Set allow ACE for owner. */
   if (!add_access_allowed_ace (acl, ace_off++, owner_allow,
-			       owner_sid, acl_len, NO_INHERITANCE))
+			       owner, acl_len, NO_INHERITANCE))
     return -1;
   /* Set deny ACE for group, if still needed. */
   if (group_deny & owner_allow && !isownergroup
       && !add_access_denied_ace (acl, ace_off++, group_deny,
-				 group_sid, acl_len, NO_INHERITANCE))
+				 group, acl_len, NO_INHERITANCE))
     return -1;
   /* Set allow ACE for group. */
   if (!isownergroup
       && !add_access_allowed_ace (acl, ace_off++, group_allow,
-                                  group_sid, acl_len, NO_INHERITANCE))
+                                  group, acl_len, NO_INHERITANCE))
     return -1;
   /* Set allow ACE for everyone. */
   if (!add_access_allowed_ace (acl, ace_off++, other_allow,
@@ -258,6 +258,8 @@ setacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp,
       switch (aclbufp[i].a_type)
 	{
 	case DEF_USER_OBJ:
+	  allow |= STANDARD_RIGHTS_ALL
+		   | (pc.fs_is_samba () ? 0 : FILE_WRITE_ATTRIBUTES);
 	  if (!add_access_allowed_ace (acl, ace_off++, allow,
 				       well_known_creator_owner_sid, acl_len, inheritance))
 	    return -1;
@@ -421,6 +423,7 @@ getacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp)
 
   int pos, i, types_def = 0;
   int pgrp_pos = 1, def_pgrp_pos = -1;
+  bool has_class_perm = false, has_def_class_perm = false;
   mode_t class_perm = 0, def_class_perm = 0;
 
   if (!acl_exists || !acl)
@@ -449,15 +452,15 @@ getacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp)
 	      type = OTHER_OBJ;
 	      id = ILLEGAL_GID;
 	    }
-	  else if (ace_sid == group_sid)
-	    {
-	      type = GROUP_OBJ;
-	      id = gid;
-	    }
 	  else if (ace_sid == owner_sid)
 	    {
 	      type = USER_OBJ;
 	      id = uid;
+	    }
+	  else if (ace_sid == group_sid)
+	    {
+	      type = GROUP_OBJ;
+	      id = gid;
 	    }
 	  else if (ace_sid == well_known_creator_group_sid)
 	    {
@@ -483,7 +486,10 @@ getacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp)
 		  getace (lacl[pos], type, id, ace->Mask, ace->Header.AceType);
 		  /* Fix up CLASS_OBJ value. */
 		  if (type == USER || type == GROUP)
-		    class_perm |= lacl[pos].a_perm;
+		    {
+		      has_class_perm = true;
+		      class_perm |= lacl[pos].a_perm;
+		    }
 		}
 	    }
 	  if ((ace->Header.AceFlags
@@ -501,7 +507,10 @@ getacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp)
 		  getace (lacl[pos], type, id, ace->Mask, ace->Header.AceType);
 		  /* Fix up DEF_CLASS_OBJ value. */
 		  if (type == DEF_USER || type == DEF_GROUP)
-		    def_class_perm |= lacl[pos].a_perm;
+		    {
+		      has_def_class_perm = true;
+		      def_class_perm |= lacl[pos].a_perm;
+		    }
 		  /* And note the position of the DEF_GROUP_OBJ entry. */
 		  else if (type == DEF_GROUP_OBJ)
 		    def_pgrp_pos = pos;
@@ -512,7 +521,7 @@ getacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp)
 	 CLASS_OBJ entry. The CLASS_OBJ permissions are the or'ed permissions
 	 of the primary group permissions and all secondary user and group
 	 permissions. */
-      if (class_perm && (pos = searchace (lacl, MAX_ACL_ENTRIES, 0)) >= 0)
+      if (has_class_perm && (pos = searchace (lacl, MAX_ACL_ENTRIES, 0)) >= 0)
 	{
 	  lacl[pos].a_type = CLASS_OBJ;
 	  lacl[pos].a_id = ILLEGAL_GID;
@@ -550,7 +559,8 @@ getacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp)
 	 fake a matching DEF_CLASS_OBJ entry. The DEF_CLASS_OBJ permissions are
 	 the or'ed permissions of the primary group default permissions and all
 	 secondary user and group default permissions. */
-      if (def_class_perm && (pos = searchace (lacl, MAX_ACL_ENTRIES, 0)) >= 0)
+      if (has_def_class_perm
+	  && (pos = searchace (lacl, MAX_ACL_ENTRIES, 0)) >= 0)
 	{
 	  lacl[pos].a_type = DEF_CLASS_OBJ;
 	  lacl[pos].a_id = ILLEGAL_GID;
@@ -561,19 +571,26 @@ getacl (HANDLE handle, path_conv &pc, int nentries, aclent_t *aclbufp)
     }
   if ((pos = searchace (lacl, MAX_ACL_ENTRIES, 0)) < 0)
     pos = MAX_ACL_ENTRIES;
-  if (aclbufp) {
-    if (owner_sid == group_sid)
-      lacl[0].a_perm = lacl[1].a_perm;
-    if (pos > nentries)
-      {
-	set_errno (ENOSPC);
-	return -1;
-      }
-    memcpy (aclbufp, lacl, pos * sizeof (aclent_t));
-    for (i = 0; i < pos; ++i)
-      aclbufp[i].a_perm &= ~(DENY_R | DENY_W | DENY_X);
-    aclsort32 (pos, 0, aclbufp);
-  }
+  if (aclbufp)
+    {
+#if 0
+      /* Disable owner/group permissions equivalence if owner SID == group SID.
+	 It's technically not quite correct, but it helps in case a security
+	 conscious application checks if a file has too open permissions.  In
+	 fact, since owner == group, there's no security issue here. */
+      if (owner_sid == group_sid)
+	lacl[1].a_perm = lacl[0].a_perm;
+#endif
+      if (pos > nentries)
+	{
+	  set_errno (ENOSPC);
+	  return -1;
+	}
+      memcpy (aclbufp, lacl, pos * sizeof (aclent_t));
+      for (i = 0; i < pos; ++i)
+	aclbufp[i].a_perm &= ~(DENY_R | DENY_W | DENY_X);
+      aclsort32 (pos, 0, aclbufp);
+    }
   syscall_printf ("%R = getacl(%S)", pos, pc.get_nt_native_path ());
   return pos;
 }

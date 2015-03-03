@@ -1,7 +1,7 @@
 /* thread.cc: Locking and threading module functions
 
    Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010, 2011, 2012, 2013, 2014 Red Hat, Inc.
+   2009, 2010, 2011, 2012, 2013, 2014, 2015 Red Hat, Inc.
 
 This file is part of Cygwin.
 
@@ -1760,8 +1760,7 @@ pthread_mutex::lock ()
   else if (type == PTHREAD_MUTEX_NORMAL /* potentially causes deadlock */
 	   || !pthread::equal (owner, self))
     {
-      /* FIXME: no cancel? */
-      cygwait (win32_obj_id, cw_infinite, cw_sig);
+      cygwait (win32_obj_id, cw_infinite, cw_sig | cw_sig_restart);
       set_owner (self);
     }
   else
@@ -2399,7 +2398,8 @@ pthread::join (pthread_t *thread, void **return_val)
       (*thread)->attr.joinable = PTHREAD_CREATE_DETACHED;
       (*thread)->mutex.unlock ();
 
-      switch (cygwait ((*thread)->win32_obj_id, cw_infinite, cw_sig | cw_cancel))
+      switch (cygwait ((*thread)->win32_obj_id, cw_infinite,
+		       cw_sig | cw_sig_restart | cw_cancel))
 	{
 	case WAIT_OBJECT_0:
 	  if (return_val)
@@ -3517,7 +3517,8 @@ semaphore::_timedwait (const struct timespec *abstime)
       timeout.QuadPart = abstime->tv_sec * NSPERSEC
 			 + (abstime->tv_nsec + 99) / 100 + FACTOR;
 
-      switch (cygwait (win32_obj_id, &timeout, cw_cancel | cw_cancel_self | cw_sig_eintr))
+      switch (cygwait (win32_obj_id, &timeout,
+		       cw_cancel | cw_cancel_self | cw_sig_eintr))
 	{
 	case WAIT_OBJECT_0:
 	  break;
@@ -3550,7 +3551,8 @@ semaphore::_timedwait (const struct timespec *abstime)
 int
 semaphore::_wait ()
 {
-  switch (cygwait (win32_obj_id, cw_infinite, cw_cancel | cw_cancel_self | cw_sig_eintr))
+  switch (cygwait (win32_obj_id, cw_infinite,
+		   cw_cancel | cw_cancel_self | cw_sig_eintr))
     {
     case WAIT_OBJECT_0:
       break;
