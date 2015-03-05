@@ -2438,6 +2438,43 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
     p = wcpcpy (wcpcpy (p, dom), cygheap->pg.nss_separator ());
   wcpcpy (p, name);
 
+  if (!home)
+    {
+      char *env = getenv("HOME");
+      if (!env)
+        {
+          char *drive = getenv("HOMEDRIVE"), *path = getenv("HOMEPATH");
+          if (drive && path)
+            {
+              int drive_len = strlen(drive), path_len = strlen(path);
+              home = (char *)malloc(drive_len + path_len + 1);
+              strcpy(home, drive);
+              strcpy(home + drive_len, path);
+            }
+        }
+      if (!home && !env)
+        env = getenv("USERPROFILE");
+
+      if (env)
+        home = strdup(env);
+
+      /* Poor man's win32 -> POSIX conversion */
+      // is not available on 64-bit: cygwin_conv_to_posix_path(env, home);
+      if (home)
+        {
+          int i;
+
+          if (isalpha(home[0]) && home[1] == ':')
+            {
+              home[1] = home[0];
+              home[0] = '/';
+            }
+          for (i = 0; home[i]; i++)
+            if (home[i] == '\\')
+              home[i] = '/';
+        }
+    }
+
   if (is_group ())
     __small_sprintf (linebuf, "%W:%s:%u:",
 		     posix_name, sid.string ((char *) sidstr), uid);
