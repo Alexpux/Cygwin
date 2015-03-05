@@ -125,7 +125,7 @@ internal_getlogin (cygheap_user &user)
   pwd = internal_getpwsid (user.sid (), &cldap);
   pgrp = internal_getgrsid (user.groups.pgsid, &cldap);
   if (!cygheap->pg.nss_cygserver_caching ())
-    internal_getgroups (0, NULL, &cldap);
+    internal_getgroups (0, NULL, &cldap, 3000000U); /* 300ms in 100ns units */
   if (!pwd)
     debug_printf ("user not found in passwd DB");
   else
@@ -574,8 +574,9 @@ pwdgrp::add_line (char *eptr)
 				       max_lines * pwdgrp_buf_elem_size);
 	}
       lptr = eptr;
-      if ((this->*parse) ())
-	curr_lines++;
+      if (!(this->*parse) ())
+	return NULL;
+      curr_lines++;
     }
   return eptr;
 }
@@ -1459,18 +1460,18 @@ get_logon_sid ()
 void *
 pwdgrp::add_account_post_fetch (char *line, bool lock)
 {
+  void *ret = NULL;
+
   if (line)
     { 
-      void *ret;
       if (lock)
 	pglock.init ("pglock")->acquire ();
-      add_line (line);
-      ret = ((char *) pwdgrp_buf) + (curr_lines - 1) * pwdgrp_buf_elem_size;
+      if (add_line (line))
+	ret = ((char *) pwdgrp_buf) + (curr_lines - 1) * pwdgrp_buf_elem_size;
       if (lock)
 	pglock.release ();
-      return ret;
     }
-  return NULL;
+  return ret;
 }
 
 void *
@@ -1543,6 +1544,19 @@ pwdgrp::add_account_from_windows (uint32_t id, cyg_ldap *pldap)
   if (!line)
     return NULL;
   return add_account_post_fetch (line, true);
+}
+
+/* Called from internal_getgrfull, in turn called from internal_getgroups. */
+struct group *
+pwdgrp::add_group_from_windows (fetch_acc_t &full_acc, cyg_ldap *pldap)
+{
+  fetch_user_arg_t arg;
+  arg.type = FULL_acc_arg;
+  arg.full_acc = &full_acc;
+  char *line = fetch_account_from_windows (arg, pldap);
+  if (!line)
+    return NULL;
+  return (struct group *) add_account_post_fetch (line, true);
 }
 
 /* Check if file exists and if it has been written to since last checked.
@@ -1627,6 +1641,8 @@ pwdgrp::fetch_account_from_line (fetch_user_arg_t &arg, const char *line)
       if (strtoul (p + 1, &e, 10) != arg.id || !e || *e != ':')
 	return NULL;
       break;
+    default:
+      return NULL;
     }
   return cstrdup (line);
 }
@@ -1653,6 +1669,8 @@ pwdgrp::fetch_account_from_file (fetch_user_arg_t &arg)
       break;
     case ID_arg:
       break;
+    default:
+      return NULL;
     }
   if (rl.init (&attr, buf, NT_MAX_PATH))
     while ((buf = rl.gets ()))
@@ -1742,6 +1760,17 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 
   switch (arg.type)
     {
+    case FULL_acc_arg:
+      {
+	sid = arg.full_acc->sid;
+	*wcpncpy (name, arg.full_acc->name->Buffer,
+		  arg.full_acc->name->Length / sizeof (WCHAR)) = L'\0';
+	*wcpncpy (dom, arg.full_acc->dom->Buffer,
+		  arg.full_acc->dom->Length / sizeof (WCHAR)) = L'\0';
+	acc_type = arg.full_acc->acc_type;
+      	ret = acc_type != SidTypeUnknown;
+      }
+      break;
     case SID_arg:
       sid = *arg.sid;
       ret = LookupAccountSidW (NULL, sid, name, &nlen, dom, &dlen, &acc_type);
@@ -2025,12 +2054,31 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
       switch (acc_type)
       	{
 	case SidTypeUser:
-	  /* Don't allow users as group.  While this is technically possible,
-	     it doesn't make sense in a POSIX scenario.  It *is* used for
-	     Microsoft Accounts, but those are converted to well-known groups
-	     above. */
 	  if (is_group ())
-	    return NULL;
+	    {
+	      /* Don't allow users as group.  While this is technically
+		 possible, it doesn't make sense in a POSIX scenario.
+	 
+		 And then there are the so-called Microsoft Accounts.  The
+		 special SID with security authority 11 is converted to a
+		 well known group above, but additionally, when logging in
+		 with such an account, the user's primary group SID is the
+		 user's SID.  Those we let pass, but no others. */
+	      bool its_ok = false;
+	      if (wincap.has_microsoft_accounts ())
+		{
+		  struct cyg_USER_INFO_24 *ui24;
+		  if (NetUserGetInfo (NULL, name, 24, (PBYTE *) &ui24)
+		      == NERR_Success)
+		    {
+		      if (ui24->usri24_internet_identity)
+			its_ok = true;
+		      NetApiBufferFree (ui24);
+		    }
+		}
+	      if (!its_ok)
+		return NULL;
+	    }
 	  /*FALLTHRU*/
 	case SidTypeGroup:
 	case SidTypeAlias:
@@ -2202,25 +2250,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		    {
 		      debug_printf ("NetUserGetInfo(%W) %u", name, nas);
 		      break;
-		    }
-		  /* Logging in with a Microsoft Account, the user's primary
-		     group SID is the user's SID.  Security sensitive tools
-		     expecting tight file permissions choke on that.  We need
-		     an explicit primary group which is not identical to the
-		     user account.  Unfortunately, while the default primary
-		     group of the account in SAM is still "None", "None" is not
-		     in the user token group list.  So, what we do here is to
-		     use "Users" as a sane default primary group instead. */
-		  if (wincap.has_microsoft_accounts ())
-		    {
-		      struct cyg_USER_INFO_24 *ui24;
-		      nas = NetUserGetInfo (NULL, name, 24, (PBYTE *) &ui24);
-		      if (nas == NERR_Success)
-			{
-			  if (ui24->usri24_internet_identity)
-			    gid = DOMAIN_ALIAS_RID_USERS;
-			  NetApiBufferFree (ui24);
-			}
 		    }
 		  /* Fetch user attributes. */
 		  home = cygheap->pg.get_home (ui, sid, dom, name,
@@ -2526,6 +2555,10 @@ client_request_pwdgrp::client_request_pwdgrp (fetch_user_arg_t &arg, bool group)
     case ID_arg:
       _parameters.in.arg.id = arg.id;
       len = sizeof (uint32_t);
+      break;
+    default:
+      api_fatal ("Fetching account info from cygserver with wrong arg.type "
+		 "%d", arg.type);
     }
   msglen (__builtin_offsetof (struct _pwdgrp_param_t::_pwdgrp_in_t, arg) + len);
 }

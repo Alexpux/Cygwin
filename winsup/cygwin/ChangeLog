@@ -1,3 +1,236 @@
+2015-03-02  Corinna Vinschen  <corinna@vinschen.de>
+
+	* security.cc (get_attribute_from_acl): Don't spill Everyone permissions
+	into group permissions if owner SID == group SID.
+	(alloc_sd): Add parenthesis for clarity.
+
+2015-02-28  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::add_line): Return NULL if parsing a line failed.
+	(pwdgrp::add_account_post_fetch): Check return value from add_line and
+	return NULL if add_line returns NULL.
+
+2015-02-27  Corinna Vinschen  <corinna@vinschen.de>
+
+	* security.cc (alloc_sd): For directories, mark inherited ACEs
+	inheritable to better follow POSIX 1003.1e rules.
+
+2015-02-27  Corinna Vinschen  <corinna@vinschen.de>
+
+	* sec_acl.cc (getacl): Add mask even if all group and secondary account
+	permissions are 0.
+
+2015-02-27  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Drop redundant test
+	for SidTypeUser.
+
+2015-02-27  Corinna Vinschen  <corinna@vinschen.de>
+
+	* sec_acl.cc (setacl): Fix bug which leads to ACE duplication in
+	case owner SID == group SID.
+	(getacl): Reverse order of SID test against group or owner sid to
+	prefer owner attributes over group attributes.  Disable setting group
+	permissions equivalent to owner permissions if owner == group.  Add
+	comment to explain why.  Fix indentation.
+	* security.cc (get_attribute_from_acl): Change type of local variables
+	containing permission to mode_t.  Apply deny mask to group if group SID
+	== owner SID to avoid Everyone permissions to spill over into group
+	permissions.  Disable setting group permissions equivalent to owner
+	permissions if owner == group.  Add comment to explain why.
+	* uinfo.cc (pwdgrp::fetch_account_from_windows): Allow user SID as
+	group account if user is a "Microsoft Account".  Explain why.  Drop
+	workaround enforcing primary group "Users" for "Microsoft Accounts".
+
+2015-02-26  Corinna Vinschen  <corinna@vinschen.de>
+
+	* ldap.cc (cyg_ldap::wait): Call cygwait with cw_infinite timeout value
+	and with cw_sig_restart instead of cw_sig_eintr.  Drop useless
+	_my_tls.call_signal_handler call.  Return EIO if cygwait failed.
+
+2015-02-26  Corinna Vinschen  <corinna@vinschen.de>
+
+	* posix_ipc.cc (ipc_mutex_lock): Revert unneeded call to signal handler.
+
+2015-02-26  Corinna Vinschen  <corinna@vinschen.de>
+
+	* posix_ipc.cc (ipc_mutex_lock): Add bool parameter to influence if
+	cygwait should be in EINTR or in restart mode.  Call signal handler
+	if in EINTR mode.
+	(mq_getattr): Call ipc_mutex_lock in restart mode.
+	(mq_setattr): Ditto.
+	(mq_notify): Ditto.
+	(_mq_send): Call ipc_mutex_lock in EINTR mode.
+	(_mq_receive): Ditto.
+
+2015-02-26  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_termios.cc (fhandler_termios::line_edit): Fix condition
+	for writing remaining bytes in readahead buffer in non-canonical mode.
+
+2015-02-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* sec_acl.cc (setacl): Always grant default owner entry
+	STANDARD_RIGHTS_ALL and FILE_WRITE_ATTRIBUTES access, too.
+
+2015-02-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_tape.cc (fhandler_dev_tape::_lock): Add cw_sig_restart to
+	cygwait call.
+	* thread.cc (pthread_mutex::lock): Ditto.
+	(semaphore::_timedwait): Fix formatting.
+	(semaphore::_wait): Ditto.
+	* thread.h (fast_mutex::lock): Ditto.
+
+2015-02-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* security.cc (alloc_sd): Don't apply temporary workaround for chmod
+	to DEF_USER_OBJ, DEF_GROUP_OBJ, and DEF_OTHER_OBJ ACEs.
+
+2015-02-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler_tty.cc (fhandler_pty_slave::read): Having no input is not an
+	error condition for tcflush.
+
+2015-02-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* security.cc (alloc_sd): Fix comment style.  Remove code unused for
+	years.
+
+2015-02-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* security.cc (alloc_sd): Add temporary workaround which disallows
+	any secondary user to have more permissions than the primary group
+	in calls to chmod.  Add comment to explain why.
+
+2015-02-25  Corinna Vinschen  <corinna@vinschen.de>
+
+	* uinfo.cc (client_request_pwdgrp::client_request_pwdgrp): Add missing
+	break in switch statement.
+
+2015-02-24  Corinna Vinschen  <corinna@vinschen.de>
+
+	* ldap.h: Remove index macros.
+	(class cyg_ldap): Remove members srch_msg and srch_entry.
+	(cyg_ldap::get_string_attribute): Remove private method taking index
+	argument.
+	(cyg_ldap::get_num_attribute): Ditto.  Add method taking attribute name.
+	(cyg_ldap::get_primary_gid): Adjust to aforementioned change.
+	(cyg_ldap::get_unix_uid): Ditto.
+	(cyg_ldap::get_unix_gid): Ditto.
+	* ldap.cc: Throughout, use msg and entry in place of srch_msg and
+	srch_entry.
+	(std_user_attr): Add sAMAccountName and objectSid.
+	(group_attr): Ditto.
+	(cyg_ldap::close): Drop handling of srch_msg and srch_entry.
+	(cyg_ldap::get_string_attribute): Move earlier in file.
+	(cyg_ldap::get_num_attribute): Ditto.
+	(cyg_ldap::enumerate_ad_accounts): Add comments for clarity.
+	Use group_attr or user_attr rather than sid_attr to fetch all desired
+	attributes for an account right away.
+	(cyg_ldap::next_account): Store found SID in last_fetched_sid to
+	skip calls to fetch_ad_account from fetch_account_from_windows.
+	(cyg_ldap::get_string_attribute): Remove method taking index argument.
+	(cyg_ldap::get_num_attribute): Ditto.
+	* pwdgrp.h (class pg_ent): Fix formatting.  Add member dom.
+	* passwd.cc (pg_ent::enumerate_ad): Store current flat domain name
+	in dom.  Construct fetch_acc_t argument from LDAP attributes and
+	call fetch_account_from_windows with that.
+	* userinfo.h (enum fetch_user_arg_type_t): Rename FULL_grp_arg to
+	FULL_acc_arg.  Change throughout.
+	(struct fetch_acc_t): Rename from fetch_full_grp_t.  Change throughout.
+	(struct fetch_user_arg_t): Rename full_grp to full_acc.  Change
+	throughout.
+
+2015-02-24  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler.h (class fhandler_base): Add was_nonblocking status flag.
+	* fhandler.cc (fhandler_base::set_flags): Set was_nonblocking if the
+	O_NONBLOCK flag has been specified.
+	(fhandler_base_overlapped::close): Check for was_nonblocking instead
+	of for is_nonblocking.  Explain why.
+	(fhandler_base::set_nonblocking): Set was_nonblocking if noblocking
+	mode gets enabled.
+
+2015-02-24  Ken Brown  <kbrown@cornell.edu>
+
+	* include/sys/socket.h (sockatmark): Add prototype.
+
+2015-02-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* userinfo.h (struct fetch_full_grp_t): Define only when building
+	Cygwin itself.
+	(struct fetch_user_arg_t): Ditto.
+
+2015-02-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* autoload.cc (LsaLookupSids): Import.
+	* cygserver_pwdgrp.h: Include userinfo.h.  Drop workaround defining
+	fetch_user_arg_type_t locally.
+	* grp.cc (internal_getgrsid_cachedonly): New function.
+	(internal_getgrfull): Ditto.
+	(internal_getgroups): Rearrange function.  Center around fetching all
+	cached group info first, calling LsaLookupSids on all so far non-cached
+	groups second.  Pass all available info to new internal_getgrfull call.
+	* pwdgrp.h: Include userinfo.h.  Move definitions of
+	fetch_user_arg_type_t and fetch_user_arg_t there.
+	(pwdgrp::add_group_from_windows): Declare with getting full group info.
+	Called from internal_getgrfull.
+	* uinfo.cc (pwdgrp::add_group_from_windows): Define.
+	(pwdgrp::fetch_account_from_line): Add default case.
+	(pwdgrp::fetch_account_from_file): Ditto.
+	(pwdgrp::fetch_account_from_windows): Handle FULL_grp_arg.
+	(client_request_pwdgrp::client_request_pwdgrp): Add default case.
+	* userinfo.h: New header.
+	(enum fetch_user_arg_type_t): Add FULL_grp_arg.
+	(struct fetch_full_grp_t): New datatype.
+
+2015-02-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* grp.cc (internal_getgroups): Check for group attributes and
+	Everyone sid before calling internal_getgrsid.
+
+2015-02-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygwait.h (enum cw_wait_mask): Add cw_sig_restart.  Add comments
+	to explain the meaning of the possible values.
+	* cygwait.cc (is_cw_sig_restart): Define.
+	(is_cw_sig_handle): Check for cw_sig_restart as well.
+	(cygwait): Restart always if cw_sig_restart is set.
+	* thread.cc (pthread::join): Call cygwait with cw_sig_restart flag
+	to avoid having to handle signals at all.
+
+2015-02-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* cygwait.cc (cygwait): Move setting res to WAIT_SIGNALED to clarify
+	when WAIT_SIGNALED is returned to the caller.
+
+2015-02-23  Corinna Vinschen  <corinna@vinschen.de>
+
+	* winsup.h (SIGTOMASK): Add cast to sigset_t to avoid int overflow.
+
+2015-02-20  Corinna Vinschen  <corinna@vinschen.de>
+
+	* grp.cc (internal_getgroups): Take additional timeout_ns parameter.
+	Restrict fetching group account entries from user token groups by
+	timeout_ns 100ns-intervals.  Add preceding comment to explain why.
+	* pwdgrp.h (internal_getgroups): Align prototype.
+	* times.cc (GetTickCount_ns): New function.
+	* uinfo.cc (internal_getlogin): Call internal_getgroups wih 300ms
+	timeout.
+	* winsup.h (GetTickCount_ns): Declare.
+
+2015-02-19  Jon TURNEY  <jon.turney@dronecode.org.uk>
+
+	* Makefile.in (sigfe.o): Use CFLAGS.
+
+2015-02-19  Jon TURNEY  <jon.turney@dronecode.org.uk>
+
+	* include/cygwin/stdlib.h (initstate, random, setstate, srandom):
+	Check if __XSI_VISIBLE is set by sys/cdefs.h, rather than testing
+	for _XOPEN_SOURCE directly, to work correctly when _GNU_SOURCE is
+	set.
+
 2015-02-19  Corinna Vinschen  <corinna@vinschen.de>
 
 	* sec_acl.cc (setacl): Always grant owner FILE_WRITE_ATTRIBUTES access.
