@@ -169,7 +169,9 @@ class mount_info
   int nmounts;
   mount_item mount[MAX_MOUNTS];
 
-  static bool got_usr_bin;
+  static bool got_root_bin;
+  static bool got_root_sbin;
+  static bool got_root_usr_sbin;
   static int root_idx;
 
   /* cygdrive_prefix is used as the root of the path automatically

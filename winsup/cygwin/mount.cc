@@ -41,7 +41,9 @@ details. */
 #define isproc(path) \
   (path_prefix_p (proc, (path), proc_len, false))
 
-bool NO_COPY mount_info::got_usr_bin;
+bool NO_COPY mount_info::got_root_bin;
+bool NO_COPY mount_info::got_root_sbin;
+bool NO_COPY mount_info::got_root_usr_sbin;
 int NO_COPY mount_info::root_idx = -1;
 
 /* is_unc_share: Return non-zero if PATH begins with //server/share
@@ -479,16 +481,30 @@ mount_info::init (bool user_init)
   from_fstab (user_init, path, pathend);
 
 
-  if (!user_init && !got_usr_bin)
+  if (!user_init && (!got_root_bin || !got_root_sbin || !got_root_usr_sbin))
     {
       char native[PATH_MAX];
       if (root_idx < 0)
         api_fatal ("root_idx %d, user_shared magic %y, nmounts %d", root_idx, user_shared->version, nmounts);
-      char *p = stpcpy (native, mount[root_idx].native_path);
-	stpcpy (p, "\\usr\\bin");
-	add_item (native, "/bin",
-		  MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC | MOUNT_NOACL);
-   }
+      if (!got_root_bin)
+        {
+          char *p = stpcpy (native, mount[root_idx].native_path);
+          stpcpy (p, "\\usr\\bin");
+          add_item (native, "/bin", MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC | MOUNT_NOACL);
+        }
+      if (!got_root_sbin)
+        {
+          char *p = stpcpy (native, mount[root_idx].native_path);
+          stpcpy (p, "\\usr\\bin");
+          add_item (native, "/sbin", MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC | MOUNT_NOACL);
+        }
+      if (!got_root_usr_sbin)
+        {
+          char *p = stpcpy (native, mount[root_idx].native_path);
+          stpcpy (p, "\\usr\\bin");
+          add_item (native, "/usr/sbin", MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_AUTOMATIC | MOUNT_NOACL);
+        }
+    }
 }
 
 static void
@@ -1572,7 +1588,11 @@ mount_info::add_item (const char *native, const char *posix,
     nmounts++;
 
   if (strcmp (posixtmp, "/bin") == 0)
-    got_usr_bin = true;
+    got_root_bin = true;
+  else if (strcmp (posixtmp, "/sbin") == 0)
+    got_root_sbin = true;
+  else if (strcmp (posixtmp, "/usr/sbin") == 0)
+    got_root_usr_sbin = true;
 
   if (posixtmp[0] == '/' && posixtmp[1] == '\0' && !(mountflags & MOUNT_CYGDRIVE))
     root_idx = i;
