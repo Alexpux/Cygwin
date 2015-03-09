@@ -543,6 +543,33 @@ cygheap_user::env_systemroot (const char *name, size_t namelen)
   return psystemroot;
 }
 
+const char *
+cygheap_user::env_tty_handles(const char *name, size_t namelen)
+{
+  static unsigned initialized;
+  static char buffer[128];
+
+  if (!initialized)
+    {
+      int fd;
+      char *p = buffer + sprintf(buffer, " ");
+      for (fd = 0; fd < 3; fd++)
+        if (isatty(fd))
+          {
+            cygheap_fdget cfd (fd);
+
+            if (cfd < 0 || cfd->close_on_exec ())
+              continue;
+
+            p += sprintf(p, "%ld ", (unsigned long)
+              (fd ?  cfd->get_output_handle() : cfd->get_handle()));
+          }
+      initialized = 1;
+    }
+
+  return buffer;
+}
+
 char *
 pwdgrp::next_str (char c)
 {
