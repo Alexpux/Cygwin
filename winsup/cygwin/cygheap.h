@@ -138,6 +138,7 @@ public:
   const char *env_domain (const char *, size_t);
   const char *env_name (const char *, size_t);
   const char *env_systemroot (const char *, size_t);
+  const char *env_tty_handles (const char *, size_t);
 
   const char *logsrv ()
   {
