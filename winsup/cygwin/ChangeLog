@@ -1,3 +1,48 @@
+2015-03-05  Corinna Vinschen  <corinna@vinschen.de>
+
+	* tty.h (tty::set_master_ctl_closed): Rename from set_master_closed.
+	(tty::is_master_closed): Drop method.
+	* fhandler_tty.cc (fhandler_pty_slave::open): Remove code prematurely
+	bailing out if master control thread is not running.
+	(fhandler_pty_slave::read): Don't generate SIGHUP if master control
+	thread is not running.
+	(fhandler_pty_master::close): Rearrange code to avoid stopping master
+	control thread twice in multi-threaded scenarios.
+
+2015-03-05  Corinna Vinschen  <corinna@vinschen.de>
+
+	* fhandler.h (fhandler_base::get_echo_handle): New virtual method.
+	(class fhandler_pty_master): Add echo_r and echo_w handles constituting
+	read and write side of new echo pipe.
+	* select.cc (peek_pipe): On pty masters, check additionally if input
+	from the echo pipe is available.
+	* fhandler_tty.cc (fhandler_pty_master::doecho): Drop output_mutex
+	locking.  Write output to echo pipe.
+	(fhandler_pty_master::process_slave_output): Check if input is available
+	in echo pipe and prefer to read from it, if so.
+	(fhandler_pty_slave::write): Drop output_mutex locking.
+	(fhandler_pty_master::fhandler_pty_master): Initialize echo pipe
+	handles to NULL.
+	(fhandler_pty_master::close): Close and NULL echo pipe handles.
+	(fhandler_pty_master::setup): Create echo pipe, close in case of error.
+
+2015-03-04  Corinna Vinschen  <corinna@vinschen.de>
+
+	* include/cygwin/version.h (CYGWIN_VERSION_DLL_MINOR): Bump to 36.
+
+2015-03-03  Corinna Vinschen  <corinna@vinschen.de>
+
+	* msg.cc: Throughout, drop raising SIGSYS if cygserver is not running.
+	* sem.cc: Ditto.
+	* shm.cc: Ditto.
+
+2015-03-03  Corinna Vinschen  <corinna@vinschen.de>
+
+	* common.din (issetugid): Export.
+	* glob.cc (issetugid): Drop macro.
+	* sec_auth.cc (issetugid): New exported function.
+	* include/cygwin/version.h (CYGWIN_VERSION_API_MINOR): Bump.
+
 2015-03-02  Corinna Vinschen  <corinna@vinschen.de>
 
 	* security.cc (get_attribute_from_acl): Don't spill Everyone permissions
