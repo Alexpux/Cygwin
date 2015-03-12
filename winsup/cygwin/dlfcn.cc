@@ -89,8 +89,13 @@ get_full_path_of_dll (const char* str, path_conv &real_filename)
   /* Does the filename start with "lib"? */
   if (!strncmp (basename, "lib", 3))
     {
+#ifdef __MSYS__
+      /* Yes, replace "lib" with "msys-". */
+      strncpy (basename, "msys-", 5);
+#else
       /* Yes, replace "lib" with "cyg". */
       strncpy (basename, "cyg", 3);
+#endif
       /* Does the file exist? */
       if (gfpod_helper (name, real_filename))
 	return true;
