@@ -238,6 +238,7 @@ DLL_OFILES:= \
 	mktemp.o \
 	mmap.o \
 	msg.o \
+	msys2_path_conv.o \
 	mount.o \
 	net.o \
 	netdb.o \
