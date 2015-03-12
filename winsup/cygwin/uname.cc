@@ -27,7 +27,13 @@ uname (struct utsname *name)
       char *snp = strstr  (cygwin_version.dll_build_date, "SNP");
 
       memset (name, 0, sizeof (*name));
+#ifdef __MSYS__
+      char* msystem = getenv("MSYSTEM");
+      const char *msystem_msys = "MSYS";
+      __small_sprintf (name->sysname, "%s_%s", msystem ? msystem : msystem_msys, wincap.osname ());
+#else
       __small_sprintf (name->sysname, "CYGWIN_%s", wincap.osname ());
+#endif
 
       /* Add a hint to the sysname, that we're running under WOW64.  This might
 	 give an early clue if somebody encounters problems. */
