@@ -116,8 +116,9 @@ error_start_init (const char *buf)
       return;
     }
 
-  char pgm[NT_MAX_PATH];
-  if (!GetModuleFileName (NULL, pgm, NT_MAX_PATH))
+  char pgm[NT_MAX_PATH+5];
+  strcpy(pgm," \"");
+  if (!GetModuleFileName (NULL, pgm+2, NT_MAX_PATH))
 #ifdef __MSYS__
     strcpy (pgm, "msys-2.0.dll");
 #else
@@ -125,8 +126,35 @@ error_start_init (const char *buf)
 #endif
   for (char *p = strchr (pgm, '\\'); p; p = strchr (p, '\\'))
     *p = '/';
+  strcat(pgm,"\" ");
 
-  __small_sprintf (debugger_command, "%s \"%s\"", buf, pgm);
+  strcpy(debugger_command, buf);
+  /* Turn all '|' into ' ' */
+  char* bar = debugger_command;
+  while ((bar = strchr(debugger_command, '|')))
+    {
+       *bar = ' ';
+    }
+
+  /* If either <program-name> or <process-id> appears then don't
+     append hardcoded arguments. */
+  int new_style =  (strstr (debugger_command, "<program-name>") != NULL ||
+                    strstr (debugger_command, "<process-id>" ) != NULL) ? 1 : 0;
+
+  /* Only supports one instance of <program-name> as we're space-restricted.  */
+  char* pname = strstr (debugger_command, "<program-name>");
+  if (pname !=0)
+    {
+      char debugger_command_rest[2 * NT_MAX_PATH + 20];
+      strcpy (debugger_command_rest, pname + strlen("<program-name>"));
+      strcpy (pname, pgm);
+      strcat (pname, debugger_command_rest);
+    }
+
+  if (new_style == 0)
+    {
+      strcat(debugger_command, pgm);
+    }
 }
 
 void
@@ -468,7 +496,21 @@ try_to_debug (bool waitloop)
       return 0;
     }
 
-  __small_sprintf (strchr (debugger_command, '\0'), " %u", GetCurrentProcessId ());
+  char* pid = strstr (debugger_command, "<process-id>");
+  if (pid != NULL)
+    {
+      int count = __small_sprintf (pid, " %u ", GetCurrentProcessId ());
+      pid += count;
+      count = strlen("<process-id>") - count;
+      while (count-->0)
+        {
+          *pid++ = ' ';
+        }
+    }
+  else
+    {
+      __small_sprintf (strchr (debugger_command, '\0'), " %u", GetCurrentProcessId ());
+    }
 
   LONG prio = GetThreadPriority (GetCurrentThread ());
   SetThreadPriority (GetCurrentThread (), THREAD_PRIORITY_HIGHEST);
