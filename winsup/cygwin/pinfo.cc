@@ -191,7 +191,7 @@ pinfo::maybe_set_exit_code_from_windows ()
       GetExitCodeProcess (hProcess, &x);
       set_exit_code (x);
     }
-  sigproc_printf ("pid %d, exit value - old %y, windows %y, cygwin %y",
+  sigproc_printf ("pid %d, exit value - old %y, windows %y, MSYS %y",
 		  self->pid, oexitcode, x, self->exitcode);
 }
 
@@ -342,7 +342,7 @@ pinfo::init (pid_t n, DWORD flag, HANDLE h0)
       if (procinfo->process_state & PID_EXECED)
 	{
 	  pid_t realpid = procinfo->pid;
-	  debug_printf ("execed process windows pid %u, cygwin pid %d", n, realpid);
+	  debug_printf ("execed process windows pid %u, MSYS pid %d", n, realpid);
 	  if (realpid == n)
 	    api_fatal ("retrieval of execed process info for pid %d failed due to recursion.", n);
 

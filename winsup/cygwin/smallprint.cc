@@ -286,7 +286,7 @@ gen_decimalLL:
 		  break;
 		case 'P':
 		  if (!GetModuleFileName (NULL, tmp, NT_MAX_PATH))
-		    s = "cygwin program";
+		    s = "MSYS program";
 		  else
 		    s = tmp;
 		  goto fillin;
@@ -614,7 +614,7 @@ gen_decimalLL:
 		  break;
 		case L'P':
 		  if (!GetModuleFileNameW (NULL, tmp, NT_MAX_PATH))
-		    RtlInitUnicodeString (us = &uw, L"cygwin program");
+		    RtlInitUnicodeString (us = &uw, L"MSYS program");
 		  else
 		    RtlInitUnicodeString (us = &uw, tmp);
 		  goto fillin;
