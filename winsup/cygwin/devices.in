@@ -176,7 +176,7 @@ const device dev_error_storage =
 "/dev/sdb%{a-z}s%(1-15)d", BRACK(FH_SDB{uc $1} | {$2}), "\\Device\\Harddisk{52 + ord($1) - ord('a')}\\Partition{$2 % 16}", exists_ntdev, S_IFBLK
 "/dev/sdc%{a-z}s%(1-15)d", BRACK(FH_SDC{uc $1} | {$2}), "\\Device\\Harddisk{78 + ord($1) - ord('a')}\\Partition{$2 % 16}", exists_ntdev, S_IFBLK
 "/dev/sdd%{a-x}s%(1-15)d", BRACK(FH_SDD{uc $1} | {$2}), "\\Device\\Harddisk{104 + ord($1) - ord('a')}\\Partition{$2 % 16}", exists_ntdev, S_IFBLK
-"/dev/kmsg", BRACK(FH_KMSG), "\\Device\\MailSlot\\cygwin\\dev\\kmsg", exists_ntdev, S_IFCHR
+"/dev/kmsg", BRACK(FH_KMSG), "\\Device\\MailSlot\\msys\\dev\\kmsg", exists_ntdev, S_IFCHR
 %other	{return	NULL;}
 %%
 #undef BRACK
