@@ -73,8 +73,7 @@ static const char *known_env_vars[] = {
   "c_include_path",
   "compiler_path",
   "cxx_include_path",
-  "cygwin",
-  "cygwin32",
+  "msys",
   "dejagnu",
   "expect",
   "gcc_default_options",
@@ -510,12 +509,12 @@ struct ImpDirectory
 
 static bool track_down (const char *file, const char *suffix, int lvl);
 
-#define CYGPREFIX (sizeof ("%%% Cygwin ") - 1)
+#define CYGPREFIX (sizeof ("%%% Msys ") - 1)
 static void
 cygwin_info (HANDLE h)
 {
   char *buf, *bufend, *buf_start = NULL;
-  const char *hello = "    Cygwin DLL version info:\n";
+  const char *hello = "    Msys DLL version info:\n";
   DWORD size = GetFileSize (h, NULL);
   DWORD n;
 
@@ -542,7 +541,7 @@ cygwin_info (HANDLE h)
   while (buf < bufend)
     if ((buf = (char *) memchr (buf, '%', bufend - buf)) == NULL)
       break;
-    else if (strncmp ("%%% Cygwin ", buf, CYGPREFIX) != 0)
+    else if (strncmp ("%%% Msys ", buf, CYGPREFIX) != 0)
       buf++;
     else
       {
@@ -741,7 +740,7 @@ dll_info (const char *path, HANDLE fh, int lvl, int recurse)
 	    }
 	}
     }
-  if (strstr (path, "\\cygwin1.dll"))
+  if (strstr (path, "\\msys-2.0.dll"))
     cygwin_info (fh);
 }
 
@@ -989,7 +988,7 @@ scan_registry (RegInfo * prev, HKEY hKey, char *name, int cygwin, bool wow64)
 
   char *cp;
   for (cp = name; *cp; cp++)
-    if (strncasecmp (cp, "Cygwin", 6) == 0)
+    if (strncasecmp (cp, "Msys", 4) == 0)
       cygwin = 1;
 
   DWORD num_subkeys, max_subkey_len, num_values;
@@ -1250,7 +1249,7 @@ dump_sysinfo_services ()
 
   /* inform the user if nothing found */
   if (no_services)
-    puts ("No Cygwin services found.\n");
+    puts ("No Msys services found.\n");
 }
 
 enum handle_reg_t
@@ -1265,10 +1264,10 @@ handle_reg_installation (handle_reg_t what)
   HKEY key;
 
   if (what == PRINT_KEY)
-    printf ("Cygwin installations found in the registry:\n");
+    printf ("Msys installations found in the registry:\n");
   for (int i = 0; i < 2; ++i)
     if (RegOpenKeyEx (i ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE,
-		      "SOFTWARE\\Cygwin\\Installations", 0,
+		      "SOFTWARE\\Msys\\Installations", 0,
 		      what == DELETE_KEY ? KEY_READ | KEY_WRITE : KEY_READ,
 		      &key)
 	== ERROR_SUCCESS)
@@ -1290,7 +1289,7 @@ handle_reg_installation (handle_reg_t what)
 	      if (what == PRINT_KEY)
 		printf ("  %s Key: %s Path: %s", i ? "User:  " : "System:",
 			name, path);
-	      strcat (path, "\\bin\\cygwin1.dll");
+	      strcat (path, "\\bin\\msys-2.0.dll");
 	      if (what == PRINT_KEY)
 		printf ("%s\n", access (path, F_OK) ? " (ORPHANED)" : "");
 	      else if (access (path, F_OK))
@@ -1370,7 +1369,7 @@ handle_unique_object_name (int opt, char *path)
       switch (err)
 	{
 	case ERROR_SHARING_VIOLATION:
-	  display_error ("%s still used by other Cygwin processes.\n"
+	  display_error ("%s still used by other Msys processes.\n"
 			 "Please stop all of them and retry.", path);
 	  break;
 	case ERROR_ACCESS_DENIED:
@@ -1398,7 +1397,7 @@ handle_unique_object_name (int opt, char *path)
 	       memmem ((char *) haystack, haystacklen,
 		       CYGWIN_PROPS_MAGIC, sizeof (CYGWIN_PROPS_MAGIC));
       if (!cygwin_props)
-	display_error ("Can't find Cygwin properties in %s", path);
+	display_error ("Can't find Msys properties in %s", path);
       else
 	{
 	  if (opt != CO_SHOW_UON)
@@ -1447,7 +1446,7 @@ dump_sysinfo ()
       _wputenv (comspec);
     }
 
-  printf ("\nCygwin Configuration Diagnostics\n");
+  printf ("\nMsys Configuration Diagnostics\n");
   time (&now);
   printf ("Current System Time: %s\n", ctime (&now));
 
@@ -1722,7 +1721,7 @@ dump_sysinfo ()
 
 
   if (givehelp)
-    printf ("Here's some environment variables that may affect cygwin:\n");
+    printf ("Here's some environment variables that may affect msys:\n");
   for (i = 0; environ[i]; i++)
     {
       char *eq = strchr (environ[i], '=');
@@ -1772,7 +1771,7 @@ dump_sysinfo ()
   if (registry)
     {
       if (givehelp)
-	printf ("Scanning registry for keys with 'Cygwin' in them...\n");
+	printf ("Scanning registry for keys with 'Msys' in them...\n");
       scan_registry (0, HKEY_CURRENT_USER,
 		     (char *) "HKEY_CURRENT_USER", 0, false);
       scan_registry (0, HKEY_LOCAL_MACHINE,
@@ -1956,7 +1955,7 @@ dump_sysinfo ()
   printf ("\n");
 
   if (givehelp)
-    printf ("Looking for various Cygwin DLLs...  (-v gives version info)\n");
+    printf ("Looking for various Msys DLLs...  (-v gives version info)\n");
   int cygwin_dll_count = 0;
   char cygdll_path[32768];
   for (pathlike *pth = paths; pth->dir; pth++)
@@ -1973,10 +1972,10 @@ dump_sysinfo ()
 	  wcstombs (f, ffinfo.cFileName, sizeof f);
 	  if (strcasecmp (f + strlen (f) - 4, ".dll") == 0)
 	    {
-	      if (strncasecmp (f, "cyg", 3) == 0)
+	      if (strncasecmp (f, "msys-", 5) == 0)
 		{
 		  sprintf (tmp, "%s%s", pth->dir, f);
-		  if (strcasecmp (f, "cygwin1.dll") == 0)
+		  if (strcasecmp (f, "msys-2.0.dll") == 0)
 		    {
 		      if (!cygwin_dll_count)
 			strcpy (cygdll_path, pth->dir);
@@ -2000,9 +1999,9 @@ dump_sysinfo ()
       FindClose (ff);
     }
   if (cygwin_dll_count > 1)
-    puts ("Warning: There are multiple cygwin1.dlls on your path");
+    puts ("Warning: There are multiple msys-2.0.dlls on your path");
   if (!cygwin_dll_count)
-    puts ("Warning: cygwin1.dll not found on your path");
+    puts ("Warning: msys-2.0.dll not found on your path");
 
   dump_dodgy_apps (verbose);
 
@@ -2259,8 +2258,8 @@ static char opts[] = "cdsrvkflphV";
 static void
 print_version ()
 {
-  printf ("cygcheck (cygwin) %d.%d.%d\n"
-	  "System Checker for Cygwin\n"
+  printf ("cygcheck (msys) %d.%d.%d\n"
+	  "System Checker for Msys\n"
 	  "Copyright (C) 1998 - %s Red Hat, Inc.\n"
 	  "This is free software; see the source for copying conditions.  There is NO\n"
 	  "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n",
@@ -2290,7 +2289,7 @@ load_cygwin (int& argc, char **&argv)
 {
   HMODULE h;
 
-  if (!(h = LoadLibrary ("cygwin1.dll")))
+  if (!(h = LoadLibrary ("msys-2.0.dll")))
     return;
   GetModuleFileNameW (h, cygwin_dll_path, 32768);
   if ((cygwin_internal = (uintptr_t (*) (int, ...))
