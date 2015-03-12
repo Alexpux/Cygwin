@@ -13,7 +13,7 @@ AC_REQUIRE([AC_CANONICAL_TARGET])
 
 target_elf=no
 case $target in
-  *-darwin* | *-aix* | *-cygwin* | *-mingw* | *-aout* | *-*coff* | \
+  *-darwin* | *-aix* | *-cygwin* | *-msys* | *-mingw* | *-aout* | *-*coff* | \
   *-msdosdjgpp* | *-vms* | *-wince* | *-*-pe* | \
   alpha*-dec-osf* | *-interix* | hppa[[12]]*-*-hpux*)
     target_elf=no
