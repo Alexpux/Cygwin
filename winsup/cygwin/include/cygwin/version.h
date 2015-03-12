@@ -42,7 +42,11 @@ details. */
 	 the Cygwin shared library".  This version is used to track important
 	 changes to the DLL and is mainly informative in nature. */
 
+#ifdef __MSYS__
+#define CYGWIN_VERSION_DLL_MAJOR 2001
+#else
 #define CYGWIN_VERSION_DLL_MAJOR 2000
+#endif
 #define CYGWIN_VERSION_DLL_MINOR 0
 
       /* Major numbers before CYGWIN_VERSION_DLL_EPOCH are
@@ -490,7 +494,11 @@ details. */
 	The full names include the CYGWIN_VERSION_SHARED_DATA version
 	as well as this identifier. */
 
+#ifdef __MSYS__
+#define CYGWIN_VERSION_DLL_IDENTIFIER	"msys-2.0"
+#else
 #define CYGWIN_VERSION_DLL_IDENTIFIER	"cygwin1"
+#endif
 
      /* The Cygwin mount table interface in the Win32 registry also
 	has a version number associated with it in case that is
@@ -507,7 +515,11 @@ details. */
 
      /* Identifiers used in the Win32 registry. */
 
+#ifdef __MSYS__
+#define CYGWIN_INFO_CYGWIN_REGISTRY_NAME "MSYS"
+#else
 #define CYGWIN_INFO_CYGWIN_REGISTRY_NAME "Cygwin"
+#endif
 #define CYGWIN_INFO_INSTALLATIONS_NAME   "Installations"
 
      /* The default cygdrive prefix. */
