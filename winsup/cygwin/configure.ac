@@ -87,17 +87,37 @@ dnl fi
 
 case "$target_cpu" in
    i?86)
-		DLL_NAME="cygwin1.dll"
+		case $target in
+		    *-cygwin*)
+		        DLL_NAME="cygwin1.dll"
+		        DIN_FILE="i686.din"
+		        COMMON_DIN_FILE="common.din"
+		        ;;
+		    *-msys*)
+		        DLL_NAME="msys-2.0.dll"
+		        DIN_FILE="i686-msys.din"
+		        COMMON_DIN_FILE="common-msys.din"
+		        ;;
+		esac
 		DLL_ENTRY="_dll_entry@12"
 		DEF_DLL_ENTRY="dll_entry@12"
-		DIN_FILE="i686.din"
 		TLSOFFSETS_H="tlsoffsets.h"
 		;;
    x86_64)
-		DLL_NAME="cygwin1.dll"
+		case $target in
+		    *-cygwin*)
+		        DLL_NAME="cygwin1.dll"
+		        DIN_FILE="x86_64.din"
+		        COMMON_DIN_FILE="common.din"
+		        ;;
+		    *-msys*)
+		        DLL_NAME="msys-2.0.dll"
+		        DIN_FILE="x86_64-msys.din"
+		        COMMON_DIN_FILE="common-msys.din"
+		        ;;
+		esac
 		DLL_ENTRY="dll_entry"
 		DEF_DLL_ENTRY="dll_entry"
-		DIN_FILE="x86_64.din"
 		TLSOFFSETS_H="tlsoffsets64.h"
 		;;
    *)		AC_MSG_ERROR(Invalid target processor \"$target_cpu\") ;;
@@ -109,5 +129,6 @@ AC_SUBST(DLL_NAME)
 AC_SUBST(DLL_ENTRY)
 AC_SUBST(DEF_DLL_ENTRY)
 AC_SUBST(DIN_FILE)
+AC_SUBST(COMMON_DIN_FILE)
 AC_SUBST(TLSOFFSETS_H)
 AC_OUTPUT(Makefile)
