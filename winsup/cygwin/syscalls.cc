@@ -363,14 +363,14 @@ try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access, ULONG flags)
   /* Create hopefully unique filename.
      Since we have to stick to the current directory on remote shares, make
      the new filename at least very unlikely to match by accident.  It starts
-     with ".cyg", with "cyg" transposed into the Unicode low surrogate area
+     with ".msys", with "msys" transposed into the Unicode low surrogate area
      starting at U+dc00.  Use plain ASCII chars on filesystems not supporting
      Unicode.  The rest of the filename is the inode number in hex encoding
      and a hash of the full NT path in hex.  The combination allows to remove
      multiple hardlinks to the same file. */
   RtlAppendUnicodeToString (&recycler,
 			    pc.fs_flags () & FILE_UNICODE_ON_DISK
-			    ? L".\xdc63\xdc79\xdc67" : L".cyg");
+			    ? L".\xdc73\xdc79\xdc67\xdc79" : L".msys");
   pfii = (PFILE_INTERNAL_INFORMATION) infobuf;
   /* Note: Modern Samba versions apparently don't like buffer sizes of more
      than 65535 in some NtQueryInformationFile/NtSetInformationFile calls.
