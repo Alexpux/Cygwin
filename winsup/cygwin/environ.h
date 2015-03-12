@@ -45,6 +45,6 @@ extern "C" char **__cygwin_environ, ***main_environ;
 extern "C" char __stdcall **cur_environ ();
 #endif
 char ** __reg3 build_env (const char * const *envp, PWCHAR &envblock,
-			  int &envc, bool need_envblock, HANDLE new_token);
+			  int &envc, bool need_envblock, HANDLE new_token, bool keep_posix);
 
 #define ENV_CVT -1
