@@ -174,10 +174,14 @@ forcekill (int pid, int sig, int wait)
       return;
     }
   if (!wait || WaitForSingleObject (h, 200) != WAIT_OBJECT_0)
-    if (sig && !TerminateProcess (h, sig << 8)
-	&& WaitForSingleObject (h, 200) != WAIT_OBJECT_0)
-      fprintf (stderr, "%s: couldn't kill pid %u, %u\n",
+    {
+      if (sig == SIGINT || sig == SIGTERM)
+        kill_process_tree (dwpid, sig);
+      else if (sig && !TerminateProcess (h, sig << 8)
+          && WaitForSingleObject (h, 200) != WAIT_OBJECT_0)
+        fprintf (stderr, "%s: couldn't kill pid %u, %u\n",
 	       prog_name, (unsigned) dwpid, (unsigned int) GetLastError ());
+    }
   CloseHandle (h);
 }
 
