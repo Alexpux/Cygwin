@@ -27,6 +27,7 @@ details. */
 #include "child_info.h"
 #include "ntdll.h"
 #include "exception.h"
+#include "cygwin/exit_process.h"
 
 /* Definitions for code simplification */
 #ifdef __x86_64__
@@ -1547,7 +1548,7 @@ dosig:
   if (have_execed)
     {
       sigproc_printf ("terminating captive process");
-      TerminateProcess (ch_spawn, sigExeced = si.si_signo);
+      exit_process (ch_spawn, 128 + (sigExeced = si.si_signo));
     }
   /* Dispatch to the appropriate function. */
   sigproc_printf ("signal %d, signal handler %p", si.si_signo, handler);
