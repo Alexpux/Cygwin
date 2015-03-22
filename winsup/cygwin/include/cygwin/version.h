@@ -472,6 +472,7 @@ details. */
       288: Export getcontext, makecontext, setcontext, swapcontext.
       289: Export sigsetjmp, siglongjmp.
       290: Add sysconf cache handling.
+      291: Export kill_process_tree.
      */
 
      /* Note that we forgot to bump the api for ualarm, strtoll, strtoull,
