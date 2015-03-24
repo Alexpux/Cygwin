@@ -1496,7 +1496,10 @@ dosig:
   if (have_execed)
     {
       sigproc_printf ("terminating captive process");
-      TerminateProcess (ch_spawn, sigExeced = si.si_signo);
+      if ((sigExeced = si.si_signo) == SIGINT)
+        kill_process_tree (GetProcessId (ch_spawn), sigExeced = si.si_signo);
+      else
+        TerminateProcess (ch_spawn, sigExeced = si.si_signo);
     }
   /* Dispatch to the appropriate function. */
   sigproc_printf ("signal %d, signal handler %p", si.si_signo, handler);
