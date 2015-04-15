@@ -1146,7 +1146,15 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
       {
 	/* Don't pass timezone environment to non-msys applications */
 	if (ascii_strncasematch(*srcp, "TZ=", 3))
-	  goto next1;
+          {
+	    const char *v = *srcp + 3;
+	    if (*v == ':')
+	      goto next1;
+	    for (; *v; v++)
+	      if (!isalpha(*v) && !isdigit(*v) &&
+		  *v != '-' && *v != '+' && *v != ':')
+	        goto next1;
+	  }
 	else if (ascii_strncasematch(*srcp, "MSYS2_ENV_CONV_EXCL=", 20))
 	  {
 	    msys2_env_conv_excl_env = (char*)alloca (strlen(&(*srcp)[20])+1);
