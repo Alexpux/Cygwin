@@ -807,6 +807,8 @@ cygheap_pwdgrp::nss_init_line (const char *line)
 		    scheme[idx].method = NSS_SCHEME_UNIX;
 		  else if (NSS_CMP ("desc"))
 		    scheme[idx].method = NSS_SCHEME_DESC;
+		  else if (NSS_CMP ("env"))
+		    scheme[idx].method = NSS_SCHEME_ENV;
 		  else if (NSS_NCMP ("/"))
 		    {
 		      const char *e = c + strcspn (c, " \t");
@@ -997,6 +999,37 @@ fetch_from_path (cyg_ldap *pldap, PUSER_INFO_3 ui, cygpsid &sid, PCWSTR str,
   return ret;
 }
 
+static char *
+fetch_home_env (void)
+{
+  char *env = getenv("HOME"), *buf = NULL, *home = NULL;
+  tmp_pathbuf tp;
+
+  if (!env)
+    {
+      char *drive = getenv("HOMEDRIVE"), *path = getenv("HOMEPATH");
+      if (drive && path)
+        {
+	  int drive_len = strlen(drive), path_len = strlen(path);
+	  buf = (char *)malloc(drive_len + path_len + 1);
+	  strcpy(buf, drive);
+	  strcpy(buf + drive_len, path);
+	}
+    }
+  if (!buf && !env)
+    env = getenv("USERPROFILE");
+
+  if (env || buf)
+    {
+      cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE,
+	  env ? env : buf, tp.c_get(), NT_MAX_PATH);
+      free(buf);
+      home = strdup(tp.c_get());
+    }
+
+  return home;
+}
+
 char *
 cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 			  PCWSTR dnsdomain, PCWSTR name, bool full_qualified)
@@ -1056,6 +1089,9 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 		}
 	    }
 	  break;
+	case NSS_SCHEME_ENV:
+	  home = fetch_home_env ();
+	  break;
 	}
     }
   return home;
@@ -1087,6 +1123,9 @@ cygheap_pwdgrp::get_home (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 	  home = fetch_from_path (NULL, ui, sid, home_scheme[idx].attrib,
 				  dom, NULL, name, full_qualified);
 	  break;
+	case NSS_SCHEME_ENV:
+	  home = fetch_home_env ();
+	  break;
 	}
     }
   return home;
@@ -1106,6 +1145,7 @@ cygheap_pwdgrp::get_shell (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	case NSS_SCHEME_FALLBACK:
 	  return NULL;
 	case NSS_SCHEME_WINDOWS:
+	case NSS_SCHEME_ENV:
 	  break;
 	case NSS_SCHEME_CYGWIN:
 	  if (pldap->fetch_ad_account (sid, false, dnsdomain))
@@ -1170,6 +1210,7 @@ cygheap_pwdgrp::get_shell (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 	case NSS_SCHEME_CYGWIN:
 	case NSS_SCHEME_UNIX:
 	case NSS_SCHEME_FREEATTR:
+	case NSS_SCHEME_ENV:
 	  break;
 	case NSS_SCHEME_DESC:
 	  shell = fetch_from_description (ui->usri3_comment, L"shell=\"", 7);
@@ -1250,6 +1291,8 @@ cygheap_pwdgrp::get_gecos (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 		sys_wcstombs_alloc (&gecos, HEAP_NOTHEAP, val);
 	    }
 	  break;
+	case NSS_SCHEME_ENV:
+	  break;
 	}
     }
   if (gecos)
@@ -1276,6 +1319,7 @@ cygheap_pwdgrp::get_gecos (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 	case NSS_SCHEME_CYGWIN:
 	case NSS_SCHEME_UNIX:
 	case NSS_SCHEME_FREEATTR:
+	case NSS_SCHEME_ENV:
 	  break;
 	case NSS_SCHEME_DESC:
 	  gecos = fetch_from_description (ui->usri3_comment, L"gecos=\"", 7);
