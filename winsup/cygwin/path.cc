@@ -1720,7 +1720,7 @@ symlink_native (const char *oldpath, path_conv &win32_newpath)
   path_conv win32_oldpath;
   PUNICODE_STRING final_oldpath, final_newpath;
   UNICODE_STRING final_oldpath_buf;
-  DWORD flags;
+  DWORD flags = 0;
 
   if (isabspath (oldpath))
     {
@@ -1781,14 +1781,39 @@ symlink_native (const char *oldpath, path_conv &win32_newpath)
 	  wcpcpy (e_old, c_old);
 	}
     }
-  /* If the symlink target doesn't exist, don't create native symlink.
-     Otherwise the directory flag in the symlink is potentially wrong
-     when the target comes into existence, and native tools will fail.
-     This is so screwball. This is no problem on AFS, fortunately. */
-  if (!win32_oldpath.exists () && !win32_oldpath.fs_is_afs ())
+
+  /* The directory flag in the symlink must match the target type,
+     otherwise native tools will fail (fortunately this is no problem
+     on AFS). Do our best to guess the symlink type correctly. */
+  if (win32_oldpath.exists () || win32_oldpath.fs_is_afs ())
     {
-      SetLastError (ERROR_FILE_NOT_FOUND);
-      return -1;
+      /* If the target exists (or on AFS), check the target type. Note
+	 that this may still be wrong if the target is changed after
+	 creating the symlink (e.g. in bulk operations such as rsync,
+	 unpacking archives or VCS checkouts). */
+      if (win32_oldpath.isdir ())
+        flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+    }
+  else
+    {
+      if (allow_winsymlinks == WSYM_nativestrict)
+	{
+	  /* In nativestrict mode, if the target does not exist, use
+	     trailing '/' in the target path as hint to create a
+	     directory symlink. */
+	  ssize_t len = strlen(oldpath);
+	  if (len && isdirsep(oldpath[len - 1]))
+            flags |= SYMBOLIC_LINK_FLAG_DIRECTORY;
+	}
+      else
+	{
+	 /* In native mode, if the target does not exist, fall back
+	    to creating a Cygwin symlink file (or in case of MSys:
+	    try to copy the (non-existing) target, which will of
+	    course fail). */
+	  SetLastError (ERROR_FILE_NOT_FOUND);
+	  return -1;
+	}
     }
   /* Don't allow native symlinks to Cygwin special files.  However, the
      caller shoud know because this case shouldn't be covered by the
@@ -1817,7 +1842,6 @@ symlink_native (const char *oldpath, path_conv &win32_newpath)
 	final_oldpath->Buffer[1] = L'\\';
     }
   /* Try to create native symlink. */
-  flags = win32_oldpath.isdir () ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
   if (wincap.has_unprivileged_createsymlink ())
     flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
   if (!CreateSymbolicLinkW (final_newpath->Buffer, final_oldpath->Buffer,
