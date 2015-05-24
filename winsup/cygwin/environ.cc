@@ -967,8 +967,7 @@ static NO_COPY spenv spenvs[] =
   {NL ("USERDOMAIN="), false, false, &cygheap_user::env_domain},
   {NL ("USERNAME="), false, false, &cygheap_user::env_name},
   {NL ("USERPROFILE="), false, false, &cygheap_user::env_userprofile},
-  {NL ("WINDIR="), true, true, &cygheap_user::env_systemroot},
-  {NL ("MSYS_TTY_HANDLES="), true, true, &cygheap_user::env_tty_handles}
+  {NL ("WINDIR="), true, true, &cygheap_user::env_systemroot}
 };
 
 char *
