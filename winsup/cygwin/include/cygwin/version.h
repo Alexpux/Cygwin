@@ -473,12 +473,13 @@ details. */
       285: Export wcstold.
       286: Export cabsl, cimagl, creall, finitel, hypotl, sqrtl.
       287: Export issetugid.
+      288: Export kill_process_tree.
      */
 
      /* Note that we forgot to bump the api for ualarm, strtoll, strtoull */
 
 #define CYGWIN_VERSION_API_MAJOR 0
-#define CYGWIN_VERSION_API_MINOR 287
+#define CYGWIN_VERSION_API_MINOR 288
 
      /* There is also a compatibity version number associated with the
 	shared memory regions.  It is incremented when incompatible
