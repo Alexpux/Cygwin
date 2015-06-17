@@ -344,6 +344,14 @@ skip_p2w:
     }
 
     /*
+     * Skip path mangling when environment indicates it.
+     */
+    const char *no_pathconv = getenv ("MSYS_NO_PATHCONV");
+
+    if (no_pathconv)
+      goto skip_p2w;
+
+    /*
      * Prevent Git's :file.txt and :/message syntax from beeing modified.
      */
     if (*it == ':')
