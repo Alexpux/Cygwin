@@ -3502,7 +3502,9 @@ arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, 
       exclusions += strlen (exclusions) + 1;
     }
 
-  size_t stack_len = arglen + MAX_PATH;
+  // Leave enough room for at least 16 path elements; we might be converting
+  // a path list.
+  size_t stack_len = arglen + 16 * MAX_PATH;
   char * stack_path = (char *)malloc (stack_len);
   if (!stack_path)
     {
