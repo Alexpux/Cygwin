@@ -1176,11 +1176,15 @@ mount_info::from_fstab_line (char *line, bool user)
     }
   else if (!strcmp (fs_type, "usertemp"))
     {
-      char tmp[MAX_PATH];
-      GetEnvironmentVariable ("TMP", tmp, sizeof(tmp));
-      if (*tmp)
+      WCHAR tmp[MAX_PATH];
+
+      if (GetEnvironmentVariableW (L"TEMP", tmp, sizeof(tmp)) && *tmp)
 	{
-	  int res = mount_table->add_item (tmp, posix_path, mount_flags);
+          DWORD len;
+          char mb_tmp[len = sys_wcstombs (NULL, 0, tmp)];
+          sys_wcstombs (mb_tmp, len, tmp);
+
+	  int res = mount_table->add_item (mb_tmp, posix_path, mount_flags);
 	  if (res && get_errno () == EMFILE)
 	    return false;
 	}
