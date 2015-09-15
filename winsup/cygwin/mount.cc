@@ -1148,8 +1148,6 @@ mount_info::from_fstab_line (char *line, bool user)
   unsigned mount_flags = MOUNT_SYSTEM | MOUNT_BINARY;
   if (!strcmp (fs_type, "cygdrive"))
     mount_flags |= MOUNT_NOPOSIX;
-  if (!strcmp (fs_type, "usertemp"))
-    mount_flags |= MOUNT_IMMUTABLE;
   if (!fstab_read_flags (&c, mount_flags, false))
     return true;
   if (mount_flags & MOUNT_BIND)
@@ -1173,17 +1171,6 @@ mount_info::from_fstab_line (char *line, bool user)
       cygdrive_flags = mount_flags | MOUNT_CYGDRIVE;
       slashify (posix_path, cygdrive, 1);
       cygdrive_len = strlen (cygdrive);
-    }
-  else if (!strcmp (fs_type, "usertemp"))
-    {
-      char tmp[MAX_PATH];
-      GetEnvironmentVariable ("TMP", tmp, sizeof(tmp));
-      if (*tmp)
-	{
-	  int res = mount_table->add_item (tmp, posix_path, mount_flags);
-	  if (res && get_errno () == EMFILE)
-	    return false;
-	}
     }
   else
     {
