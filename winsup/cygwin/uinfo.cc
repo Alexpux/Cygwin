@@ -972,35 +972,38 @@ fetch_from_path (cyg_ldap *pldap, PUSER_INFO_3 ui, cygpsid &sid, PCWSTR str,
   return ret;
 }
 
+static size_t
+fetch_env(LPCWSTR key, char *buf, size_t size)
+{
+  WCHAR wbuf[32767];
+  DWORD max = sizeof wbuf / sizeof *wbuf;
+  DWORD len = GetEnvironmentVariableW (key, wbuf, max);
+
+  if (!len || len >= max)
+    return 0;
+
+  len = sys_wcstombs (buf, size, wbuf);
+  return len && len < size ? len : 0;
+}
+
 static char *
 fetch_home_env (void)
 {
-  char *env = getenv("HOME"), *buf = NULL, *home = NULL;
-  tmp_pathbuf tp;
+  char home[32767];
+  size_t max = sizeof home / sizeof *home, len;
 
-  if (!env)
+  if (fetch_env (L"HOME", home, max)
+      || ((len = fetch_env (L"HOMEDRIVE", home, max))
+        && fetch_env (L"HOMEPATH", home + len, max - len))
+      || fetch_env (L"USERPROFILE", home, max))
     {
-      char *drive = getenv("HOMEDRIVE"), *path = getenv("HOMEPATH");
-      if (drive && path)
-        {
-	  int drive_len = strlen(drive), path_len = strlen(path);
-	  buf = (char *)malloc(drive_len + path_len + 1);
-	  strcpy(buf, drive);
-	  strcpy(buf + drive_len, path);
-	}
-    }
-  if (!buf && !env)
-    env = getenv("USERPROFILE");
-
-  if (env || buf)
-    {
+      tmp_pathbuf tp;
       cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE,
-	  env ? env : buf, tp.c_get(), NT_MAX_PATH);
-      free(buf);
-      home = strdup(tp.c_get());
+	  home, tp.c_get(), NT_MAX_PATH);
+      return strdup(tp.c_get());
     }
 
-  return home;
+  return NULL;
 }
 
 char *
