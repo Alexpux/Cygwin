@@ -982,7 +982,7 @@ fetch_env(LPCWSTR key, char *buf, size_t size)
   if (!len || len >= max)
     return 0;
 
-  len = sys_wcstombs (buf, size, wbuf);
+  len = sys_wcstombs (buf, size, wbuf, len);
   return len && len < size ? len : 0;
 }
 
