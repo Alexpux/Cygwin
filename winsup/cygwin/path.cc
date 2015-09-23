@@ -1822,6 +1822,207 @@ symlink_native (const char *oldpath, path_conv &win32_newpath)
   return 0;
 }
 
+static int
+symlink_safenative (const char *oldpath, path_conv &win32_newpath)
+{
+  tmp_pathbuf tp;
+  path_conv win32_oldpath;
+  PUNICODE_STRING nt_oldpath;
+  NTSTATUS status;
+  HANDLE fh;
+  OBJECT_ATTRIBUTES attr;
+  IO_STATUS_BLOCK io;
+  PREPARSE_DATA_BUFFER prdb;
+  ACCESS_MASK access_mask;
+
+  syscall_printf ("symlink_safenative (oldpath: '%s', newpath: '%s')", oldpath,
+                win32_newpath.get_posix ());
+
+  /* Directory junction cannot be created on remote drive.
+     Leave this check here to simplify routing in symlink_worker(). */
+  if (win32_newpath.isremote ())
+    {
+      debug_printf ("'%S' is on remote drive",
+                    win32_newpath.get_nt_native_path ());
+      set_errno (EXDEV);
+      return -1;
+    }
+
+  win32_oldpath.check (oldpath, PC_SYM_NOFOLLOW);
+
+  /* Make sure that symlink target is directory as directory junction
+     can point only to directory. If target is not exist yet then
+     don't create junction to prevent an invalid state with junction
+     pointing to later created regular file. */
+  if (!win32_oldpath.exists () || !win32_oldpath.isdir ())
+    {
+      debug_printf ("'%S' does not exist or is not a directory",
+                    win32_oldpath.get_nt_native_path ());
+      set_errno (ENOTDIR);
+      return -1;
+    }
+
+  nt_oldpath = win32_oldpath.get_nt_native_path ();
+
+  /* Directory junction can point only to local mounted drive. */
+  if (nt_oldpath->Length < 6 * sizeof (wchar_t) ||
+      nt_oldpath->Buffer[5] != L':')
+    {
+      debug_printf ("'%S' is not on local mounted drive", nt_oldpath);
+      set_errno (EXDEV);
+      return -1;
+    }
+
+  /* Make sure that slash for root directory is present otherwise OS will 
+     misbehavior when resolving such junction. This is an extra care as 
+     get_nt_native_path() should return correct path. */
+  if (nt_oldpath->Length < 7 * sizeof (wchar_t) ||
+      nt_oldpath->Buffer[6] != L'\\')
+    {
+      set_errno (ENOTDIR);
+      return -1;
+    }
+
+  if (offsetof (REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer) +
+      nt_oldpath->Length * 2 + (2 - 4) * sizeof (wchar_t)
+      > MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+    {
+      set_errno (ENAMETOOLONG);
+      return -1;
+    }
+
+#if MAXIMUM_REPARSE_DATA_BUFFER_SIZE > NT_MAX_PATH
+#error REPARSE_DATA_BUFFER do not fit into tmp_pathbuf::c_get() buffer. Rewrite code.
+#endif
+  prdb = (PREPARSE_DATA_BUFFER) tp.c_get ();
+
+  prdb->Reserved = 0;
+  prdb->ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
+  prdb->MountPointReparseBuffer.SubstituteNameOffset = 0;
+  memcpy(prdb->MountPointReparseBuffer.PathBuffer, nt_oldpath->Buffer,
+         nt_oldpath->Length);
+  prdb->MountPointReparseBuffer.SubstituteNameLength =
+          (USHORT)(nt_oldpath->Length);
+  prdb->MountPointReparseBuffer.PathBuffer[
+          prdb->MountPointReparseBuffer.SubstituteNameLength / sizeof (wchar_t)] = 0;
+  prdb->MountPointReparseBuffer.PrintNameOffset =
+          prdb->MountPointReparseBuffer.SubstituteNameLength + 1 * sizeof (wchar_t);
+  memcpy(&(prdb->MountPointReparseBuffer.PathBuffer[
+         prdb->MountPointReparseBuffer.PrintNameOffset / sizeof (wchar_t)]),
+         &(nt_oldpath->Buffer[4]), nt_oldpath->Length - 4 * sizeof (wchar_t));
+  prdb->MountPointReparseBuffer.PrintNameLength =
+          (USHORT)(nt_oldpath->Length - 4 * sizeof (wchar_t));
+  prdb->MountPointReparseBuffer.PathBuffer[
+          (prdb->MountPointReparseBuffer.PrintNameOffset + 
+           prdb->MountPointReparseBuffer.PrintNameLength) / sizeof (wchar_t)] = 0;
+  prdb->ReparseDataLength = (USHORT) offsetof(REPARSE_DATA_BUFFER,
+                                              MountPointReparseBuffer.PathBuffer) -
+          REPARSE_DATA_BUFFER_HEADER_SIZE +
+          prdb->MountPointReparseBuffer.PrintNameOffset +
+          prdb->MountPointReparseBuffer.PrintNameLength + 1 * sizeof (wchar_t);
+
+  /* DELETE access is required to delete empty directory if it's not
+     transformed into directory junctions. */
+  access_mask = FILE_WRITE_ATTRIBUTES | FILE_LIST_DIRECTORY |
+      FILE_TRAVERSE | SYNCHRONIZE | DELETE;
+  /* READ_CONTROL and WRITE_DAC are required for reuse handle in
+     set_file_attribute() otherwise function will need to reopen file. */
+  if (win32_newpath.has_acls ())
+    access_mask |= READ_CONTROL | WRITE_DAC;
+
+  status = NtCreateFile (&fh, access_mask,
+                         win32_newpath.get_object_attr (attr, sec_none_nih),
+                         &io, NULL, FILE_ATTRIBUTE_DIRECTORY,
+                         0, FILE_CREATE, FILE_DIRECTORY_FILE |
+                         FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT,
+                         NULL, 0);
+  if (!NT_SUCCESS (status))
+    {
+      if (status == STATUS_ACCESS_DENIED)
+        {
+          ULONG share_access;
+          /* Retry with less requested access rights. */
+          debug_printf ("Creating '%S' with restricted access rights",
+                        win32_newpath.get_nt_native_path ());
+
+          access_mask &= ~(DELETE | READ_CONTROL | WRITE_DAC);
+
+          /* Allow sharing otherwise set_file_attribute() will fail. */
+          share_access = win32_newpath.has_acls () ? (FILE_SHARE_READ |
+                                                      FILE_SHARE_WRITE) : 0;
+          status = NtCreateFile (&fh, access_mask,
+                                 win32_newpath.get_object_attr (attr, sec_none_nih),
+                                 &io, NULL, FILE_ATTRIBUTE_DIRECTORY,
+                                 share_access, FILE_CREATE, FILE_DIRECTORY_FILE |
+                                 FILE_OPEN_REPARSE_POINT |
+                                 FILE_OPEN_FOR_BACKUP_INTENT, NULL, 0);
+        }
+      if (!NT_SUCCESS (status))
+        {
+          debug_printf ("Creating '%S' failed, status = %y", 
+                        win32_newpath.get_nt_native_path (), status);
+          __seterrno_from_nt_status (status);
+          return -1;
+        }
+    }
+
+  if (win32_newpath.has_acls ())
+    set_file_attribute (fh, win32_newpath, ILLEGAL_UID, ILLEGAL_GID,
+                        S_JUSTCREATED | S_IFDIR | S_IFLNK |
+                        STD_RBITS | STD_WBITS | STD_XBITS);
+
+  debug_printf ("Setting SubstituteName '%W' and PrintName '%W' for directory junction '%S'", 
+                prdb->MountPointReparseBuffer.PathBuffer +
+                  prdb->MountPointReparseBuffer.SubstituteNameOffset / sizeof (wchar_t),
+                prdb->MountPointReparseBuffer.PathBuffer +
+                  prdb->MountPointReparseBuffer.PrintNameOffset / sizeof (wchar_t),
+                win32_newpath.get_nt_native_path ());
+  status = NtFsControlFile (fh, NULL, NULL, NULL, &io, FSCTL_SET_REPARSE_POINT,
+                            prdb, (ULONG)(prdb->ReparseDataLength +
+                                    REPARSE_DATA_BUFFER_HEADER_SIZE), NULL, 0);
+  if (status == STATUS_PENDING)
+    {
+      if (WaitForSingleObject (fh, 2000) == WAIT_OBJECT_0)
+        status = io.Status;
+      else
+        status = STATUS_ACCESS_DENIED;
+    }
+
+  if (!NT_SUCCESS (status))
+    {
+      FILE_DISPOSITION_INFORMATION disp = { TRUE };
+      if (status == STATUS_IO_REPARSE_TAG_INVALID || status == STATUS_IO_REPARSE_DATA_INVALID)
+        debug_printf ("Setting reparse point failed because reparse point data is invalid, status = %y", status);
+      else
+        debug_printf ("Setting reparse point failed, status = %y", status);
+      __seterrno_from_nt_status (status);
+
+      /* Delete created junction blank. */
+      status = NtSetInformationFile (fh, &io, &disp, sizeof (disp),
+                                     FileDispositionInformation);
+      NtClose (fh);
+      if (!NT_SUCCESS (status))
+        {
+          /* Reopen junction blank for deletion. */
+          status = NtCreateFile (&fh, DELETE,
+                                 win32_newpath.get_object_attr (attr, sec_none_nih),
+                                 &io, NULL, FILE_ATTRIBUTE_DIRECTORY,
+                                 FILE_SHARE_DELETE, FILE_OPEN, FILE_DIRECTORY_FILE |
+                                 FILE_OPEN_REPARSE_POINT | FILE_OPEN_FOR_BACKUP_INTENT |
+                                 FILE_DELETE_ON_CLOSE, NULL, 0);
+          if (NT_SUCCESS (status))
+            NtClose (fh);
+        }
+      if (!NT_SUCCESS (status) && status != STATUS_DELETE_PENDING)
+        debug_printf ("Removing directory junction blank failed, status = %y", status);
+
+      return -1;
+  }
+
+  NtClose (fh);
+  return 0;
+}
+
 int
 symlink_worker (const char *oldpath, const char *newpath, bool isdevice)
 {
@@ -1886,7 +2087,10 @@ symlink_worker (const char *oldpath, const char *newpath, bool isdevice)
 	  wsym_type = WSYM_nativestrict;
 	}
       /* Don't try native symlinks on FSes not supporting reparse points. */
-      else if ((wsym_type == WSYM_native || wsym_type == WSYM_nativestrict)
+      else if ((wsym_type == WSYM_native || wsym_type == WSYM_nativestrict
+                || wsym_type == WSYM_safenative
+                || wsym_type == WSYM_safenativestrict
+                || wsym_type == WSYM_safenativeonly)
 	       && !(win32_newpath.fs_flags () & FILE_SUPPORTS_REPARSE_POINTS))
 	wsym_type = WSYM_sysfile;
 
@@ -1926,13 +2130,20 @@ symlink_worker (const char *oldpath, const char *newpath, bool isdevice)
 	case WSYM_nfs:
 	  res = symlink_nfs (oldpath, win32_newpath);
 	  __leave;
+        case WSYM_safenative:
+	case WSYM_safenativestrict:
+        case WSYM_safenativeonly:
+          res = symlink_safenative (oldpath, win32_newpath);
+	  if (!res || wsym_type == WSYM_safenativeonly)
+	    __leave;
+	/* Intentional fall-through */
 	case WSYM_native:
 	case WSYM_nativestrict:
 	  res = symlink_native (oldpath, win32_newpath);
 	  if (!res)
 	    __leave;
 	  /* Strictly native?  Too bad. */
-	  if (wsym_type == WSYM_nativestrict)
+	  if (wsym_type == WSYM_nativestrict || wsym_type == WSYM_safenativestrict)
 	    {
 	      __seterrno ();
 	      __leave;

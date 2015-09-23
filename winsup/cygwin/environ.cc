@@ -84,6 +84,15 @@ set_winsymlinks (const char *buf)
     allow_winsymlinks = WSYM_lnk;
   else if (ascii_strncasematch (buf, "lnk", 3))
     allow_winsymlinks = WSYM_lnk;
+  else if (ascii_strncasematch (buf, "safenative", 10))
+    {
+      if (ascii_strcasematch (buf + 10, "strict"))
+        allow_winsymlinks = WSYM_safenativestrict;
+      else if (ascii_strcasematch (buf + 10, "only"))
+        allow_winsymlinks = WSYM_safenativeonly;
+      else
+        allow_winsymlinks = WSYM_safenative;
+    }
   /* Make sure to try native symlinks only on systems supporting them. */
   else if (ascii_strncasematch (buf, "native", 6))
     {
