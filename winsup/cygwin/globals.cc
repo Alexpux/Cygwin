@@ -59,7 +59,10 @@ enum winsym_t
   WSYM_lnk,
   WSYM_native,
   WSYM_nativestrict,
-  WSYM_nfs
+  WSYM_nfs,
+  WSYM_safenative,
+  WSYM_safenativestrict,
+  WSYM_safenativeonly
 };
 
 exit_states NO_COPY exit_state;
@@ -75,7 +78,7 @@ bool ignore_case_with_glob;
 bool pipe_byte;
 bool reset_com;
 bool wincmdln;
-winsym_t allow_winsymlinks = WSYM_sysfile;
+winsym_t allow_winsymlinks = WSYM_safenative;
 
 bool NO_COPY in_forkee;
 
