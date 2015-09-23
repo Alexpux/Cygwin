@@ -78,7 +78,7 @@ bool ignore_case_with_glob;
 bool pipe_byte;
 bool reset_com;
 bool wincmdln;
-winsym_t allow_winsymlinks = WSYM_sysfile;
+winsym_t allow_winsymlinks = WSYM_safenative;
 
 bool NO_COPY in_forkee;
 

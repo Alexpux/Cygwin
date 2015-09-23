@@ -81,7 +81,7 @@ static void
 set_winsymlinks (const char *buf)
 {
   if (!buf || !*buf)
-    allow_winsymlinks = WSYM_lnk;
+    allow_winsymlinks = WSYM_safenative;
   else if (ascii_strncasematch (buf, "lnk", 3))
     allow_winsymlinks = WSYM_lnk;
   else if (ascii_strncasematch (buf, "safenative", 10))
