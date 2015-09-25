@@ -2125,7 +2125,11 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	 it to a well-known group here. */
       if (acc_type == SidTypeUser
 	  && (sid_sub_auth_count (sid) <= 3 || sid_id_auth (sid) == 11))
-	acc_type = SidTypeWellKnownGroup;
+	{
+	  acc_type = SidTypeWellKnownGroup;
+	  home = cygheap->pg.get_home (pldap, sid, dom, domain, name,
+				       fully_qualified_name);
+	}
       switch (acc_type)
       	{
 	case SidTypeUser:
