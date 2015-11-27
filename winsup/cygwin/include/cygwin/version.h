@@ -474,6 +474,7 @@ details. */
       290: Add sysconf cache handling.
       291: Export aligned_alloc, at_quick_exit, quick_exit.
       292: Export rpmatch.
+      293: Export kill_process_tree.
      */
 
      /* Note that we forgot to bump the api for ualarm, strtoll, strtoull,
