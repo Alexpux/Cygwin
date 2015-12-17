@@ -1066,7 +1066,8 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    }
 	  break;
 	case NSS_SCHEME_ENV:
-	  home = fetch_home_env ();
+	  if (RtlEqualSid (sid, cygheap->user.sid ()))
+	    home = fetch_home_env ();
 	  break;
 	}
     }
@@ -1100,7 +1101,8 @@ cygheap_pwdgrp::get_home (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 				  dom, NULL, name, full_qualified);
 	  break;
 	case NSS_SCHEME_ENV:
-	  home = fetch_home_env ();
+	  if (RtlEqualSid (sid, cygheap->user.sid ()))
+	    home = fetch_home_env ();
 	  break;
 	}
     }
