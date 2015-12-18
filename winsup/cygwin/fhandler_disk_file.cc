@@ -53,7 +53,7 @@ class __DIR_mounts
       char *c = stpcpy (fname, parent_dir);
       if (c[- 1] != '/')
 	*c++ = '/';
-      sys_wcstombs (c, mounts[idx].Length + 1,
+      sys_wcstombs_path (c, mounts[idx].Length + 1,
 		    mounts[idx].Buffer, mounts[idx].Length / sizeof (WCHAR));
       path_conv pc (fname, PC_SYM_NOFOLLOW | PC_POSIX | PC_KEEP_HANDLE);
       if (!stat_worker (pc, &st))
@@ -2190,7 +2190,7 @@ fhandler_disk_file::readdir_helper (DIR *dir, dirent *de, DWORD w32_err,
 	  char *p = stpcpy (file, pc.get_posix ());
 	  if (p[-1] != '/')
 	    *p++ = '/';
-	  sys_wcstombs (p, NT_MAX_PATH - (p - file),
+	  sys_wcstombs_path (p, NT_MAX_PATH - (p - file),
 			fname->Buffer, fname->Length / sizeof (WCHAR));
 	  path_conv fpath (file, PC_SYM_NOFOLLOW);
 	  if (fpath.issymlink ())
@@ -2211,7 +2211,7 @@ fhandler_disk_file::readdir_helper (DIR *dir, dirent *de, DWORD w32_err,
 	}
     }
 
-  sys_wcstombs (de->d_name, NAME_MAX + 1, fname->Buffer,
+  sys_wcstombs_path (de->d_name, NAME_MAX + 1, fname->Buffer,
 		fname->Length / sizeof (WCHAR));
 
   /* Don't try to optimize relative to dir->__d_position.  On several
