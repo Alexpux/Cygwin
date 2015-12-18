@@ -498,13 +498,13 @@ sys_wcstombs (char *dst, size_t len, const wchar_t *src, size_t nwc,
 }
 
 size_t __reg3
-sys_wcstombs (char *dst, size_t len, const wchar_t * src, size_t nwc)
+sys_wcstombs_path (char *dst, size_t len, const wchar_t * src, size_t nwc)
 {
   return sys_wcstombs (dst, len, src, nwc, true);
 }
 
 size_t __reg3
-sys_wcstombs_no_path (char *dst, size_t len, const wchar_t * src, size_t nwc)
+sys_wcstombs (char *dst, size_t len, const wchar_t * src, size_t nwc)
 {
   return sys_wcstombs (dst, len, src, nwc, false);
 }
@@ -542,13 +542,13 @@ sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc,
 }
 
 size_t __reg3
-sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc)
+sys_wcstombs_alloc_path (char **dst_p, int type, const wchar_t *src, size_t nwc)
 {
   return sys_wcstombs_alloc (dst_p, type, src, nwc, true);
 }
 
 size_t __reg3
-sys_wcstombs_alloc_no_path (char **dst_p, int type, const wchar_t *src,
+sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src,
 		size_t nwc)
 {
   return sys_wcstombs_alloc (dst_p, type, src, nwc, false);

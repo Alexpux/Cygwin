@@ -380,12 +380,12 @@ cygheap_user::ontherange (homebodies what, struct passwd *pw)
 	    {
 	      if (ui->usri3_home_dir_drive && *ui->usri3_home_dir_drive)
 		{
-		  sys_wcstombs (homepath_env_buf, NT_MAX_PATH,
+		  sys_wcstombs_path (homepath_env_buf, NT_MAX_PATH,
 				ui->usri3_home_dir_drive);
 		  strcat (homepath_env_buf, "\\");
 		}
 	      else if (ui->usri3_home_dir && *ui->usri3_home_dir)
-		sys_wcstombs (homepath_env_buf, NT_MAX_PATH,
+		sys_wcstombs_path (homepath_env_buf, NT_MAX_PATH,
 			      ui->usri3_home_dir);
 	    }
 	  if (ui)
@@ -395,7 +395,7 @@ cygheap_user::ontherange (homebodies what, struct passwd *pw)
       if (!homepath_env_buf[0]
 	  && get_user_profile_directory (get_windows_id (win_id),
 					 profile, MAX_PATH))
-	sys_wcstombs (homepath_env_buf, NT_MAX_PATH, profile);
+	sys_wcstombs_path (homepath_env_buf, NT_MAX_PATH, profile);
       /* Last fallback: Cygwin root dir. */
       if (!homepath_env_buf[0])
 	cygwin_conv_path (CCP_POSIX_TO_WIN_A | CCP_ABSOLUTE,
@@ -966,7 +966,7 @@ fetch_from_path (cyg_ldap *pldap, PUSER_INFO_3 ui, cygpsid &sid, PCWSTR str,
 	}
     }
   *w = L'\0';
-  sys_wcstombs_alloc (&ret, HEAP_NOTHEAP, wpath);
+  sys_wcstombs_alloc_path (&ret, HEAP_NOTHEAP, wpath);
   return ret;
 }
 
@@ -992,7 +992,7 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    {
 	      val = pldap->get_string_attribute (L"cygwinHome");
 	      if (val && *val)
-		sys_wcstombs_alloc (&home, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&home, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_UNIX:
@@ -1000,7 +1000,7 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    {
 	      val = pldap->get_string_attribute (L"unixHomeDirectory");
 	      if (val && *val)
-		sys_wcstombs_alloc (&home, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&home, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_DESC:
@@ -1025,7 +1025,7 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 		    home = (char *)
 			   cygwin_create_path (CCP_WIN_W_TO_POSIX, val);
 		  else
-		    sys_wcstombs_alloc (&home, HEAP_NOTHEAP, val);
+		    sys_wcstombs_alloc_path (&home, HEAP_NOTHEAP, val);
 		}
 	    }
 	  break;
@@ -1085,7 +1085,7 @@ cygheap_pwdgrp::get_shell (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    {
 	      val = pldap->get_string_attribute (L"cygwinShell");
 	      if (val && *val)
-		sys_wcstombs_alloc (&shell, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&shell, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_UNIX:
@@ -1093,7 +1093,7 @@ cygheap_pwdgrp::get_shell (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    {
 	      val = pldap->get_string_attribute (L"loginShell");
 	      if (val && *val)
-		sys_wcstombs_alloc (&shell, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&shell, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_DESC:
@@ -1118,7 +1118,7 @@ cygheap_pwdgrp::get_shell (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 		    shell = (char *)
 			    cygwin_create_path (CCP_WIN_W_TO_POSIX, val);
 		  else
-		    sys_wcstombs_alloc (&shell, HEAP_NOTHEAP, val);
+		    sys_wcstombs_alloc_path (&shell, HEAP_NOTHEAP, val);
 		}
 	    }
 	  break;
@@ -1244,7 +1244,8 @@ cygheap_pwdgrp::get_gecos (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 	  return NULL;
 	case NSS_SCHEME_WINDOWS:
 	  if (ui->usri3_full_name && *ui->usri3_full_name)
-	    sys_wcstombs_alloc (&gecos, HEAP_NOTHEAP, ui->usri3_full_name);
+	    sys_wcstombs_alloc (&gecos, HEAP_NOTHEAP,
+			    ui->usri3_full_name);
 	  break;
 	case NSS_SCHEME_CYGWIN:
 	case NSS_SCHEME_UNIX:

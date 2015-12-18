@@ -243,10 +243,11 @@ fhandler_procsys::fill_filebuf ()
   NtClose (h);
   if (!NT_SUCCESS (status))
     goto unreadable;
-  len = sys_wcstombs (NULL, 0, target.Buffer, target.Length / sizeof (WCHAR));
+  len = sys_wcstombs_path (NULL, 0,
+		  target.Buffer, target.Length / sizeof (WCHAR));
   filebuf = (char *) crealloc_abort (filebuf, procsys_len + len + 1);
-  sys_wcstombs (fnamep = stpcpy (filebuf, procsys), len + 1, target.Buffer,
-		target.Length / sizeof (WCHAR));
+  sys_wcstombs_path (fnamep = stpcpy (filebuf, procsys), len + 1,
+		  target.Buffer, target.Length / sizeof (WCHAR));
   while ((fnamep = strchr (fnamep, '\\')))
     *fnamep = '/';
   return true;
@@ -355,7 +356,7 @@ fhandler_procsys::readdir (DIR *dir, dirent *de)
 	res = ENMFILE;
       else
 	{
-	  sys_wcstombs (de->d_name, NAME_MAX + 1, f.dbi.ObjectName.Buffer,
+	  sys_wcstombs_path (de->d_name, NAME_MAX + 1, f.dbi.ObjectName.Buffer,
 			f.dbi.ObjectName.Length / sizeof (WCHAR));
 	  de->d_ino = hash_path_name (get_ino (), de->d_name);
 	  if (RtlEqualUnicodeString (&f.dbi.ObjectTypeName, &ro_u_natdir,
