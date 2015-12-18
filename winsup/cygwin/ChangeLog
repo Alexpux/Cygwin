@@ -1,3 +1,10 @@
+2015-12-18  Corinna Vinschen  <corinna@vinschen.de>
+
+	* strfuncs.cc (sys_cp_wcstombs): Delete and move functionality into
+	sys_wcstombs.
+	* wchar.h (sys_cp_wcstombs): Drop declaration.
+	* fhandler_console.cc (dev_console::con_to_str): Call sys_wcstombs.
+
 2015-11-21  Corinna Vinschen  <corinna@vinschen.de>
 
 	* nlsfuncs.cc (setlocaleinfo): New macro calling __setlocaleinfo.
