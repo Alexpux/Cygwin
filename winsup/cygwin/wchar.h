@@ -51,29 +51,29 @@ extern size_t _sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src,
 				   size_t nwc, bool is_path);
 
 static inline size_t
-sys_wcstombs (char *dst, size_t len, const wchar_t * src,
-	      size_t nwc = (size_t) -1)
+sys_wcstombs_path (char *dst, size_t len, const wchar_t * src,
+		   size_t nwc = (size_t) -1)
 {
   return _sys_wcstombs (dst, len, src, nwc, true);
 }
 
 static inline size_t
-sys_wcstombs_no_path (char *dst, size_t len, const wchar_t * src,
-		      size_t nwc = (size_t) -1)
+sys_wcstombs (char *dst, size_t len, const wchar_t * src,
+	      size_t nwc = (size_t) -1)
 {
   return _sys_wcstombs (dst, len, src, nwc, false);
 }
 
 static inline size_t
-sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src,
-		    size_t nwc = (size_t) -1)
+sys_wcstombs_alloc_path (char **dst_p, int type, const wchar_t *src,
+			 size_t nwc = (size_t) -1)
 {
   return _sys_wcstombs_alloc (dst_p, type, src, nwc, true);
 }
 
 static inline size_t
-sys_wcstombs_alloc_no_path (char **dst_p, int type, const wchar_t *src,
-			    size_t nwc = (size_t) -1)
+sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src,
+		    size_t nwc = (size_t) -1)
 {
   return _sys_wcstombs_alloc (dst_p, type, src, nwc, false);
 }
