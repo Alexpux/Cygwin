@@ -255,15 +255,15 @@ fhandler_netdrive::readdir (DIR *dir, dirent *de)
 	  tp.u_get (&ds);
 	  RtlInitUnicodeString (&ss, bs);
 	  RtlDowncaseUnicodeString (&ds, &ss, FALSE);
-	  sys_wcstombs (de->d_name, sizeof de->d_name,
+	  sys_wcstombs_path (de->d_name, sizeof de->d_name,
 			ds.Buffer, ds.Length / sizeof (WCHAR));
 	  de->d_ino = hash_path_name (get_ino (), de->d_name);
 	}
       else
 	{
-	  sys_wcstombs (de->d_name, sizeof de->d_name, bs);
+	  sys_wcstombs_path (de->d_name, sizeof de->d_name, bs);
 	  char *rpath = tp.c_get ();
-	  sys_wcstombs (rpath, NT_MAX_PATH, nro->lpRemoteName);
+	  sys_wcstombs_path (rpath, NT_MAX_PATH, nro->lpRemoteName);
 	  de->d_ino = readdir_get_ino (rpath, false);
 	  /* We can't trust remote inode numbers of only 32 bit.  That means,
 	     remote NT4 NTFS, as well as shares of Samba version < 3.0. */
