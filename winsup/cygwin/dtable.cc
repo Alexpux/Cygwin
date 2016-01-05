@@ -1005,7 +1005,7 @@ handle_to_fn (HANDLE h, char *posix_fn)
       if (wcsncasecmp (w32, DEVICE_PREFIX, DEVICE_PREFIX_LEN) != 0
 	  || !QueryDosDeviceW (NULL, fnbuf, sizeof (fnbuf) / sizeof (WCHAR)))
 	{
-	  sys_wcstombs (posix_fn, NT_MAX_PATH, w32, w32len);
+	  sys_wcstombs_path (posix_fn, NT_MAX_PATH, w32, w32len);
 	  return false;
 	}
 

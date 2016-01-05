@@ -59,7 +59,7 @@ static const WCHAR tfx_chars[] = {
  0xf000 | '|',          '}',          '~',          127
 };
 
-/* This is the table for the reverse functionality in sys_cp_wcstombs.
+/* This is the table for the reverse functionality in sys_wcstombs.
    It differs deliberately in two code places (space and dot) to allow
    converting back space and dot on filesystems only supporting DOS
    filenames. */
@@ -409,9 +409,9 @@ __big5_mbtowc (struct _reent *r, wchar_t *pwc, const char *s, size_t n,
        to buffer size, it's a bug in Cygwin and the buffer in the calling
        function should be raised.
 */
-size_t __reg3
-sys_cp_wcstombs (wctomb_p f_wctomb, const char *charset, char *dst, size_t len,
-		 const wchar_t *src, size_t nwc)
+static size_t __reg3
+sys_wcstombs (char *dst, size_t len, const wchar_t *src, size_t nwc,
+		bool is_path)
 {
   char buf[10];
   char *ptr = dst;
@@ -419,6 +419,8 @@ sys_cp_wcstombs (wctomb_p f_wctomb, const char *charset, char *dst, size_t len,
   size_t n = 0;
   mbstate_t ps;
   save_errno save;
+  wctomb_p f_wctomb = cygheap->locale.wctomb;
+  const char *charset = cygheap->locale.charset;
 
   memset (&ps, 0, sizeof ps);
   if (dst == NULL)
@@ -433,7 +435,7 @@ sys_cp_wcstombs (wctomb_p f_wctomb, const char *charset, char *dst, size_t len,
 	 ASCII area <= 0x7f (only for path names) is transform_chars above.
 	 Reverse functionality for invalid bytes in a multibyte sequence is
 	 in sys_cp_mbstowcs below. */
-      if ((pw & 0xff00) == 0xf000
+      if (is_path && (pw & 0xff00) == 0xf000
 	  && (((cwc = (pw & 0xff)) <= 0x7f && tfx_rev_chars[cwc] >= 0xf000)
 	      || (cwc >= 0x80 && MB_CUR_MAX > 1)))
 	{
@@ -496,10 +498,15 @@ sys_cp_wcstombs (wctomb_p f_wctomb, const char *charset, char *dst, size_t len,
 }
 
 size_t __reg3
+sys_wcstombs_path (char *dst, size_t len, const wchar_t * src, size_t nwc)
+{
+  return sys_wcstombs (dst, len, src, nwc, true);
+}
+
+size_t __reg3
 sys_wcstombs (char *dst, size_t len, const wchar_t * src, size_t nwc)
 {
-  return sys_cp_wcstombs (cygheap->locale.wctomb, cygheap->locale.charset,
-			  dst, len, src, nwc);
+  return sys_wcstombs (dst, len, src, nwc, false);
 }
 
 /* Allocate a buffer big enough for the string, always including the
@@ -512,12 +519,13 @@ sys_wcstombs (char *dst, size_t len, const wchar_t * src, size_t nwc)
    Note that this code is shared by cygserver (which requires it via
    __small_vsprintf) and so when built there plain calloc is the
    only choice.  */
-size_t __reg3
-sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc)
+static size_t __reg3
+sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc,
+		bool is_path)
 {
   size_t ret;
 
-  ret = sys_wcstombs (NULL, (size_t) -1, src, nwc);
+  ret = sys_wcstombs (NULL, (size_t) -1, src, nwc, is_path);
   if (ret > 0)
     {
       size_t dlen = ret + 1;
@@ -528,9 +536,22 @@ sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc)
 	*dst_p = (char *) ccalloc ((cygheap_types) type, dlen, sizeof (char));
       if (!*dst_p)
 	return 0;
-      ret = sys_wcstombs (*dst_p, dlen, src, nwc);
+      ret = sys_wcstombs (*dst_p, dlen, src, nwc, is_path);
     }
   return ret;
+}
+
+size_t __reg3
+sys_wcstombs_alloc_path (char **dst_p, int type, const wchar_t *src, size_t nwc)
+{
+  return sys_wcstombs_alloc (dst_p, type, src, nwc, true);
+}
+
+size_t __reg3
+sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src,
+		size_t nwc)
+{
+  return sys_wcstombs_alloc (dst_p, type, src, nwc, false);
 }
 
 /* sys_cp_mbstowcs is actually most of the time called as sys_mbstowcs with
