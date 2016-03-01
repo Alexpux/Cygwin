@@ -681,7 +681,7 @@ CXX
 CXXFLAGS
 CCC
 CPP'
-ac_subdirs_all='cygwin cygserver doc
+ac_subdirs_all='cygwin cygserver
 utils lsaauth'
 
 # Initialize some variables set by options.
@@ -3446,7 +3446,7 @@ export CXX
 
 
 
-subdirs="$subdirs cygwin cygserver doc"
+subdirs="$subdirs cygwin cygserver"
 
 if test "x$with_mingw_progs" != xno; then
     subdirs="$subdirs utils lsaauth"
