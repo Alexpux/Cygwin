@@ -477,6 +477,7 @@ details. */
       293: Convert utmpname/utmpxname to int.
       294: Export clog10, clog10f.
       295: Export POSIX ACL functions.
+      296: Export kill_process_tree.
      */
 
      /* Note that we forgot to bump the api for ualarm, strtoll, strtoull,
