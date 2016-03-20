@@ -91,7 +91,7 @@ fillout_pinfo (pid_t pid, int winpid)
 	  ep.rusage_self = p->rusage_self;
 	  ep.rusage_children = p->rusage_children;
 	  ep.progname[0] = '\0';
-	  sys_wcstombs(ep.progname, MAX_PATH, p->progname);
+	  sys_wcstombs_path (ep.progname, MAX_PATH, p->progname);
 	  ep.strace_mask = 0;
 	  ep.version = EXTERNAL_PINFO_VERSION;
 
