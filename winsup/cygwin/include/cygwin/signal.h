@@ -413,9 +413,11 @@ int siginterrupt (int, int);
 #ifdef __INSIDE_CYGWIN__
 extern const char *sys_sigabbrev[];
 extern const char *sys_siglist[];
+extern void kill_process_tree(pid_t pid, int sig);
 #else
 extern const char __declspec(dllimport) *sys_sigabbrev[];
 extern const char __declspec(dllimport) *sys_siglist[];
+extern void __declspec(dllimport) kill_process_tree(pid_t pid, int sig);
 #endif
 
 #ifdef __cplusplus
