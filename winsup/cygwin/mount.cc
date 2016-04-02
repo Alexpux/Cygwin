@@ -442,7 +442,7 @@ fs_info::update (PUNICODE_STRING upath, HANDLE in_vol)
     {
       /* The filesystem name is only used in fillout_mntent and only if
 	 the filesystem isn't one of the well-known filesystems anyway. */
-      sys_wcstombs (fsn, sizeof fsn, ffai_buf.ffai.FileSystemName,
+      sys_wcstombs_path (fsn, sizeof fsn, ffai_buf.ffai.FileSystemName,
 		    ffai_buf.ffai.FileSystemNameLength / sizeof (WCHAR));
       strlwr (fsn);
     }
@@ -478,7 +478,7 @@ mount_info::create_root_entry (const PWCHAR root)
  /* Create a default root dir derived from the location of the Cygwin DLL.
     The entry is immutable, unless the "override" option is given in /etc/fstab. */
   char native_root[PATH_MAX];
-  sys_wcstombs (native_root, PATH_MAX, root);
+  sys_wcstombs_path (native_root, PATH_MAX, root);
   assert (*native_root != '\0');
   if (add_item (native_root, "/",
 		MOUNT_SYSTEM | MOUNT_BINARY | MOUNT_IMMUTABLE | MOUNT_AUTOMATIC | MOUNT_NOACL)
@@ -874,7 +874,7 @@ mount_info::conv_to_posix_path (PWCHAR src_path, char *posix_path,
     }
   tmp_pathbuf tp;
   char *buf = tp.c_get ();
-  sys_wcstombs (buf, NT_MAX_PATH, src_path);
+  sys_wcstombs_path (buf, NT_MAX_PATH, src_path);
   int ret = conv_to_posix_path (buf, posix_path, ccp_flags);
   if (changed)
     src_path[0] = L'C';
@@ -1220,7 +1220,7 @@ mount_info::from_fstab_line (char *line, bool user)
 	{
 	  tmp_pathbuf tp;
 	  char *mb_tmp = tp.c_get ();
-	  sys_wcstombs (mb_tmp, PATH_MAX, tmp);
+	  sys_wcstombs_path (mb_tmp, PATH_MAX, tmp);
 
 	  mount_flags |= MOUNT_USER_TEMP;
 	  int res = mount_table->add_item (mb_tmp, posix_path, mount_flags);
