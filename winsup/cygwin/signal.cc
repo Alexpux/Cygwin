@@ -13,6 +13,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
 #include "winsup.h"
+#include <tlhelp32.h>
 #include <stdlib.h>
 #include <sys/cygwin.h>
 #include "pinfo.h"
@@ -359,6 +360,62 @@ extern "C" int
 killpg (pid_t pgrp, int sig)
 {
   return kill (-pgrp, sig);
+}
+
+/**
+ * Terminates the process corresponding to the process ID and all of its
+ * directly and indirectly spawned subprocesses.
+ */
+extern "C" void
+kill_process_tree(pid_t pid, int sig)
+{
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	PROCESSENTRY32 entry;
+	DWORD pids[16384];
+	int max_len = sizeof(pids) / sizeof(*pids), i, len;
+
+	pids[0] = (DWORD) pid;
+	len = 1;
+
+	/*
+	 * Even if Process32First()/Process32Next() seem to traverse the
+	 * processes in topological order (i.e. parent processes before
+	 * child processes), there is nothing in the Win32 API documentation
+	 * suggesting that this is guaranteed.
+	 *
+	 * Therefore, run through them at least twice and stop when no more
+	 * process IDs were added to the list.
+	 */
+	for (;;) {
+		int orig_len = len;
+
+		memset(&entry, 0, sizeof(entry));
+		entry.dwSize = sizeof(entry);
+
+		if (!Process32First(snapshot, &entry))
+			break;
+
+		do {
+			for (i = len - 1; i >= 0; i--) {
+				if (pids[i] == entry.th32ProcessID)
+					break;
+				if (pids[i] == entry.th32ParentProcessID)
+					pids[len++] = entry.th32ProcessID;
+			}
+		} while (len < max_len && Process32Next(snapshot, &entry));
+
+		if (orig_len == len || len >= max_len)
+			break;
+	}
+
+	for (i = len - 1; i >= 0; i--) {
+		HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, pids[i]);
+
+		if (process) {
+			TerminateProcess(process, sig << 8);
+			CloseHandle(process);
+		}
+	}
 }
 
 extern "C" void

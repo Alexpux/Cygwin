@@ -489,13 +489,14 @@ details. */
 	   nexttowardf, nexttowardl, pow10l, powl, remainderl, remquol, roundl,
 	   scalbl, scalblnl, scalbnl, sincosl, sinhl, sinl, tanhl, tanl,
 	   tgammal, truncl.
+      298: Export kill_process_tree.
      */
 
      /* Note that we forgot to bump the api for ualarm, strtoll, strtoull,
 	sigaltstack, sethostname. */
 
 #define CYGWIN_VERSION_API_MAJOR 0
-#define CYGWIN_VERSION_API_MINOR 297
+#define CYGWIN_VERSION_API_MINOR 298
 
      /* There is also a compatibity version number associated with the
 	shared memory regions.  It is incremented when incompatible
