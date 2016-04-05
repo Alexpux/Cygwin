@@ -1626,7 +1626,7 @@ internal_setlocale ()
   if (w_path)
     {
       char *c_path = tp.c_get ();
-      sys_wcstombs (c_path, 32768, w_path);
+      sys_wcstombs_path (c_path, 32768, w_path);
       setenv ("PATH", c_path, 1);
     }
 }
