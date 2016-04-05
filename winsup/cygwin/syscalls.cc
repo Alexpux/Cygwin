@@ -334,7 +334,7 @@ try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access, ULONG flags)
       RtlAppendUnicodeToString (&recycler,
 				(pc.fs_flags () & FILE_UNICODE_ON_DISK
 				 && !pc.fs_is_samba ())
-				? L".\xdc63\xdc79\xdc67" : L".cyg");
+				? L".\xdc73\xdc6d\xdc79\xdc6d" : L".msys");
       pfii = (PFILE_INTERNAL_INFORMATION) infobuf;
       status = NtQueryInformationFile (fh, &io, pfii, sizeof *pfii,
 				       FileInternalInformation);
