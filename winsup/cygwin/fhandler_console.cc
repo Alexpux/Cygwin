@@ -194,6 +194,7 @@ fhandler_console::setup ()
 	  con.meta_mask |= RIGHT_ALT_PRESSED;
 	con.set_default_attr ();
 	con.backspace_keycode = CERASE;
+	con.cons_rapoi = NULL;
 	shared_console_info->tty_min_state.is_console = true;
       }
 }
@@ -307,6 +308,14 @@ fhandler_console::read (void *pv, size_t& buflen)
 
   int ch;
   set_input_state ();
+
+  /* Check console read-ahead buffer filled from terminal requests */
+  if (con.cons_rapoi && *con.cons_rapoi)
+    {
+      *buf = *con.cons_rapoi++;
+      buflen = 1;
+      return;
+    }
 
   int copied_chars = get_readahead_into_buffer (buf, buflen);
 
@@ -1895,8 +1904,11 @@ fhandler_console::char_command (char c)
 	strcpy (buf, "\033[?6c");
       /* The generated report needs to be injected for read-ahead into the
 	 fhandler_console object associated with standard input.
-	 The current call does not work. */
-      puts_readahead (buf);
+	 So puts_readahead does not work.
+	 Use a common console read-ahead buffer instead. */
+      con.cons_rapoi = NULL;
+      strcpy (con.cons_rabuf, buf);
+      con.cons_rapoi = con.cons_rabuf;
       break;
     case 'n':
       switch (con.args[0])
@@ -1906,9 +1918,11 @@ fhandler_console::char_command (char c)
 	  y -= con.b.srWindow.Top;
 	  /* x -= con.b.srWindow.Left;		// not available yet */
 	  __small_sprintf (buf, "\033[%d;%dR", y + 1, x + 1);
-	  puts_readahead (buf);
+	  con.cons_rapoi = NULL;
+	  strcpy (con.cons_rabuf, buf);
+	  con.cons_rapoi = con.cons_rabuf;
 	  break;
-      default:
+	default:
 	  goto bad_escape;
 	}
       break;
