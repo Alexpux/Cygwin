@@ -31,8 +31,8 @@ main (int argc, char **argv)
       exit (0);
     }
 
-  SetEnvironmentVariable ("CYGWIN_TESTING", "1");
-  if ((p = getenv ("CYGWIN")) == NULL || (strstr (p, "ntsec") == NULL))
+  SetEnvironmentVariable ("MSYS_TESTING", "1");
+  if ((p = getenv ("MSYS")) == NULL || (strstr (p, "ntsec") == NULL))
     {
       char buf[4096];
       if (!p)
@@ -46,7 +46,7 @@ main (int argc, char **argv)
 	  strcat (buf, " ");
 	}
       strcat(buf, "ntsec");
-      SetEnvironmentVariable ("CYGWIN", buf);
+      SetEnvironmentVariable ("MSYS", buf);
     }
 
   memset (&sa, 0, sizeof (sa));
