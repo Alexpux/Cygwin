@@ -764,7 +764,7 @@ verify_token (HANDLE token, cygsid &usersid, user_groups &groups, bool *pintern)
       if (!NT_SUCCESS (status))
 	debug_printf ("NtQueryInformationToken(), %y", status);
       else
-	*pintern = intern = !memcmp (ts.SourceName, "Cygwin.1", 8);
+	*pintern = intern = !memcmp (ts.SourceName, "MSYS.2", 6);
     }
   /* Verify usersid */
   cygsid tok_usersid (NO_SID);
@@ -882,7 +882,7 @@ create_token (cygsid &usersid, user_groups &new_groups)
   TOKEN_DEFAULT_DACL dacl = {};
   TOKEN_SOURCE source;
   TOKEN_STATISTICS stats;
-  memcpy (source.SourceName, "Cygwin.1", 8);
+  memcpy (source.SourceName, "MSYS.2", 6);
   source.SourceIdentifier.HighPart = 0;
   source.SourceIdentifier.LowPart = 0x0101;
 
@@ -1036,7 +1036,7 @@ lsaauth (cygsid &usersid, user_groups &new_groups)
   push_self_privilege (SE_TCB_PRIVILEGE, true);
 
   /* Register as logon process. */
-  RtlInitAnsiString (&name, "Cygwin");
+  RtlInitAnsiString (&name, "MSYS");
   SetLastError (0);
   status = LsaRegisterLogonProcess (&name, &lsa_hdl, &sec_mode);
   if (status != STATUS_SUCCESS)
@@ -1065,10 +1065,10 @@ lsaauth (cygsid &usersid, user_groups &new_groups)
     goto out;
 
   /* Create origin. */
-  stpcpy (origin.buf, "Cygwin");
+  stpcpy (origin.buf, "MSYS");
   RtlInitAnsiString (&origin.str, origin.buf);
   /* Create token source. */
-  memcpy (ts.SourceName, "Cygwin.1", 8);
+  memcpy (ts.SourceName, "MSYS.2", 6);
   ts.SourceIdentifier.HighPart = 0;
   ts.SourceIdentifier.LowPart = 0x0103;
 
