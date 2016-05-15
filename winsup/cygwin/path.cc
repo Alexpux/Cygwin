@@ -3441,7 +3441,7 @@ arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, 
     {
       /* Since we've got regex linked we should maybe switch to that, but
          running regexes for every argument could be too slow. */
-      if ( strcmp (exclusions, "*") == 0 || strstr (arg, exclusions) == arg )
+      if ( strcmp (exclusions, "*") == 0 || (strlen (exclusions) && strstr (arg, exclusions) == arg) )
         return (char*)arg;
       exclusions += strlen (exclusions) + 1;
     }
