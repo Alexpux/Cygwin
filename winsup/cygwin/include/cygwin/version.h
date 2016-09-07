@@ -469,6 +469,7 @@ details. */
   302: Export nl_langinfo_l.
   303: Export pthread_getname_np, pthread_setname_np.
   304: Export strerror_l, strptime_l, wcsftime_l.
+  305: Export kill_process_tree.
 
   Note that we forgot to bump the api for ualarm, strtoll, strtoull,
   sigaltstack, sethostname. */
