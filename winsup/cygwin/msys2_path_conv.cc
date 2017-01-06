@@ -304,6 +304,10 @@ const char* convert(char *dst, size_t dstlen, const char *src) {
     }
 
     sub_convert(&srcbeg, &srcit, &dstit, dstend, &in_string);
+    if (!*srcit) {
+      *dstit = '\0';
+      return dst;
+    }
     srcbeg = srcit + 1;
     for (; *srcit != '\0'; ++srcit) {
       continue;
@@ -496,7 +500,7 @@ skip_p2w:
             return find_path_start_and_type(src, true, end);
         }
 
-        if (ch == ':') {
+        if (ch == ':' && it2 + 1 != end) {
             it2 += 1;
             ch = *it2;
             if (ch == '/' || ch == ':' || ch == '.') {
