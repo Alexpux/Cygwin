@@ -149,7 +149,7 @@ collect_basenames (pathfinder::basenamelist & basenames,
     {
 #ifdef __MSYS__
       /* ... replace "lib" with "msys-", before ... */
-      basenames.appendv ("msys-", 3, basename+3, baselen-3, ext, extlen, NULL);
+      basenames.appendv ("msys-", 5, basename+3, baselen-3, ext, extlen, NULL);
 #else
       /* ... replace "lib" with "cyg", before ... */
       basenames.appendv ("cyg", 3, basename+3, baselen-3, ext, extlen, NULL);
