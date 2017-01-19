@@ -601,7 +601,7 @@ void url_convert(const char** from, const char* to, char** dst, const char* dste
 
 void subp_convert(const char** from, const char* end, int is_url, char** dst, const char* dstend) {
     const char* begin = *from;
-    path_type type = find_path_start_and_type(from, 0, end);
+    path_type type = is_url ? URL : find_path_start_and_type(from, 0, end);
     copy_to_dst(begin, *from, dst, dstend);
 
     if (type == NONE) {
