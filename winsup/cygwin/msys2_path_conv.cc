@@ -631,9 +631,16 @@ void ppl_convert(const char** from, const char* to, char** dst, const char* dste
             if (prev_was_simc) {
                 continue;
             }
-            if (*(it + 1) == '/' && *(it + 2) == '/') {
+            if (*(it + 1) == '/' && *(it + 2) == '/' && isalpha(*beg)) {
                 is_url = 1;
-                continue;
+		/* double-check: protocol must be alnum (or +) */
+		for (const char *p = beg; p != it; ++p)
+		    if (!isalnum(*p) && *p != '+') {
+			is_url = 0;
+			break;
+		    }
+		if (is_url)
+                    continue;
             }
             prev_was_simc = 1;
             subp_convert(&beg, it, is_url, dst, dstend);
