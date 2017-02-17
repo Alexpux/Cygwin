@@ -367,6 +367,7 @@ win_env::operator = (struct win_env& x)
   toposix = x.toposix;
   towin32 = x.towin32;
   immediate = false;
+  skip_if_empty = x.skip_if_empty;
   return *this;
 }
 
