@@ -500,7 +500,7 @@ fhandler_dev_dsp::Audio_out::buf_info (audio_buf_info *p,
 				       int rate, int bits, int channels)
 {
   p->fragstotal = MAX_BLOCKS;
-  if (this && dev_)
+  if (dev_)
     {
       /* If the device is running we use the internal values,
 	 possibly set from the wave file. */
@@ -957,7 +957,7 @@ fhandler_dev_dsp::Audio_in::buf_info (audio_buf_info *p,
 {
   p->fragstotal = MAX_BLOCKS;
   p->fragsize = blockSize (rate, bits, channels);
-  if (this && dev_)
+  if (dev_)
     {
       p->fragments = Qisr2app_->query ();
       if (pHdr_ != NULL)
