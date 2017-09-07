@@ -1547,8 +1547,23 @@ exit_sig:
 dosig:
   if (have_execed)
     {
-      sigproc_printf ("terminating captive process");
-      exit_process (ch_spawn, 128 + (sigExeced = si.si_signo));
+      switch (si.si_signo)
+        {
+        case SIGUSR1:
+        case SIGUSR2:
+        case SIGCONT:
+        case SIGSTOP:
+        case SIGTSTP:
+        case SIGTTIN:
+        case SIGTTOU:
+          system_printf ("Suppressing signal %d to win32 process (pid %u)",
+              (int)si.si_signo, (unsigned int)GetProcessId(ch_spawn));
+          goto done;
+        default:
+          sigproc_printf ("terminating captive process");
+          exit_process (ch_spawn, 128 + (sigExeced = si.si_signo));
+          break;
+        }
     }
   /* Dispatch to the appropriate function. */
   sigproc_printf ("signal %d, signal handler %p", si.si_signo, handler);
