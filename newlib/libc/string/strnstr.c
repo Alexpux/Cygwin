@@ -31,6 +31,7 @@ QUICKREF
 */
 
 #undef __STRICT_ANSI__
+#define _GNU_SOURCE
 #include <_ansi.h>
 #include <string.h>
 
