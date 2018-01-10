@@ -187,7 +187,7 @@ forcekill (int pid, int sig, int wait)
 	      CloseHandle (h2);
 	    }
 	  else
-	    terminate_process_tree(h, 128 + sig);
+	    exit_process (h, 128 + sig);
 	}
       else if (sig && !TerminateProcess (h, sig << 8)
           && WaitForSingleObject (h, 200) != WAIT_OBJECT_0)
