@@ -1561,7 +1561,7 @@ dosig:
           goto done;
         default:
           sigproc_printf ("terminating captive process");
-          exit_process (ch_spawn, 128 + (sigExeced = si.si_signo));
+          exit_process (ch_spawn, 128 + (sigExeced = si.si_signo), 0);
           break;
         }
     }

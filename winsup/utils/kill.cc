@@ -181,13 +181,10 @@ forcekill (int pid, int sig, int wait)
 			      PROCESS_VM_WRITE | PROCESS_VM_READ |
 			      PROCESS_TERMINATE, FALSE, 0))
       {
+        CloseHandle(h);
         h = h2;
-	CloseHandle (h);
       }
-      exit_process (h, 128 + sig);
-      if (WaitForSingleObject (h, 200) != WAIT_OBJECT_0)
-        fprintf (stderr, "%s: couldn't kill pid %u, %u\n",
-	       prog_name, (unsigned) dwpid, (unsigned int) GetLastError ());
+      exit_process (h2, 128 + sig, 1);
     }
   CloseHandle (h);
 }
