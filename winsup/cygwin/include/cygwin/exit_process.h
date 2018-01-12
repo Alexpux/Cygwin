@@ -176,7 +176,8 @@ exit_process(HANDLE process, int exit_code)
 
   if (GetExitCodeProcess (process, &code) && code == STILL_ACTIVE)
     {
-      if (process_architecture_matches_current(process) && (exit_code == SIGINT || exit_code == SIGTERM))
+      int signal = exit_code & 0x7f;
+      if (process_architecture_matches_current(process) && (signal == SIGINT || signal == SIGTERM))
         return terminate_process_tree (process, exit_code, terminate_process_with_remote_thread);
 
       return terminate_process_tree (process, exit_code, terminate_process);
