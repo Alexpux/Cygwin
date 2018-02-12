@@ -35,6 +35,11 @@ AC_PROG_INSTALL
 AC_CHECK_PROGS(MINGW_CXX, ${target_cpu}-w64-mingw32-g++)
 test -n "$MINGW_CXX" || AC_MSG_ERROR([no acceptable mingw g++ found in \$PATH])
 
+AC_CHECK_PROGS(MINGW32_CC, i686-w64-mingw32-gcc)
+test -n "$MINGW32_CC" || AC_MSG_ERROR([no acceptable mingw32 gcc found in \$PATH])
+AC_CHECK_PROGS(MINGW64_CC, x86_64-w64-mingw32-gcc)
+test -n "$MINGW64_CC" || AC_MSG_ERROR([no acceptable mingw64 gcc found in \$PATH])
+
 AC_EXEEXT
 AC_CONFIGURE_ARGS
 AC_CONFIG_FILES([Makefile])
