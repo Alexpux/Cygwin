@@ -564,10 +564,10 @@ static off_t
 format_process_winexename (void *data, char *&destbuf)
 {
   _pinfo *p = (_pinfo *) data;
-  size_t len = sys_wcstombs (NULL, 0, p->progname);
+  size_t len = sys_wcstombs_path (NULL, 0, p->progname);
   destbuf = (char *) crealloc_abort (destbuf, len + 1);
   /* With trailing \0 for backward compat reasons. */
-  sys_wcstombs (destbuf, len + 1, p->progname);
+  sys_wcstombs_path (destbuf, len + 1, p->progname);
   return len;
 }
 
@@ -1027,7 +1027,7 @@ peb_teb_rinse_repeat:
 		      drive_maps.fixup_if_match (msi->SectionFileName.Buffer);
 		  if (mount_table->conv_to_posix_path (dosname,
 						       posix_modname, 0))
-		    sys_wcstombs (posix_modname, NT_MAX_PATH, dosname);
+		    sys_wcstombs_path (posix_modname, NT_MAX_PATH, dosname);
 		  stat64 (posix_modname, &st);
 		}
 	      else if (!threads.fill_if_match (cur.abase, mb.Type,
@@ -1072,7 +1072,7 @@ format_process_stat (void *data, char *&destbuf)
   else
     {
       PWCHAR last_slash = wcsrchr (p->progname, L'\\');
-      sys_wcstombs (cmd, NAME_MAX + 1,
+      sys_wcstombs_path (cmd, NAME_MAX + 1,
 		    last_slash ? last_slash + 1 : p->progname);
       int len = strlen (cmd);
       if (len > 4)
@@ -1176,7 +1176,8 @@ format_process_status (void *data, char *&destbuf)
   size_t vmsize = 0, vmrss = 0, vmdata = 0, vmlib = 0, vmtext = 0, vmshare = 0;
 
   PWCHAR last_slash = wcsrchr (p->progname, L'\\');
-  sys_wcstombs (cmd, NAME_MAX + 1, last_slash ? last_slash + 1 : p->progname);
+  sys_wcstombs_path (cmd, NAME_MAX + 1,
+		  last_slash ? last_slash + 1 : p->progname);
   int len = strlen (cmd);
   if (len > 4)
     {
