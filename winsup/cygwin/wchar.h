@@ -45,16 +45,19 @@ extern wctomb_f __utf8_wctomb;
 
 #ifdef __INSIDE_CYGWIN__
 #ifdef __cplusplus
+size_t __reg3 sys_wcstombs_path (char *dst, size_t len, const wchar_t * src,
+			       size_t nwc = (size_t) -1);
 size_t __reg3 sys_wcstombs (char *dst, size_t len, const wchar_t * src,
 			    size_t nwc = (size_t) -1);
 size_t __reg3 sys_wcstombs_no_path (char *dst, size_t len,
 				    const wchar_t * src,
 				    size_t nwc = (size_t) -1);
+size_t __reg3 sys_wcstombs_alloc_path (char **, int, const wchar_t *,
+				       size_t = (size_t) -1);
 size_t __reg3 sys_wcstombs_alloc (char **, int, const wchar_t *,
 				  size_t = (size_t) -1);
 size_t __reg3 sys_wcstombs_alloc_no_path (char **, int, const wchar_t *,
 					  size_t = (size_t) -1);
-
 size_t __reg3 sys_cp_mbstowcs (mbtowc_p, wchar_t *, size_t, const char *,
 			       size_t = (size_t) -1);
 size_t __reg3 sys_mbstowcs (wchar_t * dst, size_t dlen, const char *src,
