@@ -341,7 +341,64 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
 
     if (*it == '\0' || it == end) return NONE;
 
-    while (!isalnum(*it) && *it != '/' && *it != '\\' && *it != ':' && *it != '-' && *it != '.') {
+    /* Let's not convert ~/.file to ~C:\msys64\.file */
+    if (*it == '~') {
+skip_p2w:
+        *src = end;
+        return NONE;
+    }
+
+    /*
+     * Skip path mangling when environment indicates it.
+     */
+    const char *no_pathconv = getenv ("MSYS_NO_PATHCONV");
+
+    if (no_pathconv)
+      goto skip_p2w;
+
+    /*
+     * Prevent Git's :file.txt and :/message syntax from beeing modified.
+     */
+    if (*it == ':')
+        goto skip_p2w;
+
+    while (it != end && *it) {
+        switch (*it) {
+        case '`':
+        case '\'':
+        case '"':
+        case '*':
+        case '?':
+        case '[':
+        case ']':
+            goto skip_p2w;
+        case '/':
+            if (it + 1 < end && it[1] == '~')
+                goto skip_p2w;
+            break;
+        case ':':
+            // Avoid mangling IPv6 addresses
+            if (it + 1 < end && it[1] == ':')
+                goto skip_p2w;
+
+            // Leave Git's <rev>:./name syntax alone
+            if (it + 1 < end && it[1] == '.') {
+                if (it + 2 < end && it[2] == '/')
+                    goto skip_p2w;
+                if (it + 3 < end && it[2] == '.' && it[3] == '/')
+                    goto skip_p2w;
+            }
+            break;
+        case '@':
+            // Paths do not contain '@@'
+            if (it + 1 < end && it[1] == '@')
+                goto skip_p2w;
+        }
+        ++it;
+    }
+    it = *src;
+
+    while (!isalnum(*it) && !(0x80 & *it) && *it != '/' && *it != '\\' && *it != ':' && *it != '-' && *it != '.') {
         recurse = true;
         it = ++*src;
         if (it == end || *it == '\0') return NONE;
@@ -406,6 +463,8 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
 
     int starts_with_minus = 0;
     int starts_with_minus_alpha = 0;
+    int only_dots = *it == '.';
+    int has_slashes = 0;
     if (*it == '-') {
       starts_with_minus = 1;
       it += 1;
@@ -449,11 +508,17 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
                 if (ch == '/' && *(it2 + 1) == '/') {
                     return URL;
                 } else {
+                    if (!only_dots && !has_slashes)
+                        goto skip_p2w;
                     return POSIX_PATH_LIST;
                 }
             } else if (memchr(it2, '=', end - it) == NULL) {
                 return SIMPLE_WINDOWS_PATH;
             }
+        } else if (ch != '.') {
+            only_dots = 0;
+            if (ch == '/' || ch == '\\')
+                has_slashes = 1;
         }
     }
 
