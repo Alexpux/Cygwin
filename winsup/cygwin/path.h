@@ -58,6 +58,7 @@ enum pathconv_arg
   PC_SYM_NOFOLLOW_PROCFD = _BIT (11),
   PC_KEEP_HANDLE	 = _BIT (12),
   PC_NO_ACCESS_CHECK	 = _BIT (13),
+  PC_KEEP_FINAL_SLASH	 = _BIT (14),
   PC_DONT_USE		 = _BIT (31)	/* conversion to signed happens. */
 };
 
