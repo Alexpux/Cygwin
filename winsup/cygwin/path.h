@@ -51,6 +51,7 @@ enum pathconv_arg
   PC_NOWARN		= 0x0100,
   PC_OPEN		= 0x0200,	/* use open semantics */
   PC_CTTY		= 0x0400,	/* could later be used as ctty */
+  PC_KEEP_FINAL_SLASH	= 0x0800,
   PC_KEEP_HANDLE	= 0x00400000,
   PC_NO_ACCESS_CHECK	= 0x00800000
 };
