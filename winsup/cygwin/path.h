@@ -59,6 +59,7 @@ enum pathconv_arg
   PC_KEEP_HANDLE	 = _BIT (12),	/* keep handle for later stat calls */
   PC_NO_ACCESS_CHECK	 = _BIT (13),	/* helper flag for error check */
   PC_SYM_NOFOLLOW_DIR	 = _BIT (14),	/* don't follow a trailing slash */
+  PC_KEEP_FINAL_SLASH	 = _BIT (15),   /* do not remove a trailing slash */
   PC_DONT_USE		 = _BIT (31)	/* conversion to signed happens. */
 };
 
