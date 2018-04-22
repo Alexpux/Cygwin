@@ -174,7 +174,7 @@ forcekill (int pid, int sig, int wait)
   if (!wait || WaitForSingleObject (h, 200) != WAIT_OBJECT_0)
     {
       HANDLE cur = GetCurrentProcess (), h2;
-      /* duplicate handle with access rights required for exit_process() */
+      /* duplicate handle with access rights required for exit_process_tree() */
       if (DuplicateHandle (cur, h, cur, &h2, PROCESS_CREATE_THREAD |
 			      PROCESS_QUERY_INFORMATION |
 			      PROCESS_VM_OPERATION |
@@ -184,7 +184,7 @@ forcekill (int pid, int sig, int wait)
         CloseHandle(h);
         h = h2;
       }
-      exit_process (h2, 128 + sig, 1);
+      exit_process_tree (h2, 128 + sig);
     }
   CloseHandle (h);
 }
