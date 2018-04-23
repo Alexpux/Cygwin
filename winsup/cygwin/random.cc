@@ -302,7 +302,7 @@ srandomdev()
 
 	if (getentropy ((void *) state, len)) {
 		struct timeval tv;
-		unsigned long junk;
+		unsigned long junk = 0;
 
 		gettimeofday(&tv, NULL);
 		/* Avoid a compiler warning when we really want to get at the
