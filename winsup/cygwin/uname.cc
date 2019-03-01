@@ -76,7 +76,7 @@ uname_x (struct utsname *name)
 /* Old entrypoint for applications up to API 334 */
 struct old_utsname
 {
-  char sysname[20];
+  char sysname[21];
   char nodename[20];
   char release[20];
   char version[20];
