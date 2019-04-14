@@ -132,6 +132,7 @@
     Ely Arzhannikov <iarzhannikov@gmail.com>
     Alexey Pavlov <alexpux@gmail.com>
     Ray Donnelly <mingw.android@gmail.com>
+    Johannes Schindelin <johannes.schindelin@gmx.de>
   
 */
 
@@ -282,6 +283,7 @@ const char* convert(char *dst, size_t dstlen, const char *src) {
         *dstit = '\0';
         return dst;
     }
+    *dstend = '\0';
 
     const char* srcit = src;
     const char* srcbeg = src;
@@ -308,10 +310,6 @@ const char* convert(char *dst, size_t dstlen, const char *src) {
     }
 
     sub_convert(&srcbeg, &srcit, &dstit, dstend, &in_string);
-    if (!*srcit) {
-      *dstit = '\0';
-      return dst;
-    }
     srcbeg = srcit + 1;
     for (; *srcit != '\0'; ++srcit) {
       continue;
@@ -413,6 +411,9 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
       if (isalpha(*it)) {
         it += 1;
         starts_with_minus_alpha = 1;
+        if (memchr(it, ';', end - it)) {
+        	return WINDOWS_PATH_LIST;
+        }
       }
     }
 
@@ -440,7 +441,7 @@ path_type find_path_start_and_type(const char** src, int recurse, const char* en
             return find_path_start_and_type(src, true, end);
         }
 
-        if (ch == ':' && it2 + 1 != end) {
+        if (ch == ':') {
             it2 += 1;
             ch = *it2;
             if (ch == '/' || ch == ':' || ch == '.') {
@@ -523,7 +524,7 @@ void rp_convert(const char** from, const char* to, char** dst, const char* dsten
         posix_to_win32_path(it, real_to, dst, dstend);
     }
 
-    if (real_to != to) {
+    if (*dst != dstend && real_to != to) {
         **dst = *real_to;
         *dst += 1;
     }
@@ -535,7 +536,7 @@ void url_convert(const char** from, const char* to, char** dst, const char* dste
 
 void subp_convert(const char** from, const char* end, int is_url, char** dst, const char* dstend) {
     const char* begin = *from;
-    path_type type = is_url ? URL : find_path_start_and_type(from, 0, end);
+    path_type type = find_path_start_and_type(from, 0, end);
     copy_to_dst(begin, *from, dst, dstend);
 
     if (type == NONE) {
@@ -555,6 +556,7 @@ void subp_convert(const char** from, const char* end, int is_url, char** dst, co
 }
 
 void ppl_convert(const char** from, const char* to, char** dst, const char* dstend) {
+    const char *orig_dst = *dst;
     const char* it = *from;
     const char* beg = it;
     int prev_was_simc = 0;
@@ -564,20 +566,18 @@ void ppl_convert(const char** from, const char* to, char** dst, const char* dste
             if (prev_was_simc) {
                 continue;
             }
-            if (*(it + 1) == '/' && *(it + 2) == '/' && isalpha(*beg)) {
+            if (*(it + 1) == '/' && *(it + 2) == '/') {
                 is_url = 1;
-		/* double-check: protocol must be alnum (or +) */
-		for (const char *p = beg; p != it; ++p)
-		    if (!isalnum(*p) && *p != '+') {
-			is_url = 0;
-			break;
-		    }
-		if (is_url)
-                    continue;
+                continue;
             }
             prev_was_simc = 1;
             subp_convert(&beg, it, is_url, dst, dstend);
             is_url = 0;
+
+            if (*dst == dstend) {
+                system_printf("Path cut off during conversion: %s\n", orig_dst);
+                break;
+            }
 
             **dst = ';';
             *dst += 1;

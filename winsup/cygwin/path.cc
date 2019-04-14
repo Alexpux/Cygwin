@@ -3625,28 +3625,33 @@ arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, 
     {
       /* Since we've got regex linked we should maybe switch to that, but
          running regexes for every argument could be too slow. */
-      if ( strcmp (exclusions, "*") == 0 || strstr (arg, exclusions) == arg )
+      if ( strcmp (exclusions, "*") == 0 || (strlen (exclusions) && strstr (arg, exclusions) == arg) )
         return (char*)arg;
       exclusions += strlen (exclusions) + 1;
     }
 
-  size_t stack_len = arglen + MAX_PATH;
+  // Leave enough room for at least 16 path elements; we might be converting
+  // a path list.
+  size_t stack_len = arglen + 16 * MAX_PATH;
   char * stack_path = (char *)malloc (stack_len);
-  memset (stack_path, 0, MAX_PATH);
-  if (!stack_len)
+  if (!stack_path)
     {
       debug_printf ("out of stack space?");
       return (char *)arg;
     }
+  memset (stack_path, 0, MAX_PATH);
   convert (stack_path, stack_len - 1, arg);
   debug_printf ("convert()'ed: %s (length %d)\n.....->: %s", arg, arglen, stack_path);
   // Don't allocate memory if no conversion happened.
   if (!strcmp (arg, stack_path))
     {
+      if (arg != stack_path)
+        {
+          free (stack_path);
+        }
       return ((char *)arg);
     }
-  arg_result = (char *)malloc (strlen (stack_path)+1);
-  strcpy (arg_result, stack_path);
+  arg_result = (char *)realloc (stack_path, strlen (stack_path)+1);
   // Windows doesn't like empty entries in PATH env. variables (;;)
   char* semisemi = strstr(arg_result, ";;");
   while (semisemi)
