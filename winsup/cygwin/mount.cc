@@ -497,17 +497,15 @@ mount_info::init (bool user_init)
   pathend = wcpcpy (pathend, L"\\etc\\fstab");
   from_fstab (user_init, path, pathend);
 
-
   if (!user_init && !got_usr_bin)
     {
       char native[PATH_MAX];
       if (root_idx < 0)
         api_fatal ("root_idx %d, user_shared magic %y, nmounts %d", root_idx, user_shared->version, nmounts);
       char *p = stpcpy (native, mount[root_idx].native_path);
-	stpcpy (p, "\\usr\\bin");
-	add_item (native, "/bin",
-		  MOUNT_SYSTEM | MOUNT_AUTOMATIC | MOUNT_NOACL);
-   }
+      stpcpy (p, "\\usr\\bin");
+      add_item (native, "/bin", MOUNT_SYSTEM | MOUNT_AUTOMATIC | MOUNT_NOACL);
+    }
 }
 
 int
@@ -652,14 +650,14 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
 	}
       else if (cygdrive_win32_path (src_path, dst, unit))
 	{
-          debug_printf ("cygdrive_win32_path (%s)", src_path);
+	  debug_printf ("cygdrive_win32_path (%s)", src_path);
 	  *flags = cygdrive_flags;
 	  goto out;
 	}
       else if (mount_table->cygdrive_len > 1)
       {
-          debug_printf ("mount_table->cygdrive_len > 1 (%s)", src_path);
-	return ENOENT;
+		debug_printf ("mount_table->cygdrive_len > 1 (%s)", src_path);
+		return ENOENT;
       }
     }
 
