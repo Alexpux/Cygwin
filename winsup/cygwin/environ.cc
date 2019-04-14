@@ -775,7 +775,7 @@ static struct renv {
 #define RENV_SIZE (sizeof (renv_arr) / sizeof (renv_arr[0]))
 
 /* Set of first characters of the above list of variables. */
-static const char idx_arr[] = 
+static const char idx_arr[] =
 #ifdef __MSYS__
 	"CMPSTW";
 #else
@@ -784,7 +784,7 @@ static const char idx_arr[] =
 /* Index into renv_arr at which the variables with this specific character
    starts. */
 static const int start_at[] = {
-#ifdef __MSYS__ 
+#ifdef __MSYS__
 				0, 2, 3, 5, 7, 9
 #else
 				0, 2, 4, 6, 8
