@@ -188,7 +188,7 @@ case "${host_cpu}" in
   i[34567]86)
 	# Don't use for these since they provide their own setjmp.
 	case ${host} in
-	*-*-sco* | *-*-cygwin* | *-*-msys*) 
+	*-*-sco* | *-*-cygwin* | *-*-msys*)
 		libm_machine_dir=i386
 		machine_dir=i386
 		;;
