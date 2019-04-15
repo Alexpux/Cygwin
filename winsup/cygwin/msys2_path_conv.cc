@@ -132,6 +132,7 @@
     Ely Arzhannikov <iarzhannikov@gmail.com>
     Alexey Pavlov <alexpux@gmail.com>
     Ray Donnelly <mingw.android@gmail.com>
+    Johannes Schindelin <johannes.schindelin@gmx.de>
   
 */
 

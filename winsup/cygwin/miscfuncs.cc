@@ -328,6 +328,7 @@ string_split_delimited (char * string, char delimiter)
   return count;
 }
 
+
 /* Return an address from the import jmp table of main program.  */
 void * __reg1
 __import_address (void *imp)

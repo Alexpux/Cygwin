@@ -30,7 +30,10 @@ uname_x (struct utsname *name)
 
       memset (name, 0, sizeof (*name));
       /* sysname */
-      __small_sprintf (name->sysname, "CYGWIN_%s-%u%s",
+      char* msystem = getenv("MSYSTEM");
+      const char *msystem_msys = "MSYS";
+      __small_sprintf (name->sysname, "%s_%s-%u%s",
+		       msystem ? msystem : msystem_msys,
 		       wincap.osname (), wincap.build_number (),
 		       wincap.is_wow64 () ? "-WOW64" : "");
       /* nodename */

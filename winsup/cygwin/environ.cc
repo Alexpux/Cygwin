@@ -782,7 +782,7 @@ static struct renv {
 #define RENV_SIZE (sizeof (renv_arr) / sizeof (renv_arr[0]))
 
 /* Set of first characters of the above list of variables. */
-static const char idx_arr[] = 
+static const char idx_arr[] =
 #ifdef __MSYS__
 	"CMPSTW";
 #else
@@ -791,7 +791,7 @@ static const char idx_arr[] =
 /* Index into renv_arr at which the variables with this specific character
    starts. */
 static const int start_at[] = {
-#ifdef __MSYS__ 
+#ifdef __MSYS__
 				0, 2, 3, 5, 7, 9
 #else
 				0, 2, 4, 6, 8
@@ -920,16 +920,16 @@ win32env_to_cygenv (PWCHAR rawenv, bool posify)
       char *eq = strchrnul (newp, '=');
       ucenv (newp, eq);    /* uppercase env vars which need it */
       if (*newp == 'T' && strncmp (newp, "TERM=", 5) == 0)
-        {
-          /* backwards compatibility: override TERM=msys by TERM=cygwin */
-          if (strcmp (newp + 5, "msys") == 0)
-            {
-              free(newp);
-              i--;
-              continue;
-            }
-          sawTERM = 1;
-        }
+	    {
+	      /* backwards compatibility: override TERM=msys by TERM=cygwin */
+	      if (strcmp (newp + 5, "msys") == 0)
+		{
+		  free(newp);
+		  i--;
+		  continue;
+		}
+	      sawTERM = 1;
+	    }
 #ifdef __MSYS__
       else if (*newp == 'M' && strncmp (newp, "MSYS=", 5) == 0)
         parse_options (newp + 5);
