@@ -372,6 +372,7 @@ create_child (char **argv)
   See quoted () comment:
   "This must have been run from a Windows shell, so preserve
      quotes for globify to play with later."
+
   const char *cygwin_env = getenv ("MSYS");
   const char *space;
 
