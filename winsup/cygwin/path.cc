@@ -3645,7 +3645,8 @@ arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, 
     {
       return ((char *)arg);
     }
-  arg_result = (char *)realloc (stack_path, strlen (stack_path)+1);
+  arg_result = (char *)malloc (strlen (stack_path)+1);
+  strcpy (arg_result, stack_path);
   // Windows doesn't like empty entries in PATH env. variables (;;)
   char* semisemi = strstr(arg_result, ";;");
   while (semisemi)
