@@ -1211,9 +1211,22 @@ path_conv::check (const char *src, unsigned opt,
 		cfree (wide_path);
 	      wide_path = NULL;
 	    }
+
+	  if (need_directory)
+	    {
+	      size_t n = strlen (this->path);
+	      /* Do not add trailing \ to UNC device names like \\.\a: */
+	      if (this->path[n - 1] != '\\' &&
+		  (strncmp (this->path, "\\\\.\\", 4) != 0))
+		{
+		  this->modifiable_path ()[n] = '\\';
+		  this->modifiable_path ()[n + 1] = '\0';
+		}
+	      need_directory = 0;
+	    }
 	}
 
-      if (need_directory)
+      if ((opt & PC_KEEP_FINAL_SLASH) && need_directory)
 	{
 	  size_t n = strlen (this->path);
 	  /* Do not add trailing \ to UNC device names like \\.\a: */
@@ -1223,6 +1236,7 @@ path_conv::check (const char *src, unsigned opt,
 	      this->modifiable_path ()[n] = '\\';
 	      this->modifiable_path ()[n + 1] = '\0';
 	    }
+	  need_directory = 0;
 	}
 
       if (opt & PC_OPEN)
