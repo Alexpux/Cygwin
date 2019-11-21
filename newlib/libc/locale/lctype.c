@@ -25,7 +25,12 @@
 
 #define LCCTYPE_SIZE (sizeof(struct lc_ctype_T) / sizeof(char *))
 
+#ifdef __CYGWIN__
+/* Cygwin uses __utf8_mbtowc() by default, therefore mb_cur_max := 6 */
+static char	numone[] = { '\x06', '\0'};
+#else
 static char	numone[] = { '\1', '\0'};
+#endif
 
 const struct lc_ctype_T _C_ctype_locale = {
 	"ASCII",			/* codeset */
