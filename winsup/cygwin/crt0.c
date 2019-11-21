@@ -31,7 +31,7 @@ mainCRTStartup ()
 #if __GNUC_PREREQ(6,0)
 #pragma GCC diagnostic pop
 #endif
-  asm volatile ("andl $-16,%%esp" ::: "%esp");
+  asm volatile ("andl $-16,%esp");
 #endif
 
 #ifdef __MSYS__
