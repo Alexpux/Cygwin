@@ -30,7 +30,7 @@ threadfunc_fe (VOID *arg)
 #if __GNUC_PREREQ(6,0)
 #pragma GCC diagnostic pop
 #endif
-  asm volatile ("andl $-16,%%esp" ::: "%esp");
+  asm volatile ("andl $-16,%esp");
 #endif
   _cygtls::call ((DWORD (*)  (void *, void *)) TlsGetValue (_my_oldfunc), arg);
 }
