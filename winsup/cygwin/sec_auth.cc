@@ -1569,7 +1569,7 @@ s4uauth (bool logon, PCWSTR domain, PCWSTR user, NTSTATUS &ret_status)
   RtlInitAnsiString (&origin.str, origin.buf);
 
   /* Create token source. */
-  memcpy (ts.SourceName, "MSYS.1", 8);
+  memcpy (ts.SourceName, "MSYS.2", 6);
   ts.SourceIdentifier.HighPart = 0;
   ts.SourceIdentifier.LowPart = kerberos_auth ? 0x0105 : 0x0106;
 
