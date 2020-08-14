@@ -59,6 +59,7 @@ enum winsym_t
   WSYM_nativestrict,
   WSYM_nfs,
   WSYM_sysfile,
+  WSYM_deepcopy
 };
 
 exit_states NO_COPY exit_state;
@@ -71,9 +72,11 @@ bool allow_glob = true;
 bool ignore_case_with_glob;
 bool pipe_byte;
 bool reset_com;
-bool wincmdln;
-winsym_t allow_winsymlinks = WSYM_default;
-bool disable_pcon;
+bool wincmdln = true;
+winsym_t allow_winsymlinks = WSYM_deepcopy;
+bool disable_pcon = true;
+bool winjitdebug = false;
+bool nativeinnerlinks = true;
 
 bool NO_COPY in_forkee;
 

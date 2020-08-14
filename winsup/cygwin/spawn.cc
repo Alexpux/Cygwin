@@ -50,7 +50,7 @@ perhaps_suffix (const char *prog, path_conv& buf, int& err, unsigned opt)
 
   err = 0;
   debug_printf ("prog '%s'", prog);
-  buf.check (prog, PC_SYM_FOLLOW | PC_NULLEMPTY | PC_POSIX,
+  buf.check (prog, PC_SYM_FOLLOW | PC_SYM_NOFOLLOW_REP | PC_NULLEMPTY | PC_POSIX,
 	     (opt & FE_DLL) ? stat_suffixes : exe_suffixes);
 
   if (buf.isdir ())
@@ -295,6 +295,19 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	  }
       }
 
+  /* Environment variable MSYS2_ARG_CONV_EXCL contains a list
+     of ';' separated argument prefixes to pass un-modified.
+     A value of * means don't convert any arguments. */
+  char* msys2_arg_conv_excl_env = getenv("MSYS2_ARG_CONV_EXCL");
+  char* msys2_arg_conv_excl = NULL;
+  size_t msys2_arg_conv_excl_count = 0;
+  if (msys2_arg_conv_excl_env)
+    {
+      msys2_arg_conv_excl = (char*)alloca (strlen(msys2_arg_conv_excl_env)+1);
+      strcpy (msys2_arg_conv_excl, msys2_arg_conv_excl_env);
+      msys2_arg_conv_excl_count = string_split_delimited (msys2_arg_conv_excl, ';');
+    }
+
   /* Check if we have been called from exec{lv}p or spawn{lv}p and mask
      mode to keep only the spawn mode. */
   bool p_type_exec = !!(mode & _P_PATH_TYPE_EXEC);
@@ -404,9 +417,23 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	      moreinfo->argc = newargv.argc;
 	      moreinfo->argv = newargv;
 	    }
+	  else
+	    {
+	      for (int i = 0; i < newargv.argc; i++)
+	        {
+	          //convert argv to win32
+	          int newargvlen = strlen (newargv[i]);
+	          char *tmpbuf = (char *)malloc (newargvlen + 1);
+	          memcpy (tmpbuf, newargv[i], newargvlen + 1);
+	          tmpbuf = arg_heuristic_with_exclusions(tmpbuf, msys2_arg_conv_excl, msys2_arg_conv_excl_count);
+	          debug_printf("newargv[%d] = %s", i, newargv[i]);
+	          newargv.replace (i, tmpbuf);
+	          free (tmpbuf);
+	        }
+	    }
 	  if ((wincmdln || !real_path.iscygexec ())
-	       && !cmd.fromargv (newargv, real_path.get_win32 (),
-				 real_path.iscygexec ()))
+	        && !cmd.fromargv (newargv, real_path.get_win32 (),
+		    real_path.iscygexec ()))
 	    {
 	      res = -1;
 	      __leave;
@@ -435,7 +462,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	 get the default error mode instead of inheriting the mode Cygwin
 	 uses.  This allows things like Windows Error Reporting/JIT debugging
 	 to work with processes launched from a Cygwin shell. */
-      if (!real_path.iscygexec ())
+      if (winjitdebug && !real_path.iscygexec ())
 	c_flags |= CREATE_DEFAULT_ERROR_MODE;
 
       /* We're adding the CREATE_BREAKAWAY_FROM_JOB flag here to workaround
@@ -537,10 +564,13 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       bool switch_user = ::cygheap->user.issetuid ()
 			 && (::cygheap->user.saved_uid
 			     != ::cygheap->user.real_uid);
+      bool keep_posix = (iscmd (argv[0], "strace.exe")
+			|| iscmd (argv[0], "strace")) ? true : real_path.iscygexec ();
       moreinfo->envp = build_env (envp, envblock, moreinfo->envc,
 				  real_path.iscygexec (),
 				  switch_user ? ::cygheap->user.primary_token ()
-					      : NULL);
+					      : NULL,
+				  keep_posix);
       if (!moreinfo->envp || !envblock)
 	{
 	  set_errno (E2BIG);
