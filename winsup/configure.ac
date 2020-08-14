@@ -84,11 +84,10 @@ AM_CONDITIONAL(BUILD_DOC, [test $enable_doc != "no"])
 AC_CHECK_PROGS([DOCBOOK2XTEXI], [docbook2x-texi db2x_docbook2texi])
 if test -z "$DOCBOOK2XTEXI" ; then
     if test "x$enable_doc" != "xno"; then
-        AC_MSG_ERROR([docbook2texi is required to build documentation])
-    else
-        unset DOCBOOK2XTEXI
-        AM_MISSING_PROG([DOCBOOK2XTEXI], [docbook2texi])
+        AC_MSG_WARN([docbook2texi is required to build documentation])
     fi
+    unset DOCBOOK2XTEXI
+    AM_MISSING_PROG([DOCBOOK2XTEXI], [docbook2texi])
 fi
 
 AC_CHECK_PROGS([XMLTO], [xmlto])
@@ -106,6 +105,11 @@ if test "x$with_cross_bootstrap" != "xyes"; then
     test -n "$MINGW_CXX" || AC_MSG_ERROR([no acceptable MinGW g++ found in \$PATH])
     AC_CHECK_PROGS(MINGW_CC, ${target_cpu}-w64-mingw32-gcc)
     test -n "$MINGW_CC" || AC_MSG_ERROR([no acceptable MinGW gcc found in \$PATH])
+
+    AC_CHECK_PROGS(MINGW32_CC, i686-w64-mingw32-gcc)
+    test -n "$MINGW32_CC" || AC_MSG_ERROR([no acceptable mingw32 gcc found in \$PATH])
+    AC_CHECK_PROGS(MINGW64_CC, x86_64-w64-mingw32-gcc)
+    test -n "$MINGW64_CC" || AC_MSG_ERROR([no acceptable mingw64 gcc found in \$PATH])
 fi
 AM_CONDITIONAL(CROSS_BOOTSTRAP, [test "x$with_cross_bootstrap" != "xyes"])
 
@@ -124,6 +128,11 @@ BFD_LIBS="-lintl -liconv -liberty -lz"
 AC_CHECK_LIB([sframe], [sframe_decode], [BFD_LIBS="${BFD_LIBS} -lsframe"])
 AC_CHECK_LIB([zstd], [ZSTD_isError], [BFD_LIBS="${BFD_LIBS} -lzstd"])
 AC_SUBST([BFD_LIBS])
+
+AC_CHECK_LIB([sframe], [sframe_decode],
+	     AC_MSG_NOTICE([Detected libsframe; Assuming that libbfd depends on it]), [true])
+
+AM_CONDITIONAL(HAVE_LIBSFRAME, [test "x$ac_cv_lib_sframe_sframe_decode" = "xyes"])
 
 AC_CONFIG_FILES([
     Makefile
