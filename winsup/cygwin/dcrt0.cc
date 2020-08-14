@@ -154,12 +154,12 @@ isquote (char c)
 
 /* Step over a run of characters delimited by quotes */
 static /*__inline*/ char *
-quoted (char *cmd, int winshell)
+quoted (char *cmd, int winshell, int glob)
 {
   char *p;
   char quote = *cmd;
 
-  if (!winshell)
+  if (!winshell || !glob)
     {
       char *p;
       strcpy (cmd, cmd + 1);
@@ -169,8 +169,8 @@ quoted (char *cmd, int winshell)
     }
 
   const char *s = quote == '\'' ? "'" : "\\\"";
-  /* This must have been run from a Windows shell, so preserve
-     quotes for globify to play with later. */
+  /* This must have been run from a Windows shell and globbing is enabled,
+     so preserve quotes for globify to play with later. */
   while (*cmd && *++cmd)
     if ((p = strpbrk (cmd, s)) == NULL)
       {
@@ -236,9 +236,19 @@ globify (char *word, char **&argv, int &argc, int &argvlen)
 	char quote = *s;
 	while (*++s && *s != quote)
 	  {
+	    /* This used to be:
 	    if (dos_spec || *s != '\\')
-	      /* nothing */;
+	      // nothing
 	    else if (s[1] == quote || s[1] == '\\')
+	      s++;
+	    With commit message:
+	       dcrt0.cc (globify): Don't use \ quoting when apparently quoting a DOS path
+	       spec, even within a quoted string.
+	    But that breaks the "literal quotes" part of '"C:/test.exe SOME_VAR=\"literal quotes\""'
+	    giving:    'C:/test.exe SOME_VAR=\literal quotes\' (with \'s between each character)
+	    instead of 'C:/test.exe SOME_VAR="literal quotes"' (with \'s between each character)
+	    */
+	    if (*s == '\\' && (s[1] == quote || s[1] == '\\'))
 	      s++;
 	    *p++ = '\\';
 	    size_t cnt = isascii (*s) ? 1 : mbtowc (NULL, s, MB_CUR_MAX);
@@ -291,7 +301,7 @@ globify (char *word, char **&argv, int &argc, int &argvlen)
 /* Build argv, argc from string passed from Windows.  */
 
 static void __stdcall
-build_argv (char *cmd, char **&argv, int &argc, int winshell)
+build_argv (char *cmd, char **&argv, int &argc, int winshell, int glob)
 {
   int argvlen = 0;
   int nesting = 0;		// monitor "nesting" from insert_file
@@ -299,6 +309,8 @@ build_argv (char *cmd, char **&argv, int &argc, int winshell)
   argc = 0;
   argvlen = 0;
   argv = NULL;
+
+  debug_printf ("cmd = '%s', winshell = %d, glob = %d", cmd, winshell, glob);
 
   /* Scan command line until there is nothing left. */
   while (*cmd)
@@ -325,7 +337,7 @@ build_argv (char *cmd, char **&argv, int &argc, int winshell)
 		 a Cygwin process, or if the word starts with a '@'.
 		 In this case, the insert_file function needs an unquoted
 		 DOS filename and globbing isn't performed anyway. */
-	      cmd = quoted (cmd, winshell && argc > 0 && *word != '@');
+	      cmd = quoted (cmd, winshell && argc > 0 && *word != '@', glob);
 	    }
 	  if (issep (*cmd))	// End of argument if space
 	    break;
@@ -351,7 +363,7 @@ build_argv (char *cmd, char **&argv, int &argc, int winshell)
 	}
 
       /* Add word to argv file after (optional) wildcard expansion. */
-      if (!winshell || !argc || !globify (word, argv, argc, argvlen))
+      if (!glob || !argc || !globify (word, argv, argc, argvlen))
 	{
 	  debug_printf ("argv[%d] = '%s'", argc, word);
 	  argv[argc++] = word;
@@ -378,21 +390,21 @@ check_sanity_and_sync (per_process *p)
 
   /* Complain if older than last incompatible change */
   if (p->dll_major < CYGWIN_VERSION_DLL_EPOCH)
-    api_fatal ("cygwin DLL and APP are out of sync -- DLL version mismatch %u < %u",
+    api_fatal ("msys DLL and APP are out of sync -- DLL version mismatch %u < %u",
 	       p->dll_major, CYGWIN_VERSION_DLL_EPOCH);
 
   /* magic_biscuit != 0 if using the old style version numbering scheme.  */
   if (p->magic_biscuit != SIZEOF_PER_PROCESS)
-    api_fatal ("Incompatible cygwin .dll -- incompatible per_process info %u != %u",
+    api_fatal ("Incompatible msys .dll -- incompatible per_process info %u != %u",
 	       p->magic_biscuit, SIZEOF_PER_PROCESS);
 
   /* Complain if incompatible API changes made */
   if (p->api_major > cygwin_version.api_major)
-    api_fatal ("cygwin DLL and APP are out of sync -- API version mismatch %u > %u",
+    api_fatal ("msys DLL and APP are out of sync -- API version mismatch %u > %u",
 	       p->api_major, cygwin_version.api_major);
 
 #ifdef __i386__
-  /* This is a kludge to work around a version of _cygwin_common_crt0
+  /* This is a kludge to work around a version of _msys_common_crt0
      which overwrote the cxx_malloc field with the local DLL copy.
      Hilarity ensues if the DLL is not loaded while the process
      is forking. */
@@ -491,12 +503,12 @@ break_here ()
 static void
 initial_env ()
 {
-  if (GetEnvironmentVariableA ("CYGWIN_TESTING", NULL, 0))
+  if (GetEnvironmentVariableA ("MSYS_TESTING", NULL, 0))
     _cygwin_testing = 1;
 
 #ifdef DEBUGGING
   char buf[PATH_MAX];
-  if (GetEnvironmentVariableA ("CYGWIN_DEBUG", buf, sizeof (buf) - 1))
+  if (GetEnvironmentVariableA ("MSYS_DEBUG", buf, sizeof (buf) - 1))
     {
       char buf1[PATH_MAX];
       GetModuleFileName (NULL, buf1, PATH_MAX);
@@ -952,6 +964,7 @@ dll_crt0_1 (void *)
       /* Scan the command line and build argv.  Expand wildcards if not
 	 called from another cygwin process. */
       build_argv (line, __argv, __argc,
+		  NOTSTATE (myself, PID_CYGPARENT),
 		  NOTSTATE (myself, PID_CYGPARENT) && allow_glob);
 
       /* Convert argv[0] to posix rules if it's currently blatantly
@@ -1123,7 +1136,11 @@ dll_crt0 (per_process *uptr)
    See winsup/testsuite/cygload for an example of how to use cygwin1.dll
    from MSVC and non-cygwin MinGW applications.  */
 extern "C" void
+#ifdef __MSYS__
+msys_dll_init ()
+#else
 cygwin_dll_init ()
+#endif
 {
 #ifdef __i386__
   static char **envp;
@@ -1336,7 +1353,7 @@ multiple_cygwin_problem (const char *what, uintptr_t magic_version, uintptr_t ve
       return;
     }
 
-  if (GetEnvironmentVariableA ("CYGWIN_MISMATCH_OK", NULL, 0))
+  if (GetEnvironmentVariableA ("MSYS_MISMATCH_OK", NULL, 0))
     return;
 
   if (CYGWIN_VERSION_MAGIC_VERSION (magic_version) == version)
@@ -1356,7 +1373,7 @@ are unable to find another cygwin DLL.",
 void __reg1
 cygbench (const char *s)
 {
-  if (GetEnvironmentVariableA ("CYGWIN_BENCH", NULL, 0))
+  if (GetEnvironmentVariableA ("MSYS_BENCH", NULL, 0))
     small_printf ("%05u ***** %s : %10d\n", GetCurrentProcessId (), s, strace.microseconds ());
 }
 #endif
