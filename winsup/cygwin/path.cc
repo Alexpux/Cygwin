@@ -66,6 +66,7 @@
 #include "shared_info.h"
 #include "tls_pbuf.h"
 #include "environ.h"
+#include "msys2_path_conv.h"
 #undef basename
 
 suffix_info stat_suffixes[] =
@@ -700,6 +701,12 @@ path_conv::check (const char *src, unsigned opt,
 	      need_directory = 1;
 	      *--tail = '\0';
 	    }
+	  /* Special case for "/" must set need_directory, without removing
+	     trailing slash */
+	  else if (tail == path_copy + 1 && isslash (tail[-1]))
+	    {
+	      need_directory = 1;
+	    }
 	  path_end = tail;
 
 	  /* Scan path_copy from right to left looking either for a symlink
@@ -1204,16 +1211,17 @@ path_conv::check (const char *src, unsigned opt,
 		cfree (wide_path);
 	      wide_path = NULL;
 	    }
-	  if (need_directory)
+	}
+
+      if (need_directory)
+	{
+	  size_t n = strlen (this->path);
+	  /* Do not add trailing \ to UNC device names like \\.\a: */
+	  if (this->path[n - 1] != '\\' &&
+	      (strncmp (this->path, "\\\\.\\", 4) != 0))
 	    {
-	      size_t n = strlen (this->path);
-	      /* Do not add trailing \ to UNC device names like \\.\a: */
-	      if (this->path[n - 1] != '\\' &&
-		  (strncmp (this->path, "\\\\.\\", 4) != 0))
-		{
-		  this->modifiable_path ()[n] = '\\';
-		  this->modifiable_path ()[n + 1] = '\0';
-		}
+	      this->modifiable_path ()[n] = '\\';
+	      this->modifiable_path ()[n + 1] = '\0';
 	    }
 	}
 
@@ -1642,6 +1650,89 @@ conv_path_list (const char *src, char *dst, size_t size,
 
 /********************** Symbolic Link Support **************************/
 
+/*
+  Create a deep copy of src as dst, while avoiding descending in origpath.
+*/
+static int
+recursiveCopy (char * src, char * dst, const char * origpath)
+{
+  WIN32_FIND_DATA dHfile;
+  HANDLE dH = INVALID_HANDLE_VALUE;
+  BOOL findfiles;
+  int srcpos = strlen (src);
+  int dstpos = strlen (dst);
+  int res = -1;
+
+  debug_printf("recursiveCopy (%s, %s)", src, dst);
+
+  /* Create the destination directory */
+  if (!CreateDirectoryEx (src, dst, NULL))
+    {
+      debug_printf("CreateDirectoryEx(%s, %s, 0) failed", src, dst);
+      __seterrno ();
+      goto done;
+    }
+  /* Descend into the source directory */
+  if (srcpos + 2 >= MAX_PATH || dstpos + 1 >= MAX_PATH)
+    {
+      set_errno (ENAMETOOLONG);
+      goto done;
+    }
+  strcat (src, "\\*");
+  strcat (dst, "\\");
+  dH = FindFirstFile (src, &dHfile);
+  debug_printf("dHfile(1): %s", dHfile.cFileName);
+  findfiles = FindNextFile (dH, &dHfile);
+  debug_printf("dHfile(2): %s", dHfile.cFileName);
+  findfiles = FindNextFile (dH, &dHfile);
+  while (findfiles)
+    {
+      /* Append the directory item filename to both source and destination */
+      int filelen = strlen (dHfile.cFileName);
+      debug_printf("dHfile(3): %s", dHfile.cFileName);
+      if (srcpos + 1 + filelen >= MAX_PATH ||
+          dstpos + 1 + filelen >= MAX_PATH)
+        {
+          set_errno (ENAMETOOLONG);
+          goto done;
+        }
+      strcpy (&src[srcpos+1], dHfile.cFileName);
+      strcpy (&dst[dstpos+1], dHfile.cFileName);
+      debug_printf("%s -> %s", src, dst);
+      if (dHfile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+          /* Recurse into the child directory */
+          debug_printf("%s <-> %s", src, origpath);
+          if (strcmp (src, origpath)) // avoids endless recursion
+            if (recursiveCopy (src, dst, origpath))
+              goto done;
+        }
+      else
+        {
+          /* Just copy the file */
+          if (!CopyFile (src, dst, FALSE))
+            {
+              __seterrno ();
+              goto done;
+            }
+        }
+      findfiles = FindNextFile (dH, &dHfile);
+    }
+  if (GetLastError() != ERROR_NO_MORE_FILES)
+    {
+      __seterrno ();
+      goto done;
+    }
+  res = 0;
+
+done:
+
+  if (dH != INVALID_HANDLE_VALUE)
+    FindClose (dH);
+
+  return res;
+}
+
 /* Create a symlink from FROMPATH to TOPATH. */
 
 extern "C" int
@@ -1867,6 +1958,7 @@ typedef struct _REPARSE_LX_SYMLINK_BUFFER
   } LxSymlinkReparseBuffer;
 } REPARSE_LX_SYMLINK_BUFFER,*PREPARSE_LX_SYMLINK_BUFFER;
 
+#ifndef __MSYS__
 static int
 symlink_wsl (const char *oldpath, path_conv &win32_newpath)
 {
@@ -1937,6 +2029,7 @@ symlink_wsl (const char *oldpath, path_conv &win32_newpath)
   NtClose (fh);
   return 0;
 }
+#endif
 
 int
 symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
@@ -2021,6 +2114,7 @@ symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
 	    }
 	  /* Otherwise, fall back to default symlink type. */
 	  wsym_type = WSYM_sysfile;
+#ifndef __MSYS__
 	  /*FALLTHRU*/
 	case WSYM_sysfile:
 	  if (win32_newpath.fs_flags () & FILE_SUPPORTS_REPARSE_POINTS)
@@ -2032,6 +2126,7 @@ symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
 	  /* On FSes not supporting reparse points, or in case of an error
 	     creating the WSL symlink, fall back to creating the plain old
 	     SYSTEM file symlink. */
+#endif
 	  break;
 	default:
 	  break;
@@ -2174,6 +2269,74 @@ symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
 	}
       else
 	{
+      path_conv src_path;
+      src_path.check (oldpath, PC_SYM_NOFOLLOW, stat_suffixes);
+      if (src_path.error)
+        {
+           set_errno (src_path.error);
+           __leave;
+        }
+      if (!src_path.isdevice () && !src_path.is_fs_special ())
+        {
+           /* MSYS copy file instead make symlink */
+
+           char * real_oldpath;
+           if (isabspath (oldpath))
+             strcpy (real_oldpath = tp.c_get (), oldpath);
+           else
+              /* Find the real source path, relative
+                 to the directory of the destination */
+             {
+                /* Determine the character position of the last path component */
+                const char *newpath = win32_newpath.get_posix();
+                int pos = strlen (newpath);
+                while (--pos >= 0)
+                  if (isdirsep (newpath[pos]))
+                    break;
+                /* Append the source path to the directory
+                   component of the destination */
+                if (pos+1+strlen(oldpath) >= MAX_PATH)
+                  {
+                     set_errno(ENAMETOOLONG);
+                     __leave;
+                  }
+                strcpy (real_oldpath = tp.c_get (), newpath);
+                strcpy (&real_oldpath[pos+1], oldpath);
+             }
+
+           /* As a MSYS limitation, the source path must exist. */
+		   path_conv win32_oldpath;
+           win32_oldpath.check (real_oldpath, PC_SYM_NOFOLLOW, stat_suffixes);
+           if (!win32_oldpath.exists ())
+             {
+                set_errno (ENOENT);
+                __leave;
+             }
+
+           char *w_newpath;
+           char *w_oldpath;
+           stpcpy (w_newpath = tp.c_get (), win32_newpath.get_win32());
+           stpcpy (w_oldpath = tp.c_get (), win32_oldpath.get_win32());
+           if (win32_oldpath.isdir())
+             {
+                char *origpath;
+                strcpy (origpath = tp.c_get (), w_oldpath);
+                res = recursiveCopy (w_oldpath, w_newpath, origpath);
+             }
+           else
+             {
+                if (!CopyFile (w_oldpath, w_newpath, FALSE))
+                  {
+                     __seterrno ();
+                  }
+                else
+                  {
+                     res = 0;
+                  }
+             }
+           __leave;
+        }
+
 	  /* Default technique creating a symlink. */
 	  buf = tp.t_get ();
 	  cp = stpcpy (buf, SYMLINK_COOKIE);
@@ -3601,6 +3764,73 @@ fchdir (int fd)
   syscall_printf ("%R = fchdir(%d)", res, fd);
   return res;
 }
+
+//
+// Important: If returned pointer == arg, then this function
+//            did not malloc that pointer; otherwise free it.
+//
+extern "C" char *
+arg_heuristic_with_exclusions (char const * const arg, char const * exclusions, size_t exclusions_count)
+{
+  char *arg_result;
+
+  // Must return something ..
+  size_t arglen = (arg ? strlen (arg): 0);
+  
+  if (arglen == 0 || !arg)
+  {
+    arg_result = (char *)malloc (sizeof (char));
+    arg_result[0] = '\0';
+    return arg_result;
+  }
+
+  for (size_t excl = 0; excl < exclusions_count; ++excl)
+    {
+      /* Since we've got regex linked we should maybe switch to that, but
+         running regexes for every argument could be too slow. */
+      if ( strcmp (exclusions, "*") == 0 || (strlen (exclusions) && strstr (arg, exclusions) == arg) )
+        return (char*)arg;
+      exclusions += strlen (exclusions) + 1;
+    }
+
+  // Leave enough room for at least 16 path elements; we might be converting
+  // a path list.
+  size_t stack_len = arglen + 16 * MAX_PATH;
+  char * stack_path = (char *)malloc (stack_len);
+  if (!stack_path)
+    {
+      debug_printf ("out of stack space?");
+      return (char *)arg;
+    }
+  memset (stack_path, 0, MAX_PATH);
+  convert (stack_path, stack_len - 1, arg);
+  debug_printf ("convert()'ed: %s (length %d)\n.....->: %s", arg, arglen, stack_path);
+  // Don't allocate memory if no conversion happened.
+  if (!strcmp (arg, stack_path))
+    {
+      if (arg != stack_path)
+        {
+          free (stack_path);
+        }
+      return ((char *)arg);
+    }
+  arg_result = (char *)realloc (stack_path, strlen (stack_path)+1);
+  // Windows doesn't like empty entries in PATH env. variables (;;)
+  char* semisemi = strstr(arg_result, ";;");
+  while (semisemi)
+    {
+      memmove(semisemi, semisemi+1, strlen(semisemi));
+      semisemi = strstr(semisemi, ";;");
+    }
+  return arg_result;
+}
+
+extern "C" char *
+arg_heuristic (char const * const arg)
+{
+  return arg_heuristic_with_exclusions (arg, NULL, 0);
+}
+
 
 /******************** Exported Path Routines *********************/
 
