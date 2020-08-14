@@ -1,0 +1,41 @@
+name: build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: setup-msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MSYS
+          update: true
+          install: msys2-devel base-devel autotools cocom diffutils gcc gettext-devel libiconv-devel make mingw-w64-cross-crt mingw-w64-cross-gcc mingw-w64-cross-zlib perl zlib-devel xmlto docbook-xsl
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          # XXX: cygwin still uses gcc v11 so we get new warnings with v13,
+          # resulting in errors. We can't selectively disable warnigns since our
+          # cross compiler is also too old and doesn't understand the new
+          # warning flags, so we need to disable all errors for now.
+          export CXXFLAGS="-Wno-error -Wno-narrowing"
+          (cd winsup && ./autogen.sh)
+          ./configure --disable-dependency-tracking
+          make -j8
+
+      - name: Install
+        shell: msys2 {0}
+        run: |
+          make DESTDIR="$(pwd)"/_dest install
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: install
+          path: _dest/
