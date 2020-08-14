@@ -42,6 +42,7 @@ enum settings
     isfunc,
     setdword,
     setbool,
+    setnegbool,
     setbit
   };
 
@@ -120,6 +121,7 @@ static struct parse_thing
   {"wincmdln", {&wincmdln}, setbool, NULL, {{false}, {true}}},
   {"winsymlinks", {func: set_winsymlinks}, isfunc, NULL, {{0}, {0}}},
   {"disable_pcon", {&disable_pcon}, setbool, NULL, {{false}, {true}}},
+  {"enable_pcon", {&disable_pcon}, setnegbool, NULL, {{true}, {false}}},
   {NULL, {0}, setdword, 0, {{0}, {0}}}
 };
 
@@ -189,7 +191,11 @@ parse_options (const char *inbuf)
       if (export_settings)
 	{
 	  debug_printf ("%s", newbuf + 1);
+#ifdef __MSYS__
+	  setenv ("MSYS", newbuf + 1, 1);
+#else
 	  setenv ("CYGWIN", newbuf + 1, 1);
+#endif
 	}
       return;
     }
@@ -232,6 +238,13 @@ parse_options (const char *inbuf)
 		else
 		  *k->setting.b = !!strtol (eq, NULL, 0);
 		debug_printf ("%s%s", *k->setting.b ? "" : "no", k->name);
+		break;
+	      case setnegbool:
+		if (!istrue || !eq)
+		  *k->setting.b = k->values[istrue].i;
+		else
+		  *k->setting.b = !strtol (eq, NULL, 0);
+		debug_printf ("%s%s", !*k->setting.b ? "" : "no", k->name);
 		break;
 	      case setbit:
 		*k->setting.x &= ~k->values[istrue].i;
@@ -653,7 +666,7 @@ _addenv (const char *name, const char *value, int overwrite)
   win_env *spenv;
   if ((spenv = getwinenv (envhere)))
     spenv->add_cache (value);
-  if (strcmp (name, "CYGWIN") == 0)
+  if (strcmp (name, "MSYS") == 0)
     parse_options (value);
 
   return 0;
@@ -757,6 +770,9 @@ static struct renv {
 } renv_arr[] = {
 	{ NL("COMMONPROGRAMFILES=") },		// 0
 	{ NL("COMSPEC=") },
+#ifdef __MSYS__
+	{ NL("MSYSTEM=") },			// 2
+#endif /* __MSYS__ */
 	{ NL("PATH=") },			// 2
 	{ NL("PROGRAMFILES=") },
 	{ NL("SYSTEMDRIVE=") },			// 4
@@ -768,10 +784,21 @@ static struct renv {
 #define RENV_SIZE (sizeof (renv_arr) / sizeof (renv_arr[0]))
 
 /* Set of first characters of the above list of variables. */
-static const char idx_arr[] = "CPSTW";
+static const char idx_arr[] =
+#ifdef __MSYS__
+	"CMPSTW";
+#else
+	"CPSTW";
+#endif
 /* Index into renv_arr at which the variables with this specific character
    starts. */
-static const int start_at[] = { 0, 2, 4, 6, 8 };
+static const int start_at[] = {
+#ifdef __MSYS__
+				0, 2, 3, 5, 7, 9
+#else
+				0, 2, 4, 6, 8
+#endif
+								};
 
 /* Turn environment variable part of a=b string into uppercase - for some
    environment variables only. */
@@ -846,7 +873,11 @@ environ_init (char **envp, int envc)
       update_envptrs ();
       if (envp_passed_in)
 	{
+#ifdef __MSYS__
+	  p = getenv ("MSYS");
+#else
 	  p = getenv ("CYGWIN");
+#endif
 	  if (p)
 	    parse_options (p);
 	}
@@ -892,9 +923,23 @@ win32env_to_cygenv (PWCHAR rawenv, bool posify)
       char *eq = strchrnul (newp, '=');
       ucenv (newp, eq);    /* uppercase env vars which need it */
       if (*newp == 'T' && strncmp (newp, "TERM=", 5) == 0)
-        sawTERM = 1;
+	    {
+	      /* backwards compatibility: override TERM=msys by TERM=cygwin */
+	      if (strcmp (newp + 5, "msys") == 0)
+		{
+		  free(newp);
+		  i--;
+		  continue;
+		}
+	      sawTERM = 1;
+	    }
+#ifdef __MSYS__
+      else if (*newp == 'M' && strncmp (newp, "MSYS=", 5) == 0)
+        parse_options (newp + 5);
+#else
       else if (*newp == 'C' && strncmp (newp, "CYGWIN=", 7) == 0)
         parse_options (newp + 7);
+#endif
       if (*eq && posify)
         posify_maybe (envp + i, *++eq ? eq : --eq, tmpbuf);
       debug_printf ("%p: %s", envp[i], envp[i]);
@@ -963,12 +1008,13 @@ struct spenv
 static NO_COPY spenv spenvs[] =
 {
 #ifdef DEBUGGING
-  {NL ("CYGWIN_DEBUG="), false, true, NULL},
+  {NL ("MSYS_DEBUG="), false, true, NULL},
 #endif
   {NL ("HOMEDRIVE="), false, false, &cygheap_user::env_homedrive},
   {NL ("HOMEPATH="), false, false, &cygheap_user::env_homepath},
   {NL ("LOGONSERVER="), false, false, &cygheap_user::env_logsrv},
   {NL ("PATH="), false, true, NULL},
+  {NL ("MSYSTEM="), true, true, NULL},
   {NL ("SYSTEMDRIVE="), false, true, NULL},
   {NL ("SYSTEMROOT="), true, true, &cygheap_user::env_systemroot},
   {NL ("USERDOMAIN="), false, false, &cygheap_user::env_domain},
@@ -1056,7 +1102,7 @@ env_compare (const void *key, const void *memb)
    to the child. */
 char ** __reg3
 build_env (const char * const *envp, PWCHAR &envblock, int &envc,
-	   bool no_envblock, HANDLE new_token)
+	   bool no_envblock, HANDLE new_token, bool keep_posix)
 {
   PWCHAR cwinenv = NULL;
   size_t winnum = 0;
@@ -1142,6 +1188,10 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 
   int tl = 0;
   char **pass_dstp;
+#ifdef __MSYS__
+  char *msys2_env_conv_excl_env = NULL;
+  size_t msys2_env_conv_excl_count = 0;
+#endif
   char **pass_env = (char **) alloca (sizeof (char *)
 				      * (n + winnum + SPENVS_SIZE + 1));
   /* Iterate over input list, generating a new environment list and refreshing
@@ -1149,6 +1199,28 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
   for (srcp = envp, dstp = newenv, pass_dstp = pass_env; *srcp; srcp++)
     {
       bool calc_tl = !no_envblock;
+#ifdef __MSYS__
+      if (!keep_posix)
+        {
+          /* Don't pass timezone environment to non-msys applications */
+          if (ascii_strncasematch(*srcp, "TZ=", 3))
+            {
+              const char *v = *srcp + 3;
+              if (*v == ':')
+                goto next1;
+              for (; *v; v++)
+                if (!isalpha(*v) && !isdigit(*v) &&
+                    *v != '-' && *v != '+' && *v != ':')
+                  goto next1;
+            }
+          else if (ascii_strncasematch(*srcp, "MSYS2_ENV_CONV_EXCL=", 20))
+            {
+              msys2_env_conv_excl_env = (char*)alloca (strlen(&(*srcp)[20])+1);
+              strcpy (msys2_env_conv_excl_env, &(*srcp)[20]);
+              msys2_env_conv_excl_count = string_split_delimited (msys2_env_conv_excl_env, ';');
+            }
+        }
+#endif
       /* Look for entries that require special attention */
       for (unsigned i = 0; i < SPENVS_SIZE; i++)
 	if (!saw_spenv[i] && (*dstp = spenvs[i].retrieve (no_envblock, *srcp)))
@@ -1269,6 +1341,16 @@ build_env (const char * const *envp, PWCHAR &envblock, int &envc,
 		  saw_PATH = true;
 		}
 	    }
+#ifdef __MSYS__
+	  else if (!keep_posix) {
+	    char *win_arg = arg_heuristic_with_exclusions
+		   (*srcp, msys2_env_conv_excl_env, msys2_env_conv_excl_count);
+	    debug_printf("WIN32_PATH is %s", win_arg);
+	    p = cstrdup1(win_arg);
+	    if (win_arg != *srcp)
+	      free (win_arg);
+	  }
+#endif
 	  else
 	    p = *srcp;		/* Don't worry about it */
 
