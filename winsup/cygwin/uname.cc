@@ -23,6 +23,24 @@ extern "C" int getdomainname (char *__name, size_t __len);
 #define ATTRIBUTE_NONSTRING
 #endif
 
+static const char*
+get_sysname()
+{
+#ifdef __MSYS__
+  char* msystem = getenv("MSYSTEM");
+  if (!msystem || strcmp(msystem, "MSYS") == 0)
+    return "MSYS";
+  else if (strcmp(msystem, "CYGWIN") == 0)
+    return "CYGWIN";
+  else if (strstr(msystem, "32") != NULL)
+    return "MINGW32";
+  else
+    return "MINGW64";
+#else
+  return "CYGWIN";
+#endif
+}
+
 /* uname: POSIX 4.4.1.1 */
 
 /* New entrypoint for applications since API 335 */
@@ -36,7 +54,9 @@ uname_x (struct utsname *name)
 
       memset (name, 0, sizeof (*name));
       /* sysname */
-      __small_sprintf (name->sysname, "CYGWIN_%s-%u%s",
+      const char* sysname = get_sysname();
+      __small_sprintf (name->sysname, "%s_%s-%u%s",
+		       sysname,
 		       wincap.osname (), wincap.build_number (),
 		       wincap.is_wow64 () ? "-WOW64" : "");
       /* nodename */
@@ -82,7 +102,7 @@ uname_x (struct utsname *name)
 /* Old entrypoint for applications up to API 334 */
 struct old_utsname
 {
-  char sysname[20];
+  char sysname[21];
   char nodename[20];
   char release[20];
   char version[20];
@@ -98,7 +118,8 @@ uname (struct utsname *in_name)
       char *snp = strstr  (cygwin_version.dll_build_date, "SNP");
 
       memset (name, 0, sizeof (*name));
-      __small_sprintf (name->sysname, "CYGWIN_%s", wincap.osname ());
+      const char* sysname = get_sysname();
+      __small_sprintf (name->sysname, "%s_%s", sysname, wincap.osname ());
 
       /* Add a hint to the sysname, that we're running under WOW64.  This might
 	 give an early clue if somebody encounters problems. */
