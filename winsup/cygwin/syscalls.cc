@@ -325,7 +325,7 @@ try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access, ULONG flags)
     }
   else
     {
-      /* Create unique filename.  Start with a dot, followed by "cyg"
+      /* Create unique filename.  Start with a dot, followed by "msys"
 	 transposed into the Unicode low surrogate area (U+dc00) on file
 	 systems supporting Unicode (except Samba), followed by the inode
 	 number in hex, followed by a path hash in hex.  The combination
@@ -333,7 +333,7 @@ try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access, ULONG flags)
       RtlAppendUnicodeToString (&recycler,
 				(pc.fs_flags () & FILE_UNICODE_ON_DISK
 				 && !pc.fs_is_samba ())
-				? L".\xdc63\xdc79\xdc67" : L".cyg");
+				? L".\xdc6d\xdc73\xdc79\xdc73" : L".msys");
       pfii = (PFILE_INTERNAL_INFORMATION) infobuf;
       status = NtQueryInformationFile (fh, &io, pfii, sizeof *pfii,
 				       FileInternalInformation);
@@ -4610,7 +4610,7 @@ popen (const char *command, const char *in_type)
       fcntl64 (stdchild, F_SETFD, stdchild_state | FD_CLOEXEC);
 
       /* Start a shell process to run the given command without forking. */
-      pid_t pid = ch_spawn.worker ("/bin/sh", argv, cur_environ (), _P_NOWAIT,
+      pid_t pid = ch_spawn.worker ("/usr/bin/sh", argv, cur_environ (), _P_NOWAIT,
 				   __std[0], __std[1]);
 
       /* Reinstate the close-on-exec state */

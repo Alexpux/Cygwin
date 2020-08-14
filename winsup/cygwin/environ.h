@@ -21,7 +21,7 @@ struct win_env
     char *native;
     ssize_t (*toposix) (const void *, void *, size_t);
     ssize_t (*towin32) (const void *, void *, size_t);
-    bool immediate;
+    bool immediate, skip_if_empty;
     void __reg3 add_cache (const char *in_posix, const char *in_native = NULL);
     const char * get_native () const {return native ? native + namelen : NULL;}
     const char * get_posix () const {return posix ? posix : NULL;}
@@ -43,7 +43,7 @@ extern "C" char **__cygwin_environ, ***main_environ;
 extern "C" char __stdcall **cur_environ ();
 #endif
 char ** __reg3 build_env (const char * const *envp, PWCHAR &envblock,
-			  int &envc, bool need_envblock, HANDLE new_token);
+			  int &envc, bool need_envblock, HANDLE new_token, bool keep_posix);
 
 char ** __reg2 win32env_to_cygenv (PWCHAR rawenv, bool posify);
 
