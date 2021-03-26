@@ -8,6 +8,7 @@ details. */
 
 #ifdef __i386__ /* 32-bit MSYS2 won't get new enough mingw-w64-headers */
 #define PMEM_EXTENDED_PARAMETER PVOID
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <locale.h>
