@@ -69,7 +69,7 @@ error (const char *fmt, ...)
   exit (1);
 }
 
-static void
+static void __attribute__ ((__noreturn__))
 usage ()
 {
   printf ("Usage: %s [OPTION]... FILE...\n\
@@ -85,6 +85,7 @@ Print shared library dependencies\n\
   -v, --verbose           print all information\n\
                           (currently unimplemented)\n",
 	   program_invocation_short_name);
+  exit (0);
 }
 
 static void
@@ -275,7 +276,7 @@ tocyg (wchar_t *win_fn)
   return fn;
 }
 
-#define CYGWIN_DLL_LEN (wcslen (L"\\cygwin1.dll"))
+#define CYGWIN_DLL_LEN (wcslen (L"\\msys-2.0.dll"))
 static int
 print_dlls (dlls *dll, const wchar_t *dllfn, const wchar_t *process_fn)
 {
@@ -444,7 +445,6 @@ main (int argc, char **argv)
 	exit (1);
       case 'h':
 	usage ();
-	exit (0);
       case 'V':
 	print_version ();
 	return 0;

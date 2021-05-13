@@ -55,7 +55,8 @@ enum winsym_t
   WSYM_lnk,
   WSYM_native,
   WSYM_nativestrict,
-  WSYM_nfs
+  WSYM_nfs,
+  WSYM_deepcopy
 };
 
 exit_states NO_COPY exit_state;
@@ -65,12 +66,12 @@ int NO_COPY dynamically_loaded;
 
 /* Some CYGWIN environment variable variables. */
 bool allow_glob = true;
-bool dos_file_warning;
 bool ignore_case_with_glob;
 bool pipe_byte;
 bool reset_com;
-bool wincmdln;
-winsym_t allow_winsymlinks = WSYM_sysfile;
+bool wincmdln = true;
+winsym_t allow_winsymlinks = WSYM_deepcopy;
+bool disable_pcon = true;
 
 bool NO_COPY in_forkee;
 

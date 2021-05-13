@@ -10,11 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -127,11 +123,16 @@ struct tcphdr {
 /*
  * User-settable options (used with setsockopt).
  */
-#ifndef TCP_NODELAY
-#define TCP_NODELAY     0x01    /* don't delay send to coalesce packets */
-#define TCP_MAXSEG      0x02    /* set maximum segment size */
-#endif
-#define TCP_NOPUSH      0x04    /* don't push last block of write */
-#define TCP_NOOPT       0x08    /* don't use TCP options */
+#define TCP_NODELAY      0x01   /* don't delay send to coalesce packets */
+#define TCP_KEEPIDLE     0x03   /* start keepalives after this period */
+#define TCP_MAXSEG       0x04   /* get maximum segment size (r/o on windows) */
+#define TCP_QUICKACK     0x0c   /* block/reenable quick acks
+				   (TCP_CONGESTION_ALGORITHM in ws2ipdef.h,
+				    valid vals 0 - 7, unclear if equivalent) */
+#define TCP_USER_TIMEOUT 0x0e   /* how long for loss retry before timeout,
+				   like WinSock TCP_MAXRTMS/TCP_MAXRT */
+#define TCP_FASTOPEN     0x0f   /* enable FastOpen on listeners */
+#define TCP_KEEPCNT      0x10   /* number of keepalives before death */
+#define TCP_KEEPINTVL    0x11   /* interval between keepalives */
 
 #endif

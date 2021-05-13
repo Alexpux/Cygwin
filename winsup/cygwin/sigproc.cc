@@ -71,7 +71,7 @@ static void WINAPI wait_sig (VOID *arg);
 
 class pending_signals
 {
-  sigpacket sigs[NSIG + 1];
+  sigpacket sigs[_NSIG + 1];
   sigpacket start;
   bool retry;
 
@@ -91,7 +91,7 @@ void __stdcall
 sigalloc ()
 {
   cygheap->sigs = global_sigs =
-    (struct sigaction *) ccalloc_abort (HEAP_SIGS, NSIG, sizeof (struct sigaction));
+    (struct sigaction *) ccalloc_abort (HEAP_SIGS, _NSIG, sizeof (struct sigaction));
   global_sigs[SIGSTOP].sa_flags = SA_RESTART | SA_NODEFER;
 }
 
@@ -100,7 +100,7 @@ signal_fixup_after_exec ()
 {
   global_sigs = cygheap->sigs;
   /* Set up child's signal handlers */
-  for (int i = 0; i < NSIG; i++)
+  for (int i = 0; i < _NSIG; i++)
     {
       global_sigs[i].sa_mask = 0;
       if (global_sigs[i].sa_handler != SIG_IGN)
@@ -205,7 +205,7 @@ proc_subproc (DWORD what, uintptr_t val)
 	  set_errno (EAGAIN);
 	  break;
 	}
-      /* fall through intentionally */
+      fallthrough;
 
     case PROC_DETACHED_CHILD:
       if (vchild != myself)
@@ -449,7 +449,7 @@ sigproc_init ()
   char char_sa_buf[1024];
   PSECURITY_ATTRIBUTES sa = sec_user_nih ((PSECURITY_ATTRIBUTES) char_sa_buf, cygheap->user.sid());
   DWORD err = fhandler_pipe::create (sa, &my_readsig, &my_sendsig,
-				     NSIG * sizeof (sigpacket), "sigwait",
+				     _NSIG * sizeof (sigpacket), "sigwait",
 				     PIPE_ADD_PID);
   if (err)
     {
@@ -949,6 +949,9 @@ cygheap_exec_info::record_children ()
     {
       children[nchildren].pid = procs[nchildren]->pid;
       children[nchildren].p = procs[nchildren];
+      /* Set inheritance of required child handles for reattach_children
+	 in the about-to-be-execed process. */
+      children[nchildren].p.set_inheritance (true);
     }
 }
 
@@ -1075,7 +1078,7 @@ child_info::proc_retry (HANDLE h)
     case STATUS_CONTROL_C_EXIT:
       if (saw_ctrl_c ())
 	return EXITCODE_OK;
-      /* fall through intentionally */
+      fallthrough;
     case STATUS_DLL_INIT_FAILED:
     case STATUS_DLL_INIT_FAILED_LOGOFF:
     case EXITCODE_RETRY:
@@ -1384,10 +1387,10 @@ wait_sig (VOID *)
 	    sig_clear (-pack.si.si_signo);
 	  else
 	    sigq.add (pack);
-	  /*FALLTHRU*/
+	  fallthrough;
 	case __SIGNOHOLD:
 	  sig_held = false;
-	  /*FALLTHRU*/
+	  fallthrough;
 	case __SIGFLUSH:
 	case __SIGFLUSHFAST:
 	  if (!sig_held)

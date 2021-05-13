@@ -155,10 +155,10 @@ dtable::stdio_init ()
       if (fh && fh->get_major () == DEV_PTYS_MAJOR)
 	{
 	  fhandler_pty_slave *ptys = (fhandler_pty_slave *) fh;
-	  if (ptys->getPseudoConsole ())
+	  if (ptys->get_pseudo_console ())
 	    {
 	      bool attached = !!fhandler_console::get_console_process_id
-		(ptys->getHelperProcessId (), true);
+		(ptys->get_helper_process_id (), true);
 	      if (attached)
 		break;
 	      else
@@ -167,7 +167,7 @@ dtable::stdio_init ()
 		     by some reason. This happens if the executable is
 		     a windows GUI binary, such as mintty. */
 		  FreeConsole ();
-		  if (AttachConsole (ptys->getHelperProcessId ()))
+		  if (AttachConsole (ptys->get_helper_process_id ()))
 		    {
 		      ptys->fixup_after_attach (false, fd);
 		      break;
@@ -401,7 +401,7 @@ dtable::init_std_file_from_handle (int fd, HANDLE handle)
       int openflags = O_BINARY;
 
       /* Console windows are no kernel objects up to Windows 7/2008R2, so the
-      	 access mask returned by NtQueryInformationFile is meaningless.  CMD
+	 access mask returned by NtQueryInformationFile is meaningless.  CMD
 	 always hands down stdin handles as R/O handles, but our tty slave
 	 sides are R/W. */
       if (fh->is_tty ())
@@ -1006,9 +1006,15 @@ handle_to_fn (HANDLE h, char *posix_fn)
       if (wcsncasecmp (w32, DEV_NAMED_PIPE, DEV_NAMED_PIPE_LEN) == 0)
 	{
 	  w32 += DEV_NAMED_PIPE_LEN;
+#ifdef __MSYS__
+	  if (wcsncmp (w32, L"msys-", WCLEN (L"msys-")) != 0)
+	    return false;
+	  w32 += WCLEN (L"msys-");
+#else
 	  if (wcsncmp (w32, L"cygwin-", WCLEN (L"cygwin-")) != 0)
 	    return false;
 	  w32 += WCLEN (L"cygwin-");
+#endif
 	  /* Check for installation key and trailing dash. */
 	  w32len = cygheap->installation_key.Length / sizeof (WCHAR);
 	  if (w32len
@@ -1030,7 +1036,7 @@ handle_to_fn (HANDLE h, char *posix_fn)
       if (wcsncasecmp (w32, DEVICE_PREFIX, DEVICE_PREFIX_LEN) != 0
 	  || !QueryDosDeviceW (NULL, fnbuf, sizeof (fnbuf) / sizeof (WCHAR)))
 	{
-	  sys_wcstombs (posix_fn, NT_MAX_PATH, w32, w32len);
+	  sys_wcstombs_path (posix_fn, NT_MAX_PATH, w32, w32len);
 	  return false;
 	}
 

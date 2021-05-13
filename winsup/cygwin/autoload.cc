@@ -219,7 +219,7 @@ dll_func_load:								\n\
 	jmp	noload		# Issue an error or return		\n\
 gotit:									\n\
 	addq	$40,%rsp	# Revert stack				\n\
-	pop 	%r10		# Pointer to 'return address'		\n\
+	pop	%r10		# Pointer to 'return address'		\n\
 	movq	%rax,12(%r10)	# Move absolute address to address slot	\n\
 	subq	$25,%r10	# Point to jmp				\n\
 	pop	%rcx		# Restore arg registers			\n\
@@ -584,7 +584,9 @@ LoadDLLfunc (if_nametoindex, 4, iphlpapi)
 LoadDLLfuncEx2 (DiscardVirtualMemory, 8, kernel32, 1, 127)
 LoadDLLfunc (GetCurrentProcessorNumberEx, 4, kernel32)
 LoadDLLfuncEx (GetLogicalProcessorInformationEx, 12, kernel32, 1)
+LoadDLLfuncEx (GetProcessGroupAffinity, 12, kernel32, 1)
 LoadDLLfunc (GetSystemTimePreciseAsFileTime, 4, kernel32)
+LoadDLLfuncEx (GetThreadGroupAffinity, 8, kernel32, 1)
 LoadDLLfuncEx (PrefetchVirtualMemory, 16, kernel32, 1)
 LoadDLLfunc (SetThreadGroupAffinity, 12, kernel32)
 
@@ -593,8 +595,11 @@ LoadDLLfunc (SetThreadGroupAffinity, 12, kernel32)
    available via KernelBase.dll. */
 LoadDLLfunc (QueryInterruptTime, 4, KernelBase)
 LoadDLLfunc (QueryInterruptTimePrecise, 4, KernelBase)
-LoadDLLfunc (QueryUnbiasedInterruptTime, 4, KernelBase)
+LoadDLLfunc (QueryUnbiasedInterruptTime, 4, kernel32)
 LoadDLLfunc (QueryUnbiasedInterruptTimePrecise, 4, KernelBase)
+LoadDLLfunc (VirtualAlloc2, 28, kernelbase)
+
+LoadDLLfunc (NtMapViewOfSectionEx, 36, ntdll)
 
 /* ldap functions are cdecl! */
 #pragma push_macro ("mangle")

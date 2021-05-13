@@ -89,7 +89,7 @@ char **argv;
 HKEY key;
 wchar_t *value;
 
-static void
+static void __attribute__ ((__noreturn__))
 usage (FILE *where = stderr)
 {
   fprintf (where, ""
@@ -166,11 +166,13 @@ usage (FILE *where = stderr)
       "  machine  HKLM  HKEY_LOCAL_MACHINE\n"
       "  users    HKU   HKEY_USERS\n"
       "\n"
-      "If the keyname starts with a forward slash ('/'), the forward slash is used\n"
-      "as separator and the backslash can be used as escape character.\n");
+      "You can use forward slash ('/') as a separator instead of backslash, in\n"
+      "that case backslash is treated as an escape character.\n"
+      "You can also supply the registry path prefix /proc/registry{,32,64}/ to\n"
+      "use path completion.\n");
       fprintf (where, ""
       "Example:\n"
-      "%s list '/machine/SOFTWARE/Classes/MIME/Database/Content Type/audio\\/wav'\n\n", prog_name);
+      "%s list '/HKLM/SOFTWARE/Classes/MIME/Database/Content Type/audio\\/wav'\n\n", prog_name);
     }
   if (where == stderr)
     fprintf (where,
@@ -349,6 +351,15 @@ find_key (int howmanyparts, REGSAM access, int option = 0)
 	*h = *e;
       *h = 0;
       n = e;
+    }
+  else if (strncmp ("\\proc\\registry", n, strlen ("\\proc\\registry")) == 0)
+    {
+      /* skip /proc/registry{,32,64}/ prefix */
+      n += strlen ("\\proc\\registry");
+      if (strncmp ("64", n, strlen ("64")) == 0)
+        n += strlen ("64");
+      else if (strncmp ("32", n, strlen ("32")) == 0)
+        n += strlen ("32");
     }
   while (*n != '\\')
     n++;
@@ -824,10 +835,7 @@ int
 cmd_load ()
 {
   if (!argv[1])
-    {
-      usage ();
-      return 1;
-    }
+    usage ();
   find_key (1, 0);
   return 0;
 }
@@ -836,10 +844,7 @@ int
 cmd_unload ()
 {
   if (argv[1])
-    {
-      usage ();
-      return 1;
-    }
+    usage ();
   find_key (1, 0);
   return 0;
 }
@@ -848,10 +853,7 @@ int
 cmd_save ()
 {
   if (!argv[1])
-    {
-      usage ();
-      return 1;
-    }
+    usage ();
   /* REG_OPTION_BACKUP_RESTORE is necessary to save /HKLM/SECURITY */
   find_key (1, KEY_QUERY_VALUE, REG_OPTION_BACKUP_RESTORE);
   ssize_t len = cygwin_conv_path (CCP_POSIX_TO_WIN_W, argv[1], NULL, 0);
@@ -869,10 +871,7 @@ int
 cmd_restore ()
 {
   if (!argv[1])
-    {
-      usage ();
-      return 1;
-    }
+    usage ();
   /* REG_OPTION_BACKUP_RESTORE is necessary to restore /HKLM/SECURITY */
   find_key (1, KEY_ALL_ACCESS, REG_OPTION_BACKUP_RESTORE);
   ssize_t len = cygwin_conv_path (CCP_POSIX_TO_WIN_W, argv[1], NULL, 0);
@@ -998,6 +997,4 @@ main (int argc, char **_argv)
 	return commands[i].func ();
       }
   usage ();
-
-  return 0;
 }

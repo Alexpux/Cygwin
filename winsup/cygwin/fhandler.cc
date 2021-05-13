@@ -44,11 +44,11 @@ void
 fhandler_base::reset (const fhandler_base *from)
 {
   pc << from->pc;
-  rabuf = NULL;
-  ralen = 0;
-  raixget = 0;
-  raixput = 0;
-  rabuflen = 0;
+  ra.rabuf = NULL;
+  ra.ralen = 0;
+  ra.raixget = 0;
+  ra.raixput = 0;
+  ra.rabuflen = 0;
   _refcnt = 0;
 }
 
@@ -66,15 +66,15 @@ int
 fhandler_base::put_readahead (char value)
 {
   char *newrabuf;
-  if (raixput < rabuflen)
+  if (raixput () < rabuflen ())
     /* Nothing to do */;
-  else if ((newrabuf = (char *) realloc (rabuf, rabuflen += 32)))
-    rabuf = newrabuf;
+  else if ((newrabuf = (char *) realloc (rabuf (), rabuflen () += 32)))
+    rabuf () = newrabuf;
   else
     return 0;
 
-  rabuf[raixput++] = value;
-  ralen++;
+  rabuf ()[raixput ()++] = value;
+  ralen ()++;
   return 1;
 }
 
@@ -82,11 +82,11 @@ int
 fhandler_base::get_readahead ()
 {
   int chret = -1;
-  if (raixget < ralen)
-    chret = ((unsigned char) rabuf[raixget++]) & 0xff;
+  if (raixget () < ralen ())
+    chret = ((unsigned char) rabuf ()[raixget ()++]) & 0xff;
   /* FIXME - not thread safe */
-  if (raixget >= ralen)
-    raixget = raixput = ralen = 0;
+  if (raixget () >= ralen ())
+    raixget () = raixput () = ralen () = 0;
   return chret;
 }
 
@@ -94,10 +94,10 @@ int
 fhandler_base::peek_readahead (int queryput)
 {
   int chret = -1;
-  if (!queryput && raixget < ralen)
-    chret = ((unsigned char) rabuf[raixget]) & 0xff;
-  else if (queryput && raixput > 0)
-    chret = ((unsigned char) rabuf[raixput - 1]) & 0xff;
+  if (!queryput && raixget () < ralen ())
+    chret = ((unsigned char) rabuf ()[raixget ()]) & 0xff;
+  else if (queryput && raixput () > 0)
+    chret = ((unsigned char) rabuf ()[raixput () - 1]) & 0xff;
   return chret;
 }
 
@@ -105,7 +105,7 @@ void
 fhandler_base::set_readahead_valid (int val, int ch)
 {
   if (!val)
-    ralen = raixget = raixput = 0;
+    ralen () = raixget () = raixput () = 0;
   if (ch != -1)
     put_readahead (ch);
 }
@@ -255,7 +255,7 @@ retry:
 		  break;
 		}
 	    }
-	  /*FALLTHRU*/
+	  fallthrough;
 	case STATUS_INVALID_DEVICE_REQUEST:
 	case STATUS_INVALID_PARAMETER:
 	case STATUS_INVALID_HANDLE:
@@ -265,6 +265,7 @@ retry:
 	      len = (size_t) -1;
 	      break;
 	    }
+	  fallthrough;
 	default:
 	  __seterrno_from_nt_status (status);
 	  len = (size_t) -1;
@@ -334,6 +335,9 @@ bool
 fhandler_base::device_access_denied (int flags)
 {
   int mode = 0;
+
+  if (flags & O_PATH)
+    return false;
 
   if (flags & O_RDWR)
     mode |= R_OK | W_OK;
@@ -946,9 +950,9 @@ fhandler_base::write (const void *ptr, size_t len)
 	    }
 
 	  /* We've got a buffer-full, or we're out of data.  Write it out */
-	  int nbytes;
-	  int want = buf_ptr - buf;
-	  if ((nbytes = raw_write (buf, want)) == want)
+	  ssize_t nbytes;
+	  ptrdiff_t want = buf_ptr - buf;
+	  if ((nbytes = raw_write (buf, (size_t) want)) == want)
 	    {
 	      /* Keep track of how much written not counting additional \r's */
 	      res = data - (char *)ptr;
@@ -1089,7 +1093,7 @@ fhandler_base::lseek (off_t offset, int whence)
   if (whence != SEEK_CUR || offset != 0)
     {
       if (whence == SEEK_CUR)
-	offset -= ralen - raixget;
+	offset -= ralen () - raixget ();
       set_readahead_valid (0);
     }
 
@@ -1139,7 +1143,7 @@ fhandler_base::lseek (off_t offset, int whence)
      readahead that we have to take into account when calculating
      the actual position for the application.  */
   if (whence == SEEK_CUR)
-    res -= ralen - raixget;
+    res -= ralen () - raixget ();
 
   return res;
 }
@@ -1562,23 +1566,23 @@ fhandler_base::fhandler_base () :
   ino (0),
   _refcnt (0),
   openflags (0),
-  rabuf (NULL),
-  ralen (0),
-  raixget (0),
-  raixput (0),
-  rabuflen (0),
   unique_id (0),
   archetype (NULL),
   usecount (0)
 {
+  ra.rabuf = NULL;
+  ra.ralen = 0;
+  ra.raixget = 0;
+  ra.raixput = 0;
+  ra.rabuflen = 0;
   isclosed (false);
 }
 
 /* Normal I/O destructor */
 fhandler_base::~fhandler_base ()
 {
-  if (rabuf)
-    free (rabuf);
+  if (ra.rabuf)
+    free (ra.rabuf);
 }
 
 /**********************************************************************/
@@ -1751,7 +1755,6 @@ fhandler_base::closedir (DIR *)
 int
 fhandler_base::fchmod (mode_t mode)
 {
-  extern int chmod_device (path_conv& pc, mode_t mode);
   if (pc.is_fs_special ())
     return chmod_device (pc, mode);
   /* By default, just succeeds. */

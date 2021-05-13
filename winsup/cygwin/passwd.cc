@@ -381,27 +381,27 @@ pg_ent::getent (void)
     {
     case rewound:
       state = from_cache;
-      /*FALLTHRU*/
+      fallthrough;
     case from_cache:
       if (nss_db_enum_caches ()
 	  && (entry = enumerate_caches ()))
 	return entry;
       state = from_file;
-      /*FALLTHRU*/
+      fallthrough;
     case from_file:
       if (from_files
 	  && nss_db_enum_files ()
 	  && (entry = enumerate_file ()))
 	return entry;
       state = from_builtin;
-      /*FALLTHRU*/
+      fallthrough;
     case from_builtin:
       if (from_db
 	  && nss_db_enum_builtin ()
 	  && (entry = enumerate_builtin ()))
 	return entry;
       state = from_local;
-      /*FALLTHRU*/
+      fallthrough;
     case from_local:
       if (from_db
 	  && nss_db_enum_local ()
@@ -410,7 +410,7 @@ pg_ent::getent (void)
 	  && (entry = enumerate_local ()))
 	return entry;
       state = from_sam;
-      /*FALLTHRU*/
+      fallthrough;
     case from_sam:
       if (from_db
 	  && nss_db_enum_local ()
@@ -422,14 +422,14 @@ pg_ent::getent (void)
 	  && (entry = enumerate_sam ()))
 	return entry;
       state = from_ad;
-      /*FALLTHRU*/
+      fallthrough;
     case from_ad:
       if (cygheap->dom.member_machine ()
 	  && from_db
 	  && (entry = enumerate_ad ()))
 	return entry;
       state = finished;
-      /*FALLTHRU*/
+      fallthrough;
     case finished:
       break;
     }
@@ -444,7 +444,7 @@ pg_ent::endent (bool _group)
       if (state == from_file)
 	free (buf);
       else if (state == from_local || state == from_sam)
-      	NetApiBufferFree (buf);
+	NetApiBufferFree (buf);
       buf = NULL;
     }
   if (!pg.curr_lines)
@@ -531,7 +531,7 @@ pg_ent::enumerate_builtin ()
   arg.sid = &sid;
   char *line = pg.fetch_account_from_windows (arg);
   return pg.add_account_post_fetch (line, false);
-} 
+}
 
 void *
 pg_ent::enumerate_sam ()
@@ -568,7 +568,7 @@ pg_ent::enumerate_sam ()
       while (cnt < max)
 	{
 	  cygsid sid (cygheap->dom.account_sid ());
-	  sid_sub_auth (sid, sid_sub_auth_count (sid)) = 
+	  sid_sub_auth (sid, sid_sub_auth_count (sid)) =
 	    group ? ((PGROUP_INFO_2) buf)[cnt].grpi2_group_id
 		  : ((PUSER_INFO_20) buf)[cnt].usri20_user_id;
 	  ++cnt;
@@ -673,7 +673,7 @@ pw_ent::enumerate_caches ()
 	}
       cnt = 0;
       max = 1;
-      /*FALLTHRU*/
+      fallthrough;
     case 1:
       if (from_files)
 	{
@@ -684,7 +684,7 @@ pw_ent::enumerate_caches ()
 	}
       cnt = 0;
       max = 2;
-      /*FALLTHRU*/
+      fallthrough;
     default:
       if (from_db)
 	{

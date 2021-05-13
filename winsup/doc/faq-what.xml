@@ -85,25 +85,34 @@ freedoms, so it is free software.
 <answer>
 
 <para>To find the version of the Cygwin DLL installed, you can use
-<filename>uname</filename> as on Linux or <filename>cygcheck</filename>. Refer to each command's
+<filename>uname</filename> <literal>-r</literal> as you would for a Unix kernel.
+As the Cygwin DLL takes the place of a Unix kernel,
+you can also use the Unix compatible command:
+<filename>head</filename> <filename>/proc/version</filename>,
+or the Cygwin specific command:
+<filename>cygcheck</filename> <literal>-V</literal>.
+Refer to each command's
 <literal>--help</literal> output and the
 <ulink url='https://cygwin.com/cygwin-ug-net/'>Cygwin User's Guide</ulink>
 for more information.
 </para>
 <para>If you are looking for the version number for the whole Cygwin
-release, there is none. Each package in the Cygwin release has its own
-version.  The packages in Cygwin are continually improving, thanks to
-the efforts of net volunteers who maintain the Cygwin binary ports.
+release, there is none.
+Each package in the Cygwin release has its own version, and the
+<literal>cygwin</literal> package containing the Cygwin DLL and Cygwin
+system specific utilities is just another (but very important!) package.
+The packages in Cygwin are continually improving, thanks to
+the efforts of volunteers who maintain the Cygwin ports.
 Each package has its own version numbers and its own release process.
 </para>
 <para>So, how do you get the most up-to-date version of Cygwin?  Easy.  Just
-download the Cygwin Setup program by following the instructions
-<ulink url='https://cygwin.com/install.html'>here</ulink>.
-The setup program will handle the task of updating the packages on your system
-to the latest version. For more information about using Cygwin's
-<filename>setup.exe</filename>, see 
+download the Cygwin Setup program by following the
+<ulink url='https://cygwin.com/install.html'>installation instructions</ulink>.
+The Setup program will handle the task of updating the packages on your system
+to the latest version.
+For more information about using Cygwin's Setup program, see
 <ulink url='https://cygwin.com/cygwin-ug-net/setup-net.html'>Setting Up Cygwin</ulink>
-in the Cygwin User's Guide. 
+in the Cygwin User's Guide.
 </para></answer></qandaentry>
 
 <qandaentry id="faq.what.who">
@@ -115,29 +124,28 @@ questions, all of these people will appreciate it if you use the cygwin
 mailing lists rather than sending personal email.)</emphasis>
 </para>
 <para>
-Corinna Vinschen is the current project lead. Corinna is a senior Red Hat
-engineer. Corinna is responsible for the Cygwin library and maintains a couple
-of packages, for instance OpenSSH, OpenSSL, and a lot more.
+Corinna Vinschen is the current project lead,
+responsible for the Cygwin library and a lot more.
 </para>
 <para>
-Yaakov Selkowitz is another Red Hat engineer working on the Cygwin project.
-He's the guy behind the current build and packaging system and maintains by
-far the most packages in the Cygwin distribution.
+Yaakov Selkowitz is the guy behind the current build and packaging system
+and maintained by far the most packages in the Cygwin distribution.
 </para>
 <para>
-Jon Turney is developer and maintainer of the Cygwin X server and a couple
-of related packages.
+Jon Turney is maintainer of the Cygwin X server and related packages.
 </para>
 <para>
-The packages in the Net release are maintained by a large group of people;
-a complete list can be found
-<ulink url='https://cygwin.com/cygwin-pkg-maint'>here</ulink>.
+The packages are maintained by a large group of
+<ulink url='https://cygwin.com/cygwin-pkg-maint'>volunteers</ulink>.
 </para>
-<para>Please note that all of us working on Cygwin try to be as responsive as
-possible and deal with patches and questions as we get them, but realistically
-we don't have time to answer all of the email that is sent to the main mailing
-list.  Making Net releases of the Win32 tools and helping people on the Net out
-is not our primary job function, so some email will have to go unanswered.
+<para>
+Please note that all of us volunteering on Cygwin try to be as responsive as
+possible and deal with patches and questions as we get them, but
+realistically we don't have time to answer all of the email that is sent to
+the main mailing list.
+Making releases of the tools and packages is an activity in our spare time,
+helping people out is not our primary focus, so some email will have to go
+unanswered.
 </para>
 <para>Many thanks to everyone using the tools for their many contributions in
 the form of advice, bug reports, and code fixes.  Keep them coming!

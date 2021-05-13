@@ -16,12 +16,6 @@ by prefixing with <literal>no</literal>.</para>
 <itemizedlist mark="bullet">
 
 <listitem>
-<para><envar>(no)dosfilewarning</envar> - If set, Cygwin will warn the
-first time a user uses an "MS-DOS" style path name rather than a POSIX-style
-path name.  Defaults to off.</para>
-</listitem>
-
-<listitem>
 <para><envar>(no)export</envar> - If set, the final values of these
 settings are re-exported to the environment as <envar>CYGWIN</envar> again.
 Defaults to off.</para>
@@ -34,8 +28,12 @@ Defaults to off.</para>
 which is useful for debugging.  <filename>Win32filepath</filename> is
 usually set to the path to <command>gdb</command> or
 <command>dumper</command>, for example
-<filename>C:\cygwin\bin\gdb.exe</filename>. 
+<filename>C:\cygwin\bin\gdb.exe</filename>.
 There is no default set.
+</para>
+<para>
+The filename of the executing program and it's Windows process id are appended
+to the command as arguments.
 </para>
 </listitem>
 
@@ -74,7 +72,7 @@ time and when handles are inherited.  Defaults to set.</para>
 <listitem>
 <para><envar>(no)wincmdln</envar> - if set, the windows complete command
 line (truncated to ~32K) will be passed on any processes that it creates
-in addition to the normal UNIX argv list.  Defaults to not set.</para>
+in addition to the normal UNIX argv list.  Defaults to set.</para>
 </listitem>
 
 <listitem>
@@ -97,6 +95,12 @@ system call will immediately fail.</para>
 
 <para>For more information on symbolic links, see
 <xref linkend="pathnames-symlinks"></xref>.</para>
+</listitem>
+
+<listitem>
+<para><envar>disable_pcon</envar> - if set, pseudo console support in
+pty will be disabled.  This is for programs which do not work properly
+under pty with pseudo console enabled.  Defaults to not set.</para>
 </listitem>
 
 </itemizedlist>
@@ -123,6 +127,11 @@ explicitly in the open(2) call.
 <listitem>
 <para><envar>(no)detect_bloda</envar> - No case of a BLODA found by this
 option has been reported in years.</para>
+</listitem>
+
+<listitem>
+<para><envar>(no)dosfilewarning</envar> - This option had been disabled for
+quite some time and nobody missed it.</para>
 </listitem>
 
 <listitem>

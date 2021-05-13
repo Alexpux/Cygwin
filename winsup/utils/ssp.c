@@ -465,7 +465,7 @@ run_program (char *cmdline)
 		      thread_return_address[tix] = rv;
 		}
 	      set_step_threads (event.dwThreadId, stepping_enabled);
-	      /* fall-through */
+	      /*FALLTHRU*/
 	    case STATUS_SINGLE_STEP:
 	      opcode_count++;
 	      pc = (CONTEXT_REG)event.u.Exception.ExceptionRecord.ExceptionAddress;
@@ -674,7 +674,7 @@ run_program (char *cmdline)
 
 }
 
-static void
+static void __attribute__ ((__noreturn__))
 usage (FILE * stream)
 {
   fprintf (stream , ""
@@ -718,15 +718,15 @@ usage (FILE * stream)
     "You must specify the range of memory addresses to keep track of\n"
     "manually, but it's not hard to figure out what to specify.  Use the\n"
     "\"objdump\" program to determine the bounds of the target's \".text\"\n"
-    "section.  Let's say we're profiling cygwin1.dll.  Make sure you've\n"
+    "section.  Let's say we're profiling msys-2.0.dll.  Make sure you've\n"
     "built it with debug symbols (else gprof won't run) and run objdump\n"
     "like this:\n"
     "\n"
-    "	objdump -h cygwin1.dll\n"
+    "	objdump -h msys-2.0.dll\n"
     "\n"
     "It will print a report like this:\n"
     "\n"
-    "cygwin1.dll:     file format pei-i386\n"
+    "msys-2.0.dll:     file format pei-i386\n"
     "\n"
     "Sections:\n"
     "Idx Name          Size      VMA       LMA       File off  Algn\n"
@@ -757,7 +757,7 @@ usage (FILE * stream)
     "\"gmon.out\".  You can turn this data file into a readable report with\n"
     "gprof:\n"
     "\n"
-    "	gprof -b cygwin1.dll\n"
+    "	gprof -b msys-2.0.dll\n"
     "\n"
     "The \"-b\" means 'skip the help pages'.  You can omit this until you're\n"
     "familiar with the report layout.  The gprof documentation explains\n"
@@ -880,7 +880,6 @@ main (int argc, char **argv)
 	break;
       case 'h':
 	usage (stdout);
-	break;
       case 'l':
 	printf ("profiling dll usage\n");
 	dll_counts = 1;

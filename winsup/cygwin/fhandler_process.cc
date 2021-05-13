@@ -559,10 +559,10 @@ static off_t
 format_process_winexename (void *data, char *&destbuf)
 {
   _pinfo *p = (_pinfo *) data;
-  size_t len = sys_wcstombs (NULL, 0, p->progname);
+  size_t len = sys_wcstombs_path (NULL, 0, p->progname);
   destbuf = (char *) crealloc_abort (destbuf, len + 1);
   /* With trailing \0 for backward compat reasons. */
-  sys_wcstombs (destbuf, len + 1, p->progname);
+  sys_wcstombs_path (destbuf, len + 1, p->progname);
   return len;
 }
 
@@ -1037,7 +1037,7 @@ peb_teb_rinse_repeat:
 		      drive_maps.fixup_if_match (msi->SectionFileName.Buffer);
 		  if (mount_table->conv_to_posix_path (dosname,
 						       posix_modname, 0))
-		    sys_wcstombs (posix_modname, NT_MAX_PATH, dosname);
+		    sys_wcstombs_path (posix_modname, NT_MAX_PATH, dosname);
 		  stat64 (posix_modname, &st);
 		}
 	      else if (!threads.fill_if_match (cur.abase, mb.Type,
@@ -1076,13 +1076,14 @@ format_process_stat (void *data, char *&destbuf)
   unsigned long fault_count = 0UL,
 		vmsize = 0UL, vmrss = 0UL, vmmaxrss = 0UL;
   uint64_t utime = 0ULL, stime = 0ULL, start_time = 0ULL;
+  int nice = 0;
 
   if (p->process_state & PID_EXITED)
     strcpy (cmd, "<defunct>");
   else
     {
       PWCHAR last_slash = wcsrchr (p->progname, L'\\');
-      sys_wcstombs (cmd, NAME_MAX + 1,
+      sys_wcstombs_path (cmd, NAME_MAX + 1,
 		    last_slash ? last_slash + 1 : p->progname);
       int len = strlen (cmd);
       if (len > 4)
@@ -1138,6 +1139,7 @@ format_process_stat (void *data, char *&destbuf)
       if (!NT_SUCCESS (status))
 	debug_printf ("NtQueryInformationProcess(ProcessQuotaLimits): "
 		      "status %y", status);
+      nice = winprio_to_nice (GetPriorityClass (hProcess));
       CloseHandle (hProcess);
     }
   status = NtQuerySystemInformation (SystemTimeOfDayInformation,
@@ -1157,7 +1159,6 @@ format_process_stat (void *data, char *&destbuf)
   vmsize = vmc.PagefileUsage;
   vmrss = vmc.WorkingSetSize / page_size;
   vmmaxrss = ql.MaximumWorkingSetSize / page_size;
-  int nice = winprio_to_nice(GetPriorityClass(hProcess));
 
   destbuf = (char *) crealloc_abort (destbuf, strlen (cmd) + 320);
   return __small_sprintf (destbuf, "%d (%s) %c "
@@ -1169,7 +1170,7 @@ format_process_stat (void *data, char *&destbuf)
 			  p->pid, cmd, state,
 			  p->ppid, p->pgid, p->sid, p->ctty, -1,
 			  0, fault_count, fault_count, 0, 0, utime, stime,
-                         utime, stime, NZERO + nice, nice, 0, 0,
+			  utime, stime, NZERO + nice, nice, 0, 0,
 			  start_time, vmsize,
 			  vmrss, vmmaxrss
 			  );
@@ -1185,7 +1186,8 @@ format_process_status (void *data, char *&destbuf)
   size_t vmsize = 0, vmrss = 0, vmdata = 0, vmlib = 0, vmtext = 0, vmshare = 0;
 
   PWCHAR last_slash = wcsrchr (p->progname, L'\\');
-  sys_wcstombs (cmd, NAME_MAX + 1, last_slash ? last_slash + 1 : p->progname);
+  sys_wcstombs_path (cmd, NAME_MAX + 1,
+		  last_slash ? last_slash + 1 : p->progname);
   int len = strlen (cmd);
   if (len > 4)
     {
@@ -1400,7 +1402,7 @@ get_process_state (DWORD dwProcessId)
       n <<= 1;
       PSYSTEM_PROCESS_INFORMATION new_p = (PSYSTEM_PROCESS_INFORMATION) realloc (p, n);
       if (!new_p)
-      	goto out;
+	goto out;
       p = new_p;
     }
   if (!NT_SUCCESS (status))

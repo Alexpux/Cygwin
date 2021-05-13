@@ -14,23 +14,23 @@ details. */
 
 extern int main (int argc, char **argv);
 
+#ifdef __MSYS__
+void msys_crt0 (int (*main) (int, char **));
+#else
 void cygwin_crt0 (int (*main) (int, char **));
+#endif
 
+#ifdef __i386__
+__attribute__ ((force_align_arg_pointer))
+#endif
 void
 mainCRTStartup ()
 {
-#ifdef __i386__
-#if __GNUC_PREREQ(6,0)
-#pragma GCC diagnostic ignored "-Wframe-address"
-#endif
-  (void)__builtin_return_address(1);
-#if __GNUC_PREREQ(6,0)
-#pragma GCC diagnostic pop
-#endif
-  asm volatile ("andl $-16,%%esp" ::: "%esp");
-#endif
-
+#ifdef __MSYS__
+  msys_crt0 (main);
+#else
   cygwin_crt0 (main);
+#endif
 
   /* These are never actually called.  They are just here to force the inclusion
      of things like -lbinmode.  */

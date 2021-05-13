@@ -65,8 +65,11 @@ get (const int fd)
 
   fhandler_socket *const fh = cfd->is_socket ();
 
-  if (!fh)
-    set_errno (ENOTSOCK);
+  if (!fh || (fh->get_flags () & O_PATH))
+    {
+      set_errno (ENOTSOCK);
+      return NULL;
+    }
 
   return fh;
 }
@@ -641,9 +644,17 @@ extern "C" int
 sockatmark (int fd)
 {
   int ret;
+  cygheap_fdget cfd (fd);
 
-  fhandler_socket *fh = get (fd);
-  if (fh && fh->ioctl (SIOCATMARK, &ret) != -1)
+  if (cfd < 0)
+    return -1;
+
+  fhandler_socket *const fh = cfd->is_socket ();
+  if (!fh)
+    set_errno (ENOTSOCK);
+  else if (fh->get_flags () & O_PATH)
+    set_errno (EBADF);
+  else if (fh->ioctl (SIOCATMARK, &ret) != -1)
     return ret;
   return -1;
 }
@@ -852,15 +863,15 @@ memcpy4to6 (char *dst, const u_int8_t *src)
   memcpy (dst + 12, src, NS_INADDRSZ);
 }
 
-/* gethostby_specials: RFC 6761 
-   Handles numerical addresses and special names for gethostbyname2 */ 
+/* gethostby_specials: RFC 6761
+   Handles numerical addresses and special names for gethostbyname2 */
 static hostent *
 gethostby_specials (const char *name, const int af,
 		    const int addrsize_in, const int addrsize_out)
 {
   int namelen = strlen (name);
   /* Ignore a final '.' */
-  if ((namelen == 0) || ((namelen -= (name[namelen - 1] == '.')) == 0)) 
+  if ((namelen == 0) || ((namelen -= (name[namelen - 1] == '.')) == 0))
     {
       set_errno (EINVAL);
       h_errno = NETDB_INTERNAL;
@@ -908,7 +919,7 @@ gethostby_specials (const char *name, const int af,
       }
     }
   if (res != 1)
-    return NULL;  
+    return NULL;
 
   int const alias_count = 0, address_count = 1;
   char * string_ptr;
@@ -1707,13 +1718,13 @@ gen_old_if_name (char *name, PIP_ADAPTER_ADDRESSES pap, DWORD idx)
 	prefix = "ppp";
 	break;
       case IF_TYPE_SOFTWARE_LOOPBACK:
-      	prefix = "lo";
+	prefix = "lo";
 	break;
       case IF_TYPE_ATM:
-      	prefix = "atm";
+	prefix = "atm";
 	break;
       case IF_TYPE_IEEE80211:
-      	prefix = "wlan";
+	prefix = "wlan";
 	break;
       case IF_TYPE_SLIP:
       case IF_TYPE_RS232:
@@ -1721,7 +1732,7 @@ gen_old_if_name (char *name, PIP_ADAPTER_ADDRESSES pap, DWORD idx)
 	prefix = "slp";
 	break;
       case IF_TYPE_TUNNEL:
-      	prefix = "tun";
+	prefix = "tun";
 	break;
       default:
 	prefix = "eth";
@@ -2846,7 +2857,7 @@ ga_dup (struct addrinfoW *ai, bool v4mapped, int idn_flags, int &err)
 	}
       wcstombs (nai->ai_canonname, canonname, len + 1);
     }
-  
+
   nai->ai_addrlen = v4mapped ? sizeof (struct sockaddr_in6) : ai->ai_addrlen;
   if ((nai->ai_addr = (struct sockaddr *) malloc (v4mapped
 						  ? sizeof (struct sockaddr_in6)
@@ -2964,7 +2975,7 @@ cygwin_getaddrinfo (const char *hostname, const char *servname,
   int ret = 0;
 
   /* Windows' getaddrinfo implementations lets all possible values
-     in ai_flags slip through and just ignores unknown values.  So we 
+     in ai_flags slip through and just ignores unknown values.  So we
      check manually here. */
 #define AI_IDN_MASK (AI_IDN | \
 		     AI_CANONIDN | \

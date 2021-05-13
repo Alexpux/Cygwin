@@ -14,9 +14,11 @@ configure_args=@configure_args@
 export CC:=@CC@
 export CXX:=@CXX@
 
+CFLAGS_COMMON=-Wimplicit-fallthrough=4 -Werror
 CFLAGS:=@CFLAGS@
 CXXFLAGS:=@CXXFLAGS@
-override CXXFLAGS+=-fno-exceptions -fno-rtti
+override CFLAGS+=${CFLAGS_COMMON}
+override CXXFLAGS+=-fno-exceptions -fno-rtti ${CFLAGS_COMMON}
 
 include ${srcdir}/../Makefile.common
 
@@ -35,6 +37,7 @@ prefix:=@prefix@
 exec_prefix:=@exec_prefix@
 
 bindir:=@bindir@
+libexecdir = @libexecdir@
 program_transform_name:=@program_transform_name@
 
 override INSTALL:=@INSTALL@
@@ -48,9 +51,11 @@ EXEEXT_FOR_BUILD:=@EXEEXT_FOR_BUILD@
 
 LDLIBS := -lnetapi32 -ladvapi32 -lkernel32 -luser32
 CYGWIN_LDFLAGS := -static -Wl,--enable-auto-import -L${WINDOWS_LIBDIR} $(LDLIBS)
-DEP_LDLIBS := $(cygwin_build)/libcygwin.a
+DEP_LDLIBS := $(cygwin_build)/libmsys-2.0.a
 
 MINGW_CXX      := @MINGW_CXX@
+MINGW32_CC     := @MINGW32_CC@
+MINGW64_CC     := @MINGW64_CC@
 
 # List all binaries to be linked in Cygwin mode.  Each binary on this list
 # must have a corresponding .o of the same name.
@@ -97,8 +102,8 @@ cygcheck.exe: MINGW_LDFLAGS += ${ZLIB} -lwininet -lpsapi -lntdll
 cygcheck.exe: ${CYGCHECK_OBJS}
 
 cygpath.o: CXXFLAGS += -fno-threadsafe-statics
-cygpath.exe: CYGWIN_LDFLAGS += -lcygwin -luserenv -lntdll
-ps.exe: CYGWIN_LDFLAGS += -lcygwin -lpsapi -lntdll
+cygpath.exe: CYGWIN_LDFLAGS += -lmsys-2.0 -luserenv -lntdll
+ps.exe: CYGWIN_LDFLAGS += -lmsys-2.0 -lpsapi -lntdll
 strace.exe: MINGW_LDFLAGS += -lntdll
 
 ldd.exe:CYGWIN_LDFLAGS += -lpsapi -lntdll
@@ -113,15 +118,15 @@ build_dumper := $(shell test -r "$(libbfd)" && echo 1)
 
 ifdef build_dumper
 CYGWIN_BINS += dumper.exe
-dumper.o module_info.o parse_pe.o: CXXFLAGS += -I$(top_srcdir)/include
-dumper.o parse_pe.o: dumper.h
-dumper.exe: module_info.o parse_pe.o
-dumper.exe: CYGWIN_LDFLAGS += -lpsapi -lbfd -lintl -liconv -liberty ${ZLIB}
+dumper.o module_info.o: CXXFLAGS += -I$(top_srcdir)/include
+dumper.o: dumper.h
+dumper.exe: module_info.o
+dumper.exe: CYGWIN_LDFLAGS += -lpsapi -lbfd -lintl -liconv -liberty ${ZLIB} -lntdll
 else
 all: warn_dumper
 endif
 
-all: Makefile $(CYGWIN_BINS) $(MINGW_BINS)
+all: Makefile $(CYGWIN_BINS) $(MINGW_BINS) getprocaddr32.exe getprocaddr64.exe
 
 # test harness support (note: the "MINGW_BINS +=" should come after the
 # "all:" above so that the testsuite is not run for "make" but only
@@ -160,6 +165,19 @@ $(CYGWIN_BINS): %.exe: %.o
 $(MINGW_BINS): $(DEP_LDLIBS)
 $(CYGWIN_BINS): $(DEP_LDLIBS)
 
+# Must *not* use -O2 here, as it screws up the stack backtrace
+getprocaddr32.o: %32.o: %.c
+	$(MINGW32_CC) -c -o $@ $<
+
+getprocaddr32.exe: %.exe: %.o
+	$(MINGW32_CC) -o $@ $^ -static -ldbghelp
+
+getprocaddr64.o: %64.o: %.c
+	$(MINGW64_CC) -c -o $@ $<
+
+getprocaddr64.exe: %.exe: %.o
+	$(MINGW64_CC) -o $@ $^ -static -ldbghelp
+
 cygcheck.o cygpath.o module_info.o path.o ps.o regtool.o strace.o: loadlib.h
 
 .PHONY: clean
@@ -177,8 +195,12 @@ install: all
 	  n=`echo $$i | sed '$(program_transform_name)'`; \
 	  $(INSTALL_PROGRAM) $$i $(DESTDIR)$(bindir)/$$n; \
 	done
+	/bin/mkdir -p ${DESTDIR}${libexecdir}
+	for n in getprocaddr32 getprocaddr64; do \
+	  $(INSTALL_PROGRAM) $$n $(DESTDIR)$(libexecdir)/$$n; \
+	done
 
-$(cygwin_build)/libcygwin.a: $(cygwin_build)/Makefile
+$(cygwin_build)/libmsys-2.0.a: $(cygwin_build)/Makefile
 	@$(MAKE) -C $(@D) $(@F)
 
 .PHONY: warn_dumper

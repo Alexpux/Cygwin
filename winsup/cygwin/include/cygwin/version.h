@@ -11,7 +11,7 @@ details. */
    changes to the DLL and is mainly informative in nature. */
 
 #define CYGWIN_VERSION_DLL_MAJOR 3001
-#define CYGWIN_VERSION_DLL_MINOR 0
+#define CYGWIN_VERSION_DLL_MINOR 7
 
 /* Major numbers before CYGWIN_VERSION_DLL_EPOCH are incompatible. */
 
@@ -530,7 +530,11 @@ details. */
    names include the CYGWIN_VERSION_SHARED_DATA version as well as this
    identifier. */
 
+#ifdef __MSYS__
+#define CYGWIN_VERSION_DLL_IDENTIFIER	"msys-2.0"
+#else
 #define CYGWIN_VERSION_DLL_IDENTIFIER	"cygwin1"
+#endif
 
 /* The Cygwin mount table interface in the Win32 registry also has a version
    number associated with it in case that is changed in a non-backwards
@@ -546,7 +550,11 @@ details. */
 
 /* Identifiers used in the Win32 registry. */
 
+#ifdef __MSYS__
+#define CYGWIN_INFO_CYGWIN_REGISTRY_NAME "MSYS"
+#else
 #define CYGWIN_INFO_CYGWIN_REGISTRY_NAME "Cygwin"
+#endif
 #define CYGWIN_INFO_INSTALLATIONS_NAME   "Installations"
 
 /* The default cygdrive prefix. */

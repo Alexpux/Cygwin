@@ -1149,6 +1149,16 @@ fhandler_socket_unix::set_cred ()
   scred->gid = myself->gid;
 }
 
+void
+fhandler_socket_unix::fixup_helper ()
+{
+  if (shmem_handle)
+    reopen_shmem ();
+  connect_wait_thr = NULL;
+  cwt_termination_evt = NULL;
+  cwt_param = NULL;
+}
+
 /* ========================== public methods ========================= */
 
 void
@@ -1158,20 +1168,15 @@ fhandler_socket_unix::fixup_after_fork (HANDLE parent)
   if (backing_file_handle && backing_file_handle != INVALID_HANDLE_VALUE)
     fork_fixup (parent, backing_file_handle, "backing_file_handle");
   if (shmem_handle)
-    {
-      fork_fixup (parent, shmem_handle, "shmem_handle");
-      reopen_shmem ();
-    }
-  connect_wait_thr = NULL;
-  cwt_termination_evt = NULL;
-  cwt_param = NULL;
+    fork_fixup (parent, shmem_handle, "shmem_handle");
+  fixup_helper ();
 }
 
 void
 fhandler_socket_unix::fixup_after_exec ()
 {
   if (!close_on_exec ())
-    fixup_after_fork (NULL);
+    fixup_helper ();
 }
 
 void
@@ -1201,12 +1206,6 @@ fhandler_socket_unix::dup (fhandler_base *child, int flags)
       return -1;
     }
   fhandler_socket_unix *fhs = (fhandler_socket_unix *) child;
-  if (reopen_shmem () < 0)
-    {
-      __seterrno ();
-      fhs->close ();
-      return -1;
-    }
   if (backing_file_handle && backing_file_handle != INVALID_HANDLE_VALUE
       && !DuplicateHandle (GetCurrentProcess (), backing_file_handle,
 			    GetCurrentProcess (), &fhs->backing_file_handle,
@@ -1219,6 +1218,12 @@ fhandler_socket_unix::dup (fhandler_base *child, int flags)
   if (!DuplicateHandle (GetCurrentProcess (), shmem_handle,
 			GetCurrentProcess (), &fhs->shmem_handle,
 			0, TRUE, DUPLICATE_SAME_ACCESS))
+    {
+      __seterrno ();
+      fhs->close ();
+      return -1;
+    }
+  if (fhs->reopen_shmem () < 0)
     {
       __seterrno ();
       fhs->close ();
@@ -1436,10 +1441,10 @@ fhandler_socket_unix::socketpair (int af, int type, int protocol, int flags,
 fh_open_pipe_failed:
   NtClose (pipe);
 create_pipe_failed:
-  NtUnmapViewOfSection (GetCurrentProcess (), fh->shmem);
+  NtUnmapViewOfSection (NtCurrentProcess (), fh->shmem);
   NtClose (fh->shmem_handle);
 fh_shmem_failed:
-  NtUnmapViewOfSection (GetCurrentProcess (), shmem);
+  NtUnmapViewOfSection (NtCurrentProcess (), shmem);
   NtClose (shmem_handle);
   return -1;
 }
@@ -1814,7 +1819,7 @@ fhandler_socket_unix::close ()
     NtClose (shm);
   param = InterlockedExchangePointer ((PVOID *) &shmem, NULL);
   if (param)
-    NtUnmapViewOfSection (GetCurrentProcess (), param);
+    NtUnmapViewOfSection (NtCurrentProcess (), param);
   return 0;
 }
 

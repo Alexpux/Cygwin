@@ -9,6 +9,14 @@ details. */
 #ifndef _SELECT_H_
 #define _SELECT_H_
 
+struct fh_select_data_serial
+{
+  DWORD event;
+  OVERLAPPED ov;
+
+  fh_select_data_serial () : event (0) { memset (&ov, 0, sizeof ov); }
+};
+
 struct select_record
 {
   int fd;
@@ -25,6 +33,13 @@ struct select_record
   int (*verify) (select_record *, fd_set *, fd_set *, fd_set *);
   void (*cleanup) (select_record *, class select_stuff *);
   struct select_record *next;
+  /* If an fhandler type needs per-fhandler, per-select data, this union
+     is the place to add it.  First candidate: fhandler_serial. */
+  union
+  {
+    fh_select_data_serial *fh_data_serial;
+    void *fh_data_union; /* type-agnostic placeholder for constructor */
+  };
   void set_select_errno () {__seterrno (); thread_errno = errno;}
   int saw_error () {return thread_errno;}
   select_record (int): next (NULL) {}
@@ -34,7 +49,7 @@ struct select_record
     except_ready (false), read_selected (false), write_selected (false),
     except_selected (false), except_on_write (false),
     startup (NULL), peek (NULL), verify (NULL), cleanup (NULL),
-    next (NULL) {}
+    next (NULL), fh_data_union (NULL) {}
 #ifdef DEBUGGING
   void dump_select_record ();
 #endif
@@ -44,6 +59,7 @@ struct select_info
 {
   cygthread *thread;
   bool stop_thread;
+  HANDLE bye;
   select_record *start;
   select_info (): thread (NULL), stop_thread (0), start (NULL) {}
 };
@@ -66,11 +82,6 @@ struct select_socket_info: public select_info
   select_socket_info (): select_info (), num_w4 (0), ser_num (0), w4 (NULL) {}
 };
 
-struct select_serial_info: public select_info
-{
-  select_serial_info (): select_info () {}
-};
-
 class select_stuff
 {
 public:
@@ -87,11 +98,14 @@ public:
   bool always_ready, windows_used;
   select_record start;
 
+  /* If an fhandler type needs a singleton per-select datastructure for all
+     its objects in the descriptor lists, here's the place to be.  This is
+     mainly used to maintain a single thread for all fhandlers of a single
+     type in the descriptor lists. */
   select_pipe_info *device_specific_pipe;
   select_pipe_info *device_specific_ptys;
   select_fifo_info *device_specific_fifo;
   select_socket_info *device_specific_socket;
-  select_serial_info *device_specific_serial;
 
   bool test_and_set (int, fd_set *, fd_set *, fd_set *);
   int poll (fd_set *, fd_set *, fd_set *);
@@ -104,8 +118,7 @@ public:
 		   device_specific_pipe (NULL),
 		   device_specific_ptys (NULL),
 		   device_specific_fifo (NULL),
-		   device_specific_socket (NULL),
-		   device_specific_serial (NULL)
+		   device_specific_socket (NULL)
 		   {}
 };
 

@@ -628,10 +628,46 @@ fhandler_socket_local::af_local_set_secret (char *buf)
 int
 fhandler_socket_local::dup (fhandler_base *child, int flags)
 {
+  if (get_flags () & O_PATH)
+    /* We're viewing the socket as a disk file, but fhandler_base::dup
+       suffices here. */
+    return fhandler_base::dup (child, flags);
+
   fhandler_socket_local *fhs = (fhandler_socket_local *) child;
   fhs->set_sun_path (get_sun_path ());
   fhs->set_peer_sun_path (get_peer_sun_path ());
   return fhandler_socket_wsock::dup (child, flags);
+}
+
+int
+fhandler_socket_local::open (int flags, mode_t mode)
+{
+  /* We don't support opening sockets unless O_PATH is specified. */
+  if (flags & O_PATH)
+    return open_fs (flags, mode);
+
+  set_errno (EOPNOTSUPP);
+  return 0;
+}
+
+int
+fhandler_socket_local::close ()
+{
+  if (get_flags () & O_PATH)
+    return fhandler_base::close ();
+  else
+    return fhandler_socket_wsock::close ();
+}
+
+int
+fhandler_socket_local::fcntl (int cmd, intptr_t arg)
+{
+  if (get_flags () & O_PATH)
+    /* We're viewing the socket as a disk file, but
+       fhandler_base::fcntl suffices here. */
+    return fhandler_base::fcntl (cmd, arg);
+  else
+    return fhandler_socket_wsock::fcntl (cmd, arg);
 }
 
 int __reg2
@@ -655,6 +691,13 @@ fhandler_socket_local::fstatvfs (struct statvfs *sfs)
 {
   if (get_sun_path () && get_sun_path ()[0] == '\0')
     return fhandler_socket_wsock::fstatvfs (sfs);
+  if (get_flags () & O_PATH)
+    /* We already have a handle. */
+    {
+      HANDLE h = get_handle ();
+      if (h)
+	return fstatvfs_by_handle (h, sfs);
+    }
   fhandler_disk_file fh (pc);
   fh.get_device () = FH_FS;
   return fh.fstatvfs (sfs);

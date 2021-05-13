@@ -15,7 +15,7 @@
 .globl __MINGW_USYMBOL(remquol)
 __MINGW_USYMBOL(remquol):
 #ifdef __x86_64__
- 	pushq	%rcx
+	pushq	%rcx
         fldt (%r8)
         fldt (%rdx)
 1:	fprem1
@@ -63,13 +63,13 @@ __MINGW_USYMBOL(remquol):
 	leal (%ecx,%ecx,2),%ecx
         shrl %cl, %eax
         andl $7, %eax
-        movl 4 +12 +12(%esp), %ecx      
+        movl 4 +12 +12(%esp), %ecx
         movl 4 +8(%esp), %edx
         xorl 4 +12 +8(%esp), %edx
         testl $0x8000, %edx
         jz 1f
         negl %eax
 1:	movl %eax, (%ecx)
-      
+
         ret
 #endif

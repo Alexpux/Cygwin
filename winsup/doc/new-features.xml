@@ -54,6 +54,47 @@ Allow times(2) to have a NULL argument, as on Linux.
 Improve /proc/cpuinfo output and align more closely with Linux.
 </para></listitem>
 
+<listitem><para>
+Allow symlinks to be opened with O_PATH | O_NOFOLLOW.
+</para></listitem>
+
+<listitem><para>
+Allow the pathname argument to readlinkat(2) to be an empty string,
+provided the dirfd argument refers to a symlink opened with O_PATH |
+O_NOFOLLOW.  The readlinkat call then operates on that symlink.
+</para></listitem>
+
+<listitem><para>
+Support the Linux-specific AT_EMPTY_PATH flag for fchownat(2) and
+fstatat(2).
+</para></listitem>
+
+<listitem><para>
+Allow AF_LOCAL sockets to be opened with O_PATH.  If that flag is not
+set, or if an attempt is made to open a different type of socket, the
+errno is now EOPNOTSUPP instead of ENXIO.
+</para></listitem>
+
+<listitem><para>
+The new locale modifier @cjksingle allows enforcing of single-width
+character property for usually double-widthed characters.  This will
+be supported by upcoming mintty releases.  For the reasoning, see
+https://gitlab.freedesktop.org/terminal-wg/specifications/issues/9.
+</para></listitem>
+
+<listitem><para>
+Support WSL symlinks.  Create those by default now.
+</para></listitem>
+
+<listitem><para>
+FIFOs can now be opened multiple times for reading.
+</para></listitem>
+
+<listitem><para>
+Support more IPPROTO_TCP socket options: TCP_FASTOPEN, TCP_KEEPIDLE,
+TCP_KEEPCNT, TCP_KEEPINTVL, TCP_QUICKACK, TCP_USER_TIMEOUT.
+</para></listitem>
+
 </itemizedlist>
 
 </sect2>

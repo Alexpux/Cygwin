@@ -35,7 +35,7 @@
  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
  EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT,
  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
@@ -57,7 +57,7 @@
  powi (+/-inf, y) is +/-inf with no exception for finite y > 0 an odd integer
  powi (+/-inf, y) is +inf with no exception for finite y > 0 and not an odd integer
  powi (x, y) signals the invalid operation exception for finite x < 0 and finite non-integer y.
- 
+
  For x /= 0: lim y->oo (1/x)^y results as: for |x| < 1 that sgn(x)*0 and for |x| > 0 that sgn(x)*Infinity
 
 */

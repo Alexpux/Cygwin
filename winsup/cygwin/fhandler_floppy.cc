@@ -74,7 +74,7 @@ fhandler_dev_floppy::get_drive_info (struct hd_geometry *geo)
       di = (DISK_GEOMETRY *) dbuf;
     }
   if (dix) /* Don't try IOCTL_DISK_GET_PARTITION_INFO_EX if
-	      IOCTL_DISK_GET_DRIVE_GEOMETRY_EX didn't work. 
+	      IOCTL_DISK_GET_DRIVE_GEOMETRY_EX didn't work.
 	      Probably a floppy.*/
     {
       if (!DeviceIoControl (get_handle (),
@@ -161,7 +161,8 @@ fhandler_dev_floppy::lock_partition (DWORD to_write)
      If there's some file handle open on one of the affected partitions,
      this fails, but that's how it works...
      The high partition major numbers don't have a partition 0. */
-  if (get_major () >= DEV_SD_HIGHPART_START || get_minor () % 16 != 0)
+  if (get_major () == DEV_FLOPPY_MAJOR
+      || get_major () >= DEV_SD_HIGHPART_START || get_minor () % 16 != 0)
     {
       if (!DeviceIoControl (get_handle (), FSCTL_LOCK_VOLUME,
 			   NULL, 0, NULL, 0, &bytes_read, NULL))
@@ -302,7 +303,6 @@ fhandler_dev_floppy::write_file (const void *buf, DWORD to_write,
      See http://support.microsoft.com/kb/942448 for details.
      What we do here is to lock the affected partition(s) and retry. */
   if (*err == ERROR_ACCESS_DENIED
-      && get_major () != DEV_FLOPPY_MAJOR
       && get_major () != DEV_CDROM_MAJOR
       && (get_flags () & O_ACCMODE) != O_RDONLY
       && lock_partition (to_write))
@@ -546,11 +546,11 @@ fhandler_dev_floppy::raw_write (const void *ptr, size_t len)
       DWORD cplen, written;
 
       /* First check if we have an active read buffer.  If so, try to fit in
-      	 the start of the input buffer and write out the entire result.
+	 the start of the input buffer and write out the entire result.
 	 This also covers the situation after lseek since lseek fills the read
 	 buffer in case we seek to an address which is not sector aligned. */
       if (devbufend && devbufstart < devbufend)
-      	{
+	{
 	  off_t current_pos = get_current_position ();
 	  cplen = MIN (len, devbufend - devbufstart);
 	  memcpy (devbuf + devbufstart, p, cplen);
@@ -619,12 +619,12 @@ fhandler_dev_floppy::raw_write (const void *ptr, size_t len)
 	      devbufend = bytes_per_sector;
 	    }
 	}
-      return bytes_written;
+      return (ssize_t) bytes_written;
     }
-  
+
   /* In O_DIRECT case, just write. */
   if (write_file (p, len, &bytes_written, &ret))
-    return bytes_written;
+    return (ssize_t) bytes_written;
 
 err:
   if (IS_EOM (ret))
@@ -635,7 +635,8 @@ err:
     }
   else if (!bytes_written)
     __seterrno ();
-  return bytes_written ?: -1;
+  /* Cast is required, otherwise the error return value is (DWORD)-1. */
+  return (ssize_t) bytes_written ?: -1;
 }
 
 off_t
@@ -657,7 +658,7 @@ fhandler_dev_floppy::lseek (off_t offset, int whence)
       off_t exact_pos = current_pos - (devbufend - devbufstart);
       /* Shortcut when used to get current position. */
       if (offset == 0)
-      	return exact_pos;
+	return exact_pos;
       offset += exact_pos;
       whence = SEEK_SET;
     }

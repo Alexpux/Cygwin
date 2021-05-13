@@ -21,8 +21,6 @@
 #else
 # include "winsup.h"
 # include <sys/cygwin.h>
-/* custom status code: */
-# define STATUS_ILLEGAL_DLL_PSEUDO_RELOCATION ((NTSTATUS) 0xe0000269)
 #endif
 
 #include <stdio.h>
@@ -87,7 +85,7 @@ __report_error (const char *msg, ...)
   char buf[128];
   char *posix_module = NULL;
   static const char UNKNOWN_MODULE[] = "<unknown module>: ";
-  static const char CYGWIN_FAILURE_MSG[] = "Cygwin runtime failure: ";
+  static const char CYGWIN_FAILURE_MSG[] = "MSYS runtime failure: ";
   HANDLE errh = GetStdHandle (STD_ERROR_HANDLE);
   va_list args;
 

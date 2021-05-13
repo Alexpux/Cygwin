@@ -445,8 +445,16 @@ void nano_cfree(RARG void * ptr)
  * Implement calloc simply by calling malloc and set zero */
 void * nano_calloc(RARG malloc_size_t n, malloc_size_t elem)
 {
-    void * mem = nano_malloc(RCALL n * elem);
-    if (mem != NULL) memset(mem, 0, n * elem);
+    malloc_size_t bytes;
+    void * mem;
+
+    if (__builtin_mul_overflow (n, elem, &bytes))
+    {
+        RERRNO = ENOMEM;
+        return NULL;
+    }
+    mem = nano_malloc(RCALL bytes);
+    if (mem != NULL) memset(mem, 0, bytes);
     return mem;
 }
 #endif /* DEFINE_CALLOC */
@@ -458,6 +466,7 @@ void * nano_realloc(RARG void * ptr, malloc_size_t size)
 {
     void * mem;
     chunk * p_to_realloc;
+    malloc_size_t old_size;
 
     if (ptr == NULL) return nano_malloc(RCALL size);
 
@@ -467,15 +476,16 @@ void * nano_realloc(RARG void * ptr, malloc_size_t size)
         return NULL;
     }
 
-    /* TODO: There is chance to shrink the chunk if newly requested
-     * size is much small */
-    if (nano_malloc_usable_size(RCALL ptr) >= size)
+    old_size = nano_malloc_usable_size(RCALL ptr);
+    if (size <= old_size && (old_size >> 1) < size)
       return ptr;
 
     mem = nano_malloc(RCALL size);
     if (mem != NULL)
     {
-        memcpy(mem, ptr, size);
+	if (old_size > size)
+	    old_size = size;
+        memcpy(mem, ptr, old_size);
         nano_free(RCALL ptr);
     }
     return mem;

@@ -16,6 +16,7 @@ details. */
 #include "fhandler.h"
 #include "exception.h"
 #include "tls_pbuf.h"
+#include "mmap_alloc.h"
 
 int __reg2
 check_invalid_virtual_addr (const void *s, unsigned sz)
@@ -80,7 +81,7 @@ check_iovec (const struct iovec *iov, int iovcnt, bool forwrite)
   return -1;
 }
 
-/* Try hard to schedule another thread.  
+/* Try hard to schedule another thread.
    Remember not to call this in a lock condition or you'll potentially
    suffer starvation.  */
 void
@@ -256,7 +257,7 @@ NT_readline::init (POBJECT_ATTRIBUTES attr, PCHAR in_buf, ULONG in_buflen)
   return true;
 }
 
-PCHAR 
+PCHAR
 NT_readline::gets ()
 {
   IO_STATUS_BLOCK io;
@@ -307,6 +308,27 @@ NT_readline::gets ()
       len = 0;
     }
 }
+
+/* Searches through string for delimiter replacing each instance with '\0'
+   and returning the number of such delimited substrings. This function
+   Will return 0 for the NULL string and at least 1 otherwise. */
+
+size_t
+string_split_delimited (char * string, char delimiter)
+{
+  if ( string == NULL )
+      return 0;
+  size_t count = 1;
+  string = strchr ( string, delimiter );
+  while (string)
+    {
+      *string = '\0';
+      ++count;
+      string = strchr ( string + 1, delimiter );
+    }
+  return count;
+}
+
 
 /* Return an address from the import jmp table of main program.  */
 void * __reg1
@@ -442,9 +464,9 @@ pthread_wrapper (PVOID arg)
 	   movq  16(%%rbx), %%rcx	# Load stackaddr into rcx	\n\
 	   movq  24(%%rbx), %%rsp	# Load stackbase into rsp	\n\
 	   subq  %[CYGTLS], %%rsp	# Subtract CYGTLS_PADSIZE	\n\
-	   				# (here we are 16 bytes aligned)\n\
+					# (here we are 16 bytes aligned)\n\
 	   subq  $32, %%rsp		# Subtract another 32 bytes	\n\
-	   				# (shadow space for arg regs)	\n\
+					# (shadow space for arg regs)	\n\
 	   xorq  %%rbp, %%rbp		# Set rbp to 0			\n\
 	   # We moved to the new stack.					\n\
 	   # Now it's safe to release the OS stack.			\n\
@@ -502,24 +524,62 @@ pthread_wrapper (PVOID arg)
 /* We provide the stacks always in 1 Megabyte slots */
 #define THREAD_STACK_SLOT	0x100000L	/* 1 Meg */
 /* Maximum stack size returned from the pool. */
-#define THREAD_STACK_MAX	0x20000000L	/* 512 Megs */
+#define THREAD_STACK_MAX	0x10000000L	/* 256 Megs */
 
 class thread_allocator
 {
   UINT_PTR current;
-public:
-  thread_allocator () : current (THREAD_STORAGE_HIGH) {}
-  PVOID alloc (SIZE_T size)
+  PVOID (thread_allocator::*alloc_func) (SIZE_T);
+  PVOID _alloc (SIZE_T size)
+  {
+    MEM_ADDRESS_REQUIREMENTS thread_req = {
+      (PVOID) THREAD_STORAGE_LOW,
+      (PVOID) (THREAD_STORAGE_HIGH - 1),
+      THREAD_STACK_SLOT
+    };
+    MEM_EXTENDED_PARAMETER thread_ext = {
+      .Type = MemExtendedParameterAddressRequirements,
+      .Pointer = (PVOID) &thread_req
+    };
+    SIZE_T real_size = roundup2 (size, THREAD_STACK_SLOT);
+    PVOID real_stackaddr = NULL;
+
+    if (real_size <= THREAD_STACK_MAX)
+      real_stackaddr = VirtualAlloc2 (GetCurrentProcess(), NULL, real_size,
+				      MEM_RESERVE | MEM_TOP_DOWN,
+				      PAGE_READWRITE, &thread_ext, 1);
+    /* If the thread area allocation failed, or if the application requests a
+       monster stack, fulfill request from mmap area. */
+    if (!real_stackaddr)
+      {
+	MEM_ADDRESS_REQUIREMENTS mmap_req = {
+	  (PVOID) MMAP_STORAGE_LOW,
+	  (PVOID) (MMAP_STORAGE_HIGH - 1),
+	  THREAD_STACK_SLOT
+	};
+	MEM_EXTENDED_PARAMETER mmap_ext = {
+	  .Type = MemExtendedParameterAddressRequirements,
+	  .Pointer = (PVOID) &mmap_req
+	};
+	real_stackaddr = VirtualAlloc2 (GetCurrentProcess(), NULL, real_size,
+					MEM_RESERVE | MEM_TOP_DOWN,
+					PAGE_READWRITE, &mmap_ext, 1);
+      }
+    return real_stackaddr;
+  }
+  PVOID _alloc_old (SIZE_T size)
   {
     SIZE_T real_size = roundup2 (size, THREAD_STACK_SLOT);
     BOOL overflow = FALSE;
     PVOID real_stackaddr = NULL;
 
-    /* If an application requests a monster stack, we fulfill this request
-       from outside of our pool, top down. */
+    /* If an application requests a monster stack, fulfill request
+       from mmap area. */
     if (real_size > THREAD_STACK_MAX)
-      return VirtualAlloc (NULL, real_size, MEM_RESERVE | MEM_TOP_DOWN,
-			   PAGE_READWRITE);
+      {
+	PVOID addr = mmap_alloc.alloc (NULL, real_size, false);
+	return VirtualAlloc (addr, real_size, MEM_RESERVE, PAGE_READWRITE);
+      }
     /* Simple round-robin.  Keep looping until VirtualAlloc succeeded, or
        until we overflowed and hit the current address. */
     for (UINT_PTR addr = current - real_size;
@@ -554,6 +614,15 @@ public:
     else
       set_errno (EAGAIN);
     return real_stackaddr;
+  }
+public:
+  thread_allocator () : current (THREAD_STORAGE_HIGH)
+  {
+    alloc_func = wincap.has_extended_mem_api () ? &_alloc : &_alloc_old;
+  }
+  PVOID alloc (SIZE_T size)
+  {
+    return (this->*alloc_func) (size);
   }
 };
 

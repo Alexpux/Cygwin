@@ -73,15 +73,14 @@ details. */
 #undef _lseek64
 #undef _fstat64
 
-static int __stdcall mknod_worker (const char *, mode_t, mode_t, _major_t,
-				   _minor_t);
+static int mknod_worker (path_conv &, mode_t, _major_t, _minor_t);
 
 /* Close all files and process any queued deletions.
    Lots of unix style applications will open a tmp file, unlink it,
    but never call close.  This function is called by _exit to
    ensure we don't leave any such files lying around.  */
 
-void __stdcall
+void
 close_all_files (bool norelease)
 {
   cygheap->fdtab.lock ();
@@ -327,7 +326,7 @@ try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access, ULONG flags)
     }
   else
     {
-      /* Create unique filename.  Start with a dot, followed by "cyg"
+      /* Create unique filename.  Start with a dot, followed by "msys"
 	 transposed into the Unicode low surrogate area (U+dc00) on file
 	 systems supporting Unicode (except Samba), followed by the inode
 	 number in hex, followed by a path hash in hex.  The combination
@@ -335,7 +334,7 @@ try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access, ULONG flags)
       RtlAppendUnicodeToString (&recycler,
 				(pc.fs_flags () & FILE_UNICODE_ON_DISK
 				 && !pc.fs_is_samba ())
-				? L".\xdc63\xdc79\xdc67" : L".cyg");
+				? L".\xdc6d\xdc73\xdc79\xdc73" : L".msys");
       pfii = (PFILE_INTERNAL_INFORMATION) infobuf;
       status = NtQueryInformationFile (fh, &io, pfii, sizeof *pfii,
 				       FileInternalInformation);
@@ -1470,7 +1469,7 @@ open (const char *unix_path, int flags, ...)
 
       if (!(fh = build_fh_name (unix_path, opt, stat_suffixes)))
 	__leave;		/* errno already set */
-      if ((flags & O_NOFOLLOW) && fh->issymlink ())
+      if ((flags & O_NOFOLLOW) && fh->issymlink () && !(flags & O_PATH))
 	{
 	  set_errno (ELOOP);
 	  __leave;
@@ -1773,14 +1772,15 @@ umask (mode_t mask)
   return oldmask;
 }
 
+#define FILTERED_MODE(m)	((m) & (S_ISUID | S_ISGID | S_ISVTX \
+					| S_IRWXU | S_IRWXG | S_IRWXO))
+
 int
 chmod_device (path_conv& pc, mode_t mode)
 {
-  return mknod_worker (pc.get_win32 (), pc.dev.mode () & S_IFMT, mode, pc.dev.get_major (), pc.dev.get_minor ());
+  return mknod_worker (pc, (pc.dev.mode () & S_IFMT) | FILTERED_MODE (mode),
+		       pc.dev.get_major (), pc.dev.get_minor ());
 }
-
-#define FILTERED_MODE(m)	((m) & (S_ISUID | S_ISGID | S_ISVTX \
-					| S_IRWXU | S_IRWXG | S_IRWXO))
 
 /* chmod: POSIX 5.6.4.1 */
 extern "C" int
@@ -3364,14 +3364,12 @@ ptsname_r (int fd, char *buf, size_t buflen)
   return cfd->ptsname_r (buf, buflen);
 }
 
-static int __stdcall
-mknod_worker (const char *path, mode_t type, mode_t mode, _major_t major,
-	      _minor_t minor)
+static int
+mknod_worker (path_conv &pc, mode_t mode, _major_t major, _minor_t minor)
 {
   char buf[sizeof (":\\00000000:00000000:00000000") + PATH_MAX];
-  sprintf (buf, ":\\%x:%x:%x", major, minor,
-	   type | (mode & (S_IRWXU | S_IRWXG | S_IRWXO)));
-  return symlink_worker (buf, path, true);
+  sprintf (buf, ":\\%x:%x:%x", major, minor, mode);
+  return symlink_worker (buf, pc, true);
 }
 
 extern "C" int
@@ -3388,12 +3386,17 @@ mknod32 (const char *path, mode_t mode, dev_t dev)
       if (strlen (path) >= PATH_MAX)
 	__leave;
 
-      path_conv w32path (path, PC_SYM_NOFOLLOW);
-      if (w32path.exists ())
-	{
-	  set_errno (EEXIST);
-	  __leave;
-	}
+      /* Trailing dirsep is a no-no, only errno differs. */
+      bool has_trailing_dirsep = isdirsep (path[strlen (path) - 1]);
+
+      path_conv w32path (path, PC_SYM_NOFOLLOW | PC_SYM_NOFOLLOW_DIR
+			       | PC_POSIX, stat_suffixes);
+
+      if (w32path.exists () || has_trailing_dirsep)
+        {
+          set_errno (w32path.exists () ? EEXIST : ENOENT);
+          __leave;
+        }
 
       mode_t type = mode & S_IFMT;
       _major_t major = _major (dev);
@@ -3424,7 +3427,7 @@ mknod32 (const char *path, mode_t mode, dev_t dev)
 	  __leave;
 	}
 
-      return mknod_worker (w32path.get_win32 (), type, mode, major, minor);
+      return mknod_worker (w32path, mode, major, minor);
     }
   __except (EFAULT)
   __endtry
@@ -3977,7 +3980,12 @@ getpriority (int which, id_t who)
       if (!who)
 	who = myself->pid;
       if ((pid_t) who == myself->pid)
-	return myself->nice;
+        {
+          DWORD winprio = GetPriorityClass(GetCurrentProcess());
+          if (winprio != nice_to_winprio(myself->nice))
+            myself->nice = winprio_to_nice(winprio);
+          return myself->nice;
+        }
       break;
     case PRIO_PGRP:
       if (!who)
@@ -4548,7 +4556,7 @@ popen (const char *command, const char *in_type)
       fcntl64 (stdchild, F_SETFD, stdchild_state | FD_CLOEXEC);
 
       /* Start a shell process to run the given command without forking. */
-      pid_t pid = ch_spawn.worker ("/bin/sh", argv, cur_environ (), _P_NOWAIT,
+      pid_t pid = ch_spawn.worker ("/usr/bin/sh", argv, cur_environ (), _P_NOWAIT,
 				   __std[0], __std[1]);
 
       /* Reinstate the close-on-exec state */
@@ -4780,14 +4788,36 @@ fchownat (int dirfd, const char *pathname, uid_t uid, gid_t gid, int flags)
   tmp_pathbuf tp;
   __try
     {
-      if (flags & ~AT_SYMLINK_NOFOLLOW)
+      if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
 	{
 	  set_errno (EINVAL);
 	  __leave;
 	}
       char *path = tp.c_get ();
-      if (gen_full_path_at (path, dirfd, pathname))
-	__leave;
+      int res = gen_full_path_at (path, dirfd, pathname);
+      if (res)
+	{
+	  if (!(errno == ENOENT && (flags & AT_EMPTY_PATH)))
+	    __leave;
+	  /* pathname is an empty string.  Operate on dirfd. */
+	  if (dirfd == AT_FDCWD)
+	    {
+	      cwdstuff::cwd_lock.acquire ();
+	      strcpy (path, cygheap->cwd.get_posix ());
+	      cwdstuff::cwd_lock.release ();
+	    }
+	  else
+	    {
+	      cygheap_fdget cfd (dirfd);
+	      if (cfd < 0)
+		__leave;
+	      strcpy (path, cfd->get_name ());
+	      /* If dirfd refers to a symlink (which was necessarily
+		 opened with O_PATH | O_NOFOLLOW), we must operate
+		 directly on that symlink.. */
+	      flags = AT_SYMLINK_NOFOLLOW;
+	    }
+	}
       return chown_worker (path, (flags & AT_SYMLINK_NOFOLLOW)
 				 ? PC_SYM_NOFOLLOW : PC_SYM_FOLLOW, uid, gid);
     }
@@ -4803,14 +4833,27 @@ fstatat (int dirfd, const char *__restrict pathname, struct stat *__restrict st,
   tmp_pathbuf tp;
   __try
     {
-      if (flags & ~AT_SYMLINK_NOFOLLOW)
+      if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
 	{
 	  set_errno (EINVAL);
 	  __leave;
 	}
       char *path = tp.c_get ();
-      if (gen_full_path_at (path, dirfd, pathname))
-	__leave;
+      int res = gen_full_path_at (path, dirfd, pathname);
+      if (res)
+	{
+	  if (!(errno == ENOENT && (flags & AT_EMPTY_PATH)))
+	    __leave;
+	  /* pathname is an empty string.  Operate on dirfd. */
+	  if (dirfd == AT_FDCWD)
+	    {
+	      cwdstuff::cwd_lock.acquire ();
+	      strcpy (path, cygheap->cwd.get_posix ());
+	      cwdstuff::cwd_lock.release ();
+	    }
+	  else
+	    return fstat (dirfd, st);
+	}
       path_conv pc (path, ((flags & AT_SYMLINK_NOFOLLOW)
 			   ? PC_SYM_NOFOLLOW : PC_SYM_FOLLOW)
 			  | PC_POSIX | PC_KEEP_HANDLE, stat_suffixes);
@@ -4974,8 +5017,23 @@ readlinkat (int dirfd, const char *__restrict pathname, char *__restrict buf,
   __try
     {
       char *path = tp.c_get ();
-      if (gen_full_path_at (path, dirfd, pathname))
-	__leave;
+      int res = gen_full_path_at (path, dirfd, pathname);
+      if (res)
+	{
+	  if (errno != ENOENT)
+	    __leave;
+	  /* pathname is an empty string.  This is OK if dirfd refers
+	     to a symlink that was opened with O_PATH | O_NOFOLLOW.
+	     In this case, readlinkat operates on the symlink. */
+	  cygheap_fdget cfd (dirfd);
+	  if (cfd < 0)
+	    __leave;
+	  if (!(cfd->issymlink ()
+		&& cfd->get_flags () & O_PATH
+		&& cfd->get_flags () & O_NOFOLLOW))
+	    __leave;
+	  strcpy (path, cfd->get_name ());
+	}
       return readlink (path, buf, bufsize);
     }
   __except (EFAULT) {}

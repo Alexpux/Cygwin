@@ -34,10 +34,25 @@
 #include <unistd.h>
 #include <sys/param.h>
 #include <windows.h>
+#include <psapi.h>
 
 #include "dumper.h"
 
 #define NOTE_NAME_SIZE 16
+
+#ifdef bfd_get_section_size
+/* for bfd < 2.34 */
+#define get_section_name(abfd, sect) bfd_get_section_name (abfd, sect)
+#define get_section_size(sect) bfd_get_section_size(sect)
+#define set_section_size(abfd, sect, size) bfd_set_section_size(abfd, sect, size)
+#define set_section_flags(abfd, sect, flags) bfd_set_section_flags(abfd, sect, flags)
+#else
+/* otherwise bfd >= 2.34 */
+#define get_section_name(afbd, sect) bfd_section_name (sect)
+#define get_section_size(sect) bfd_section_size(sect)
+#define set_section_size(abfd, sect, size) bfd_set_section_size(sect, size)
+#define set_section_flags(abfd, sect, flags) bfd_set_section_flags(sect, flags)
+#endif
 
 typedef struct _note_header
   {
@@ -50,6 +65,7 @@ __attribute__ ((packed))
   note_header;
 
 BOOL verbose = FALSE;
+BOOL nokill = FALSE;
 
 int deb_printf (const char *format,...)
 {
@@ -69,7 +85,6 @@ dumper::dumper (DWORD pid, DWORD tid, const char *file_name)
   this->pid = pid;
   this->tid = tid;
   core_bfd = NULL;
-  excl_list = new exclusion (20);
 
   list = last = NULL;
 
@@ -111,19 +126,16 @@ dumper::close ()
 {
   if (core_bfd)
     bfd_close (core_bfd);
-  if (excl_list)
-    delete excl_list;
   if (hProcess)
     CloseHandle (hProcess);
   core_bfd = NULL;
   hProcess = NULL;
-  excl_list = NULL;
 }
 
 int
 dumper::sane ()
 {
-  if (hProcess == NULL || core_bfd == NULL || excl_list == NULL)
+  if (hProcess == NULL || core_bfd == NULL)
     return 0;
   return 1;
 }
@@ -131,7 +143,7 @@ dumper::sane ()
 void
 print_section_name (bfd* abfd, asection* sect, PTR obj)
 {
-  deb_printf (" %s", bfd_get_section_name (abfd, sect));
+  deb_printf (" %s", get_section_name (abfd, sect));
 }
 
 void
@@ -212,42 +224,6 @@ dumper::add_mem_region (LPBYTE base, SIZE_T size)
   return 1;
 }
 
-/* split_add_mem_region scans list of regions to be excluded from dumping process
-   (excl_list) and removes all "excluded" parts from given region. */
-int
-dumper::split_add_mem_region (LPBYTE base, SIZE_T size)
-{
-  if (!sane ())
-    return 0;
-
-  if (base == NULL || size == 0)
-    return 1;			// just ignore empty regions
-
-  LPBYTE last_base = base;
-
-  for (process_mem_region * p = excl_list->region;
-       p < excl_list->region + excl_list->last;
-       p++)
-    {
-      if (p->base >= base + size || p->base + p->size <= base)
-	continue;
-
-      if (p->base <= base)
-	{
-	  last_base = p->base + p->size;
-	  continue;
-	}
-
-      add_mem_region (last_base, p->base - last_base);
-      last_base = p->base + p->size;
-    }
-
-  if (last_base < base + size)
-    add_mem_region (last_base, base + size - last_base);
-
-  return 1;
-}
-
 int
 dumper::add_module (LPVOID base_address)
 {
@@ -267,13 +243,47 @@ dumper::add_module (LPVOID base_address)
   new_entity->u.module.base_address = base_address;
   new_entity->u.module.name = module_name;
 
-  parse_pe (module_name, excl_list);
-
   deb_printf ("added module %p %s\n", base_address, module_name);
   return 1;
 }
 
 #define PAGE_BUFFER_SIZE 4096
+
+void protect_dump(DWORD protect, char *buf)
+{
+  const char *pt[10];
+  pt[0] = (protect & PAGE_READONLY) ? "RO " : "";
+  pt[1] = (protect & PAGE_READWRITE) ? "RW " : "";
+  pt[2] = (protect & PAGE_WRITECOPY) ? "WC " : "";
+  pt[3] = (protect & PAGE_EXECUTE) ? "EX " : "";
+  pt[4] = (protect & PAGE_EXECUTE_READ) ? "EXRO " : "";
+  pt[5] = (protect & PAGE_EXECUTE_READWRITE) ? "EXRW " : "";
+  pt[6] = (protect & PAGE_EXECUTE_WRITECOPY) ? "EXWC " : "";
+  pt[7] = (protect & PAGE_GUARD) ? "GRD " : "";
+  pt[8] = (protect & PAGE_NOACCESS) ? "NA " : "";
+  pt[9] = (protect & PAGE_NOCACHE) ? "NC " : "";
+
+  buf[0] = '\0';
+  for (int i = 0; i < 10; i++)
+    strcat (buf, pt[i]);
+}
+
+#define PSWSEI_ATTRIB_SHARED (0x1 << 15)
+
+static BOOL
+getRegionAttributes(HANDLE hProcess, LPVOID address, DWORD &attribs)
+{
+  PSAPI_WORKING_SET_EX_INFORMATION pswsei = { address };
+
+  if (QueryWorkingSetEx(hProcess, &pswsei, sizeof(pswsei)))
+    {
+      attribs = pswsei.VirtualAttributes.Flags;
+      return TRUE;
+    }
+
+  deb_printf("QueryWorkingSetEx failed status %08x\n", GetLastError());
+  return FALSE;
+}
 
 int
 dumper::collect_memory_sections ()
@@ -282,7 +292,7 @@ dumper::collect_memory_sections ()
     return 0;
 
   LPBYTE current_page_address;
-  LPBYTE last_base = (LPBYTE) 0xFFFFFFFF;
+  LPBYTE last_base = (LPBYTE) -1;
   SIZE_T last_size = (SIZE_T) 0;
   SIZE_T done;
 
@@ -293,16 +303,94 @@ dumper::collect_memory_sections ()
   if (hProcess == NULL)
     return 0;
 
-  for (current_page_address = 0; current_page_address < (LPBYTE) 0xFFFF0000;)
+  for (current_page_address = 0; current_page_address < (LPBYTE) -1;)
     {
       if (!VirtualQueryEx (hProcess, current_page_address, &mbi, sizeof (mbi)))
 	break;
 
       int skip_region_p = 0;
+      const char *disposition = "dumped";
 
-      if (mbi.Protect & (PAGE_NOACCESS | PAGE_GUARD) ||
-	  mbi.State != MEM_COMMIT)
-	skip_region_p = 1;
+      if (mbi.Type & MEM_IMAGE)
+	{
+	  DWORD attribs = 0;
+	  if (getRegionAttributes(hProcess, current_page_address, attribs))
+	    {
+	      if (attribs & PSWSEI_ATTRIB_SHARED)
+		{
+		  skip_region_p = 1;
+		  disposition = "skipped due to shared MEM_IMAGE";
+		}
+	    }
+	  /*
+	    The undocumented MemoryWorkingSetExInformation is allegedly
+	    supported since XP, so should always succeed, but if it fails,
+	    fallback to looking at region protection.
+	   */
+	  else if (!(mbi.Protect & (PAGE_EXECUTE_READWRITE | PAGE_READWRITE)))
+	    {
+	      skip_region_p = 1;
+	      disposition = "skipped due to non-writeable MEM_IMAGE";
+	    }
+	}
+
+      if (mbi.Protect & PAGE_NOACCESS)
+	{
+	  skip_region_p = 1;
+	  disposition = "skipped due to noaccess";
+	}
+
+      if (mbi.Protect & PAGE_GUARD)
+	{
+	  skip_region_p = 1;
+	  disposition = "skipped due to guardpage";
+	}
+
+      if (mbi.State != MEM_COMMIT)
+	{
+	  skip_region_p = 1;
+	  disposition = "skipped due to uncommited";
+	}
+
+      {
+	char buf[10 * 6];
+	protect_dump(mbi.Protect, buf);
+
+	const char *state = "";
+	const char *type = "";
+
+	if (mbi.State & MEM_COMMIT)
+	  {
+	    state = "COMMIT";
+	  }
+	else if (mbi.State & MEM_FREE)
+	  {
+	    state = "FREE";
+	    type = "FREE";
+	  }
+	else if (mbi.State & MEM_RESERVE)
+	  {
+	    state = "RESERVE";
+	  }
+
+	if (mbi.Type & MEM_IMAGE)
+	  {
+	    type = "IMAGE";
+	  }
+	else if (mbi.Type & MEM_MAPPED)
+	  {
+	    type = "MAPPED";
+	  }
+	else if (mbi.Type & MEM_PRIVATE)
+	  {
+	    type = "PRIVATE";
+	  }
+
+	deb_printf ("region 0x%016lx-0x%016lx (protect = %-8s, state = %-7s, type = %-7s, %s)\n",
+		    current_page_address,
+		    current_page_address + mbi.RegionSize,
+		    buf, state, type, disposition);
+      }
 
       if (!skip_region_p)
 	{
@@ -312,26 +400,11 @@ dumper::collect_memory_sections ()
 	  if (!ReadProcessMemory (hProcess, current_page_address, mem_buf, sizeof (mem_buf), &done))
 	    {
 	      DWORD err = GetLastError ();
-	      const char *pt[10];
-	      pt[0] = (mbi.Protect & PAGE_READONLY) ? "RO " : "";
-	      pt[1] = (mbi.Protect & PAGE_READWRITE) ? "RW " : "";
-	      pt[2] = (mbi.Protect & PAGE_WRITECOPY) ? "WC " : "";
-	      pt[3] = (mbi.Protect & PAGE_EXECUTE) ? "EX " : "";
-	      pt[4] = (mbi.Protect & PAGE_EXECUTE_READ) ? "EXRO " : "";
-	      pt[5] = (mbi.Protect & PAGE_EXECUTE_READWRITE) ? "EXRW " : "";
-	      pt[6] = (mbi.Protect & PAGE_EXECUTE_WRITECOPY) ? "EXWC " : "";
-	      pt[7] = (mbi.Protect & PAGE_GUARD) ? "GRD " : "";
-	      pt[8] = (mbi.Protect & PAGE_NOACCESS) ? "NA " : "";
-	      pt[9] = (mbi.Protect & PAGE_NOCACHE) ? "NC " : "";
-	      char buf[10 * 6];
-	      buf[0] = '\0';
-	      for (int i = 0; i < 10; i++)
-		strcat (buf, pt[i]);
 
-	      deb_printf ("warning: failed to read memory at %p-%p (protect = %s), error %ld.\n",
+	      deb_printf ("warning: failed to read memory at %p-%p, error %ld.\n",
 			  current_page_address,
 			  current_page_address + mbi.RegionSize,
-			  buf, err);
+			  err);
 	      skip_region_p = 1;
 	    }
 	}
@@ -342,14 +415,14 @@ dumper::collect_memory_sections ()
 	    last_size += mbi.RegionSize;
 	  else
 	    {
-	      split_add_mem_region (last_base, last_size);
+	      add_mem_region (last_base, last_size);
 	      last_base = (LPBYTE) mbi.BaseAddress;
 	      last_size = mbi.RegionSize;
 	    }
 	}
       else
 	{
-	  split_add_mem_region (last_base, last_size);
+	  add_mem_region (last_base, last_size);
 	  last_base = NULL;
 	  last_size = 0;
 	}
@@ -358,7 +431,7 @@ dumper::collect_memory_sections ()
     }
 
   /* dump last sections, if any */
-  split_add_mem_region (last_base, last_size);
+  add_mem_region (last_base, last_size);
   return 1;
 };
 
@@ -488,7 +561,11 @@ dumper::dump_module (asection * to, process_module * module)
   strncpy (header.elf_note_header.name, "win32module", NOTE_NAME_SIZE);
 #pragma GCC diagnostic pop
 
+#ifdef __x86_64__
+  module_pstatus_ptr->data_type = NOTE_INFO_MODULE64;
+#else
   module_pstatus_ptr->data_type = NOTE_INFO_MODULE;
+#endif
   module_pstatus_ptr->data.module_info.base_address = module->base_address;
   module_pstatus_ptr->data.module_info.module_name_size = strlen (module->name) + 1;
   strcpy (module_pstatus_ptr->data.module_info.module_name, module->name);
@@ -516,8 +593,6 @@ out:
 int
 dumper::collect_process_information ()
 {
-  int exception_level = 0;
-
   if (!sane ())
     return 0;
 
@@ -528,15 +603,11 @@ dumper::collect_process_information ()
       return 0;
     }
 
-  char event_name[sizeof ("cygwin_error_start_event") + 20];
-  sprintf (event_name, "cygwin_error_start_event%16x", (unsigned int) pid);
-  HANDLE sync_with_debugee = OpenEvent (EVENT_MODIFY_STATE, FALSE, event_name);
-
   DEBUG_EVENT current_event;
 
   while (1)
     {
-      if (!WaitForDebugEvent (&current_event, 20000))
+      if (!WaitForDebugEvent (&current_event, INFINITE))
 	return 0;
 
       deb_printf ("got debug event %d\n", current_event.dwDebugEventCode);
@@ -580,12 +651,6 @@ dumper::collect_process_information ()
 
 	case EXCEPTION_DEBUG_EVENT:
 
-	  exception_level++;
-	  if (exception_level == 2)
-	    break;
-	  else if (exception_level > 2)
-	    return 0;
-
 	  collect_memory_sections ();
 
 	  /* got all info. time to dump */
@@ -602,9 +667,8 @@ dumper::collect_process_information ()
 	      goto failed;
 	    };
 
-	  /* signal a debugee that we've finished */
-	  if (sync_with_debugee)
-	    SetEvent (sync_with_debugee);
+	  /* We're done */
+	  goto failed;
 
 	  break;
 
@@ -618,10 +682,18 @@ dumper::collect_process_information ()
 			  current_event.dwThreadId,
 			  DBG_CONTINUE);
     }
+
 failed:
-  /* set debugee free */
-  if (sync_with_debugee)
-    SetEvent (sync_with_debugee);
+  if (nokill)
+    {
+      if (!DebugActiveProcessStop (pid))
+	{
+	  fprintf (stderr, "Cannot detach from process #%u, error %ld",
+		   (unsigned int) pid, (long) GetLastError ());
+	}
+    }
+  /* Otherwise, the debuggee is terminated when this process exits
+     (as DebugSetProcessKillOnExit() defaults to TRUE) */
 
   return 0;
 }
@@ -631,7 +703,13 @@ dumper::init_core_dump ()
 {
   bfd_init ();
 
-  core_bfd = bfd_openw (file_name, "elf32-i386");
+#ifdef __x86_64__
+  const char *target = "elf64-x86-64";
+#else
+  const char *target = "elf32-i386";
+#endif
+
+  core_bfd = bfd_openw (file_name, target);
   if (core_bfd == NULL)
     {
       bfd_perror ("opening bfd");
@@ -644,7 +722,7 @@ dumper::init_core_dump ()
       goto failed;
     }
 
-  if (!bfd_set_arch_mach (core_bfd, bfd_arch_i386, 0))
+  if (!bfd_set_arch_mach (core_bfd, bfd_arch_i386, 0 /* = default */))
     {
       bfd_perror ("setting bfd architecture");
       goto failed;
@@ -712,10 +790,10 @@ dumper::prepare_core_dump ()
 
       if (p->type == pr_ent_module && status_section != NULL)
 	{
-	  if (!bfd_set_section_size (core_bfd,
-				     status_section,
-				     (bfd_get_section_size (status_section)
-				      + sect_size)))
+	  if (!set_section_size (core_bfd,
+				 status_section,
+				 (get_section_size (status_section)
+				  + sect_size)))
 	    {
 	      bfd_perror ("resizing status section");
 	      goto failed;
@@ -738,8 +816,8 @@ dumper::prepare_core_dump ()
 	  goto failed;
 	}
 
-      if (!bfd_set_section_flags (core_bfd, new_section, sect_flags) ||
-	  !bfd_set_section_size (core_bfd, new_section, sect_size))
+      if (!set_section_flags (core_bfd, new_section, sect_flags) ||
+	  !set_section_size (core_bfd, new_section, sect_size))
 	{
 	  bfd_perror ("setting section attributes");
 	  goto failed;
@@ -823,7 +901,7 @@ dumper::write_core_dump ()
       deb_printf ("writing section type=%u base=%p size=%p flags=%08x\n",
 		  p->type,
 		  p->section->vma,
-		  bfd_get_section_size (p->section),
+		  get_section_size (p->section),
 		  p->section->flags);
 
       switch (p->type)
@@ -848,7 +926,7 @@ dumper::write_core_dump ()
   return 1;
 }
 
-static void
+static void __attribute__ ((__noreturn__))
 usage (FILE *stream, int status)
 {
   fprintf (stream, "\
@@ -856,6 +934,7 @@ Usage: %s [OPTION] FILENAME WIN32PID\n\
 \n\
 Dump core from WIN32PID to FILENAME.core\n\
 \n\
+ -n, --nokill   don't terminate the dumped process\n\
  -d, --verbose  be verbose while dumping\n\
  -h, --help     output help information and exit\n\
  -q, --quiet    be quiet while dumping (default)\n\
@@ -865,13 +944,14 @@ Dump core from WIN32PID to FILENAME.core\n\
 }
 
 struct option longopts[] = {
+  {"nokill", no_argument, NULL, 'n'},
   {"verbose", no_argument, NULL, 'd'},
   {"help", no_argument, NULL, 'h'},
   {"quiet", no_argument, NULL, 'q'},
   {"version", no_argument, 0, 'V'},
   {0, no_argument, NULL, 0}
 };
-const char *opts = "dhqV";
+const char *opts = "ndhqV";
 
 static void
 print_version ()
@@ -897,6 +977,9 @@ main (int argc, char **argv)
   while ((opt = getopt_long (argc, argv, opts, longopts, NULL) ) != EOF)
     switch (opt)
       {
+      case 'n':
+	nokill = TRUE;
+	break;
       case 'd':
 	verbose = TRUE;
 	break;

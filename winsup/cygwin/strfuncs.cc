@@ -410,9 +410,9 @@ __big5_mbtowc (struct _reent *r, wchar_t *pwc, const char *s, size_t n,
        to buffer size, it's a bug in Cygwin and the buffer in the calling
        function should be raised.
 */
-static size_t __reg3
-sys_wcstombs (char *dst, size_t len, const wchar_t *src, size_t nwc,
-	      bool is_path)
+size_t
+_sys_wcstombs (char *dst, size_t len, const wchar_t *src, size_t nwc,
+	       bool is_path)
 {
   char buf[10];
   char *ptr = dst;
@@ -436,7 +436,7 @@ sys_wcstombs (char *dst, size_t len, const wchar_t *src, size_t nwc,
       /* Convert UNICODE private use area.  Reverse functionality for the
 	 ASCII area <= 0x7f (only for path names) is transform_chars above.
 	 Reverse functionality for invalid bytes in a multibyte sequence is
-	 in sys_cp_mbstowcs below. */
+	 in _sys_mbstowcs below. */
       if (is_path && (pw & 0xff00) == 0xf000
 	  && (((cwc = (pw & 0xff)) <= 0x7f && tfx_rev_chars[cwc] >= 0xf000)
 	      || (cwc >= 0x80 && MB_CUR_MAX > 1)))
@@ -498,18 +498,6 @@ sys_wcstombs (char *dst, size_t len, const wchar_t *src, size_t nwc,
   return n;
 }
 
-size_t __reg3
-sys_wcstombs (char *dst, size_t len, const wchar_t * src, size_t nwc)
-{
-  return sys_wcstombs (dst, len, src, nwc, true);
-}
-
-size_t __reg3
-sys_wcstombs_no_path (char *dst, size_t len, const wchar_t * src, size_t nwc)
-{
-  return sys_wcstombs (dst, len, src, nwc, false);
-}
-
 /* Allocate a buffer big enough for the string, always including the
    terminating '\0'.  The buffer pointer is returned in *dst_p, the return
    value is the number of bytes written to the buffer, as usual.
@@ -520,13 +508,13 @@ sys_wcstombs_no_path (char *dst, size_t len, const wchar_t * src, size_t nwc)
    Note that this code is shared by cygserver (which requires it via
    __small_vsprintf) and so when built there plain calloc is the
    only choice.  */
-static size_t __reg3
-sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc,
+size_t
+_sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc,
 		bool is_path)
 {
   size_t ret;
 
-  ret = sys_wcstombs (NULL, (size_t) -1, src, nwc, is_path);
+  ret = _sys_wcstombs (NULL, (size_t) -1, src, nwc, is_path);
   if (ret > 0)
     {
       size_t dlen = ret + 1;
@@ -537,32 +525,19 @@ sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc,
 	*dst_p = (char *) ccalloc ((cygheap_types) type, dlen, sizeof (char));
       if (!*dst_p)
 	return 0;
-      ret = sys_wcstombs (*dst_p, dlen, src, nwc, is_path);
+      ret = _sys_wcstombs (*dst_p, dlen, src, nwc, is_path);
     }
   return ret;
 }
 
-size_t __reg3
-sys_wcstombs_alloc (char **dst_p, int type, const wchar_t *src, size_t nwc)
-{
-  return sys_wcstombs_alloc (dst_p, type, src, nwc, true);
-}
-
-size_t __reg3
-sys_wcstombs_alloc_no_path (char **dst_p, int type, const wchar_t *src,
-		size_t nwc)
-{
-  return sys_wcstombs_alloc (dst_p, type, src, nwc, false);
-}
-
-/* sys_cp_mbstowcs is actually most of the time called as sys_mbstowcs with
+/* _sys_mbstowcs is actually most of the time called as sys_mbstowcs with
    a 0 codepage.  If cp is not 0, the codepage is evaluated and used for the
    conversion.  This is so that fhandler_console can switch to an alternate
    charset, which is the charset returned by GetConsoleCP ().  Most of the
    time this is used for box and line drawing characters. */
-size_t __reg3
-sys_cp_mbstowcs (mbtowc_p f_mbtowc, wchar_t *dst, size_t dlen,
-		 const char *src, size_t nms)
+size_t
+_sys_mbstowcs (mbtowc_p f_mbtowc, wchar_t *dst, size_t dlen, const char *src,
+	       size_t nms)
 {
   wchar_t *ptr = dst;
   unsigned const char *pmbs = (unsigned const char *) src;
@@ -635,13 +610,17 @@ sys_cp_mbstowcs (mbtowc_p f_mbtowc, wchar_t *dst, size_t dlen,
 	  /* The technique is based on a discussion here:
 	     http://www.mail-archive.com/linux-utf8@nl.linux.org/msg00080.html
 
-	     Invalid bytes in a multibyte secuence are converted to
+	     Invalid bytes in a multibyte sequence are converted to
 	     the private use area which is already used to store ASCII
 	     chars invalid in Windows filenames.  This technque allows
 	     to store them in a symmetric way. */
 	  bytes = 1;
 	  if (dst)
+#ifdef STRICTLY_7BIT_ASCII
 	    *ptr = L'\xf000' | *pmbs;
+#else
+	    *ptr = *pmbs;
+#endif
 	  memset (&ps, 0, sizeof ps);
 	}
 
@@ -670,17 +649,8 @@ sys_cp_mbstowcs (mbtowc_p f_mbtowc, wchar_t *dst, size_t dlen,
   return count;
 }
 
-size_t __reg3
-sys_mbstowcs (wchar_t * dst, size_t dlen, const char *src, size_t nms)
-{
-  mbtowc_p f_mbtowc = __MBTOWC;
-  if (f_mbtowc == __ascii_mbtowc)
-    f_mbtowc = __utf8_mbtowc;
-  return sys_cp_mbstowcs (f_mbtowc, dst, dlen, src, nms);
-}
-
 /* Same as sys_wcstombs_alloc, just backwards. */
-size_t __reg3
+size_t
 sys_mbstowcs_alloc (wchar_t **dst_p, int type, const char *src, size_t nms)
 {
   size_t ret;
@@ -801,14 +771,18 @@ extern "C" int __stdcall
 cygwin_strcasecmp (const char *cs, const char *ct)
 {
   UNICODE_STRING us, ut;
-  ULONG len;
+  ULONG len, ulen;
 
-  len = (strlen (cs) + 1) * sizeof (WCHAR);
-  RtlInitEmptyUnicodeString (&us, (PWCHAR) alloca (len), len);
-  us.Length = sys_mbstowcs (us.Buffer, us.MaximumLength, cs) * sizeof (WCHAR);
-  len = (strlen (ct) + 1) * sizeof (WCHAR);
-  RtlInitEmptyUnicodeString (&ut, (PWCHAR) alloca (len), len);
-  ut.Length = sys_mbstowcs (ut.Buffer, ut.MaximumLength, ct) * sizeof (WCHAR);
+  len = strlen (cs) + 1;
+  ulen = len * sizeof (WCHAR);
+  RtlInitEmptyUnicodeString (&us, (PWCHAR) alloca (ulen), ulen);
+  us.Length = sys_mbstowcs (us.Buffer, len, cs) * sizeof (WCHAR);
+
+  len = strlen (ct) + 1;
+  ulen = len * sizeof (WCHAR);
+  RtlInitEmptyUnicodeString (&ut, (PWCHAR) alloca (ulen), ulen);
+  ut.Length = sys_mbstowcs (ut.Buffer, len, ct) * sizeof (WCHAR);
+
   return RtlCompareUnicodeString (&us, &ut, TRUE);
 }
 
@@ -816,19 +790,21 @@ extern "C" int __stdcall
 cygwin_strncasecmp (const char *cs, const char *ct, size_t n)
 {
   UNICODE_STRING us, ut;
-  ULONG len;
+  ULONG ulen;
   size_t ls = 0, lt = 0;
 
   while (cs[ls] && ls < n)
     ++ls;
-  len = (ls + 1) * sizeof (WCHAR);
-  RtlInitEmptyUnicodeString (&us, (PWCHAR) alloca (len), len);
+  ulen = (ls + 1) * sizeof (WCHAR);
+  RtlInitEmptyUnicodeString (&us, (PWCHAR) alloca (ulen), ulen);
   us.Length = sys_mbstowcs (us.Buffer, ls + 1, cs, ls) * sizeof (WCHAR);
+
   while (ct[lt] && lt < n)
     ++lt;
-  len = (lt + 1) * sizeof (WCHAR);
-  RtlInitEmptyUnicodeString (&ut, (PWCHAR) alloca (len), len);
+  ulen = (lt + 1) * sizeof (WCHAR);
+  RtlInitEmptyUnicodeString (&ut, (PWCHAR) alloca (ulen), ulen);
   ut.Length = sys_mbstowcs (ut.Buffer, lt + 1, ct, lt)  * sizeof (WCHAR);
+
   return RtlCompareUnicodeString (&us, &ut, TRUE);
 }
 

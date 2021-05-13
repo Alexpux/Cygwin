@@ -68,14 +68,6 @@ PORTABILITY
 	double z;
 	z=__ieee754_pow(x,y);
 	if(_LIB_VERSION == _IEEE_|| isnan(y)) return z;
-	if(isnan(x)) {
-	    if(y==0.0) { 
-		/* pow(NaN,0.0) */
-		/* Not an error.  */
-                return 1.0;
-	    } else 
-		return z;
-	}
 	if(x==0.0){ 
 	    if(y==0.0) {
 		/* pow(0.0,0.0) */
@@ -84,8 +76,7 @@ PORTABILITY
 	    }
 	    if(finite(y)&&y<0.0) {
 		/* 0**neg */
-		errno = EDOM;
-		return -HUGE_VAL;
+		errno = ERANGE;
 	    }
 	    return z;
 	}
@@ -94,20 +85,16 @@ PORTABILITY
 	        if(isnan(z)) {
 		    /* neg**non-integral */
 		    errno = EDOM;
-		    return 0.0/0.0;
 	        } else {
 		    /* pow(x,y) overflow */
 		    errno = ERANGE;
-		    if(x<0.0&&rint(y)!=y)
-		      return -HUGE_VAL;
-		    return HUGE_VAL;
                 }
+		return z;
 	    }
 	} 
 	if(z==0.0&&finite(x)&&finite(y)) {
 	    /* pow(x,y) underflow */
 	    errno = ERANGE;
-	    return 0.0;
         } 
 	return z;
 #endif

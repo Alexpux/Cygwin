@@ -27,7 +27,7 @@ export CCWRAP_HEADERS:=. ${srcdir}
 export CCWRAP_SYSTEM_HEADERS:=@cygwin_headers@ @newlib_headers@
 export CCWRAP_DIRAFTER_HEADERS:=@windows_headers@
 
-VPATH+=$(srcdir)/regex $(srcdir)/lib $(srcdir)/libc $(srcdir)/math
+VPATH+=$(srcdir)/regex $(srcdir)/lib $(srcdir)/libc $(srcdir)/math $(srcdir)/tzcode
 
 target_cpu:=@target_cpu@
 target_alias:=@target_alias@
@@ -73,11 +73,11 @@ CRT0:=$(cygwin_build)/crt0.o
 #
 MT_SAFE:=@MT_SAFE@
 CCEXTRA=
-COMMON_CFLAGS=-MMD ${$(*F)_CFLAGS} -Werror -fmerge-constants -ftracer $(CCEXTRA)
+COMMON_CFLAGS=-MMD ${$(*F)_CFLAGS} -Wimplicit-fallthrough=5 -Werror -fmerge-constants -ftracer $(CCEXTRA)
 ifeq ($(target_cpu),x86_64)
 COMMON_CFLAGS+=-mcmodel=small
 endif
-COMPILE.cc+=${COMMON_CFLAGS} -std=gnu++98
+COMPILE.cc+=${COMMON_CFLAGS} # -std=gnu++14
 COMPILE.c+=${COMMON_CFLAGS}
 
 AR:=@AR@
@@ -106,17 +106,17 @@ RUNTEST = `if [ -f $${srcdir}/../dejagnu/runtest ] ; then \
 	    else echo runtest; fi`
 RUNTESTFLAGS =
 
-# Parameters used in building the cygwin.dll.
-# We build as cygwin0.dll and rename at install time to overcome
+# Parameters used in building the msys.dll.
+# We build as msys0.dll and rename at install time to overcome
 # native rebuilding issues (we don't want the build tools to see a partially
-# built cygwin.dll and attempt to use it instead of the old one).
+# built msys.dll and attempt to use it instead of the old one).
 
 DLL_NAME:=@DLL_NAME@
-TEST_DLL_NAME:=${patsubst %1.dll,%0.dll,@DLL_NAME@}
-TEST_LIB_NAME:=libcygwin0.a
-STATIC_LIB_NAME:=libcygwin_s.a
+TEST_DLL_NAME:=${patsubst %-2.0.dll,%0.dll,@DLL_NAME@}
+TEST_LIB_NAME:=libmsys0.a
+STATIC_LIB_NAME:=libmsys2_s.a
 DIN_FILE=@DIN_FILE@ common.din
-DEF_FILE:=cygwin.def
+DEF_FILE:=msys.def
 TLSOFFSETS_H:=@TLSOFFSETS_H@
 DLL_ENTRY:=@DLL_ENTRY@
 
@@ -128,6 +128,7 @@ toolopts:=--cpu=${target_cpu} --ar=${AR} --as=${AS} --nm=${NM} --objcopy=${OBJCO
 speclib=\
     ${srcdir}/speclib ${toolopts} \
 	--exclude='cygwin' \
+	--exclude='msys' \
 	--exclude='(?i:dll)' \
 	--exclude='reloc' \
 	--exclude='^main$$' \
@@ -246,6 +247,8 @@ MATH_OFILES:= \
 	tgammal.o \
 	truncl.o
 
+TZCODE_OFILES:=localtime.o
+
 DLL_OFILES:= \
 	advapi32.o \
 	aio.o \
@@ -333,7 +336,6 @@ DLL_OFILES:= \
 	ldap.o \
 	libstdcxx_wrapper.o \
 	loadavg.o \
-	localtime.o \
 	lsearch.o \
 	malloc_wrapper.o \
 	minires-os-if.o \
@@ -344,6 +346,7 @@ DLL_OFILES:= \
 	mmap_alloc.o \
 	msg.o \
 	msgcat.o \
+	msys2_path_conv.o \
 	mount.o \
 	net.o \
 	netdb.o \
@@ -412,6 +415,7 @@ DLL_OFILES:= \
 	$(EXTRA_OFILES) \
 	$(MALLOC_OFILES) \
 	$(MATH_OFILES) \
+	$(TZCODE_OFILES) \
 	$(MT_SAFE_OBJECTS)
 
 EXCLUDE_STATIC_OFILES:=$(addprefix --exclude=,\
@@ -551,7 +555,7 @@ endif
 
 API_VER:=$(srcdir)/include/cygwin/version.h
 
-LIB_NAME:=libcygwin.a
+LIB_NAME:=libmsys-2.0.a
 SUBLIBS:=libpthread.a libutil.a ${CURDIR}/libm.a ${CURDIR}/libc.a libdl.a libresolv.a librt.a libacl.a libssp.a
 EXTRALIBS:=libautomode.a libbinmode.a libtextmode.a libtextreadmode.a
 INSTOBJS:=automode.o binmode.o textmode.o textreadmode.o
@@ -567,6 +571,8 @@ ifeq ($(target_cpu),i686)
 exceptions_CFLAGS:=-fno-omit-frame-pointer
 endif
 endif
+# required since gcc 9.x
+exec_CFLAGS:=-fno-builtin-execve
 
 fhandler_proc_CFLAGS+=-DUSERNAME="\"$(USER)\"" -DHOSTNAME="\"$(HOSTNAME)\""
 fhandler_proc_CFLAGS+=-DGCC_VERSION="\"`$(CC) -v 2>&1 | tail -n 1`\""
@@ -601,7 +607,8 @@ install-libs: $(TARGET_LIBS)
 	for i in $^; do \
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/lib/`basename $$i` ; \
 	done
-	cd $(DESTDIR)$(tooldir)/lib && ln -sf libcygwin.a libg.a
+	$(INSTALL_DATA) msys-2.0.dbg $(DESTDIR)$(bindir)/msys-2.0.dbg
+	cd $(DESTDIR)$(tooldir)/lib && ln -sf libmsys-2.0.a libg.a
 
 install-headers:
 	cd $(srcdir); \
@@ -666,7 +673,9 @@ uninstall-man:
 	done
 
 clean distclean realclean:
-	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc *.exe *.d *stamp* *_magic.h sigfe.s cygwin.def globals.h
+	-rm -f *.o *.dll *.dbg *.a *.exp junk *.base version.cc *.exe *.d \
+	       *stamp* *_magic.h sigfe.s msys.def cygwin.map cygwin.sc \
+	       globals.h localtime.patched.c
 	-@$(MAKE) -C ${cygserver_blddir} libclean
 
 maintainer-clean: clean
@@ -679,29 +688,29 @@ maintainer-clean: clean
 $(LDSCRIPT): $(LDSCRIPT).in
 	$(CC) -E - -P < $^ -o $@
 
-# Rule to build cygwin.dll
+# Rule to build msys-2.0.dll
 $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg $(DLL_OFILES) $(LIBSERVER) $(LIBC) $(LIBM) $(API_VER) Makefile $(VERSION_OFILES)
 	$(CXX) $(CXXFLAGS) \
 	-mno-use-libstdc-wrappers -L${WINDOWS_LIBDIR} \
 	-Wl,--gc-sections $(nostdlib) -Wl,-T$(firstword $^) -static \
-	-Wl,--heap=0 -Wl,--out-implib,cygdll.a -shared -o $@ \
+	-Wl,--heap=0 -Wl,--out-implib,msysdll.a -shared -o $@ \
 	-e $(DLL_ENTRY) $(DEF_FILE) $(DLL_OFILES) $(VERSION_OFILES) \
 	$(MALLOC_OBJ) $(LIBSERVER) $(LIBM) $(LIBC) \
-	-lgcc $(DLL_IMPORTS) -Wl,-Map,cygwin.map
-	@$(word 2,$^) $(OBJDUMP) $(OBJCOPY) $@ ${patsubst %0.dll,%1.dbg,$@}
+	-lgcc $(DLL_IMPORTS) -Wl,-Map,msys.map
+	@$(word 2,$^) $(OBJDUMP) $(OBJCOPY) $@ ${patsubst %0.dll,%-2.0.dbg,$@}
 	@ln -f $@ new-$(DLL_NAME)
 
-# Rule to build libcygwin.a
+# Rule to build libmsys-2.0.a
 $(LIB_NAME): $(DEF_FILE) $(LIBCOS) | $(TEST_DLL_NAME)
-	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ cygdll.a $(wordlist 2,99,$^)
+	${srcdir}/mkimport ${toolopts} ${NEW_FUNCTIONS} $@ msysdll.a $(wordlist 2,99,$^)
 
 ${STATIC_LIB_NAME}: mkstatic ${TEST_DLL_NAME}
-	perl -d $< -x ${EXCLUDE_STATIC_OFILES} --library=${LIBC} --library=${LIBM} --ar=${AR} $@ cygwin.map
+	perl -d $< -x ${EXCLUDE_STATIC_OFILES} --library=${LIBC} --library=${LIBM} --ar=${AR} $@ msys.map
 
 # Rule to make stub library used by testsuite
 # dependency set to $(LIB_NAME) to accommodate make -j2.
 $(TEST_LIB_NAME): $(LIB_NAME)
-	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/cygwin1/cygwin0/g' < $? > $@
+	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msys0/g' < $? > $@
 
 $(LIBSERVER): ${cygserver_blddir}/Makefile
 	$(MAKE) -C ${cygserver_blddir} libcygserver.a
@@ -729,6 +738,16 @@ child_info_magic.h: cygmagic child_info.h
 dcrt0.o sigproc.o: child_info_magic.h
 
 shared.o: shared_info_magic.h
+
+localtime.patched.c: tzcode/localtime.c tzcode/localtime.c.patch
+	patch -u -o localtime.patched.c \
+		    $(srcdir)/tzcode/localtime.c \
+		    $(srcdir)/tzcode/localtime.c.patch
+
+localtime.o: tzcode/localtime_wrapper.c localtime.patched.c
+	$(CC) ${COMMON_CFLAGS} ${localtime_CFLAGS} \
+		-I$(target_builddir)/winsup/cygwin \
+		-I$(srcdir) -I$(srcdir)/tzcode -c -o $@ $<
 
 $(srcdir)/devices.cc: gendevices devices.in devices.h
 	${wordlist 1,2,$^} $@

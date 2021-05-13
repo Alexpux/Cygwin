@@ -77,7 +77,7 @@ default_newlib_io_long_double=no
 default_newlib_io_pos_args=no
 default_newlib_atexit_dynamic_alloc=yes
 default_newlib_nano_malloc=no
-default_newlib_reent_check_verify=no
+default_newlib_reent_check_verify=yes
 aext=a
 oext=o
 lpfx="lib_a-"
@@ -87,7 +87,7 @@ case "${target_optspace}:${host}" in
   yes:*)
     newlib_cflags="${newlib_cflags} -Os"
     ;;
-  :m32r-* | :d10v-* | :d30v-* | :avr-* | :m32c-* | :msp430*-* | :nds32* | :rl78-* )
+  :m32r-* | :d10v-* | :d30v-* | :avr-* | :m32c-* | :msp430*-* | :nds32* | :pru-* | :rl78-* )
     newlib_cflags="${newlib_cflags} -Os"
     ;;
   no:* | :*)
@@ -191,7 +191,7 @@ case "${host_cpu}" in
   i[34567]86)
 	# Don't use for these since they provide their own setjmp.
 	case ${host} in
-	*-*-sco* | *-*-cygwin*) 
+	*-*-sco* | *-*-cygwin* | *-*-msys*)
 		libm_machine_dir=i386
 		machine_dir=i386
 		;;
@@ -247,6 +247,7 @@ case "${host_cpu}" in
 	;;
   mips*)
 	machine_dir=mips
+	libm_machine_dir=mips
 	;;
   mmix)
 	;;
@@ -290,6 +291,16 @@ case "${host_cpu}" in
 	;;
   powerpc*)
 	machine_dir=powerpc
+	libm_machine_dir=powerpc
+	;;
+  pru*)
+	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED"
+	newlib_cflags="${newlib_cflags} -DNO_EXEC"
+	newlib_cflags="${newlib_cflags} -DSMALL_MEMORY"
+	default_newlib_nano_malloc="yes"
+	default_newlib_atexit_dynamic_alloc="no"
+	machine_dir=pru
+	libm_machine_dir=pru
 	;;
   riscv*)
 	libm_machine_dir=riscv
@@ -312,6 +323,7 @@ case "${host_cpu}" in
 	machine_dir=sh
 	;;
   sparc*)
+	libm_machine_dir=sparc
 	machine_dir=sparc
 	# FIXME: Might wish to make MALLOC_ALIGNMENT more generic.
 	newlib_cflags="${newlib_cflags} -DMALLOC_ALIGNMENT=8"
@@ -386,7 +398,7 @@ fi
 
 if [ "x${newlib_mb}" = "x" ]; then
 	case "${host}" in
-  	  i[34567]86-pc-linux-*|*-*-cygwin*)
+  	  i[34567]86-pc-linux-*|*-*-cygwin*|*-*-msys*)
 		newlib_mb=yes
 	  	;;
 	esac
@@ -420,7 +432,7 @@ esac
 # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
 
 case "${host}" in
-  *-*-cygwin*)
+  *-*-cygwin* | *-*-msys*)
 	posix_dir=posix
 	stdio64_dir=stdio64
 	xdr_dir=xdr
@@ -624,7 +636,7 @@ esac
 # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
 
 case "${host}" in
-  *-*-cygwin*)
+  *-*-cygwin* | *-*-msys*)
 	test -z "$cygwin_srcdir" && cygwin_srcdir=`cd ${srcdir}/../winsup/cygwin; pwd`
 	export cygwin_srcdir
 	default_newlib_io_c99_formats="yes"
@@ -856,6 +868,10 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
   powerpcle-*-pe)
 	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DHAVE_FCNTL -D_NO_POSIX_SPAWN"
 	syscall_dir=syscalls
+	;;
+  pru*)
+	syscall_dir=syscalls
+	newlib_cflags="${newlib_cflags} -DSMALL_MEMORY -D_REENT_SMALL"
 	;;
   riscv*-*-*)
 	syscall_dir=syscalls

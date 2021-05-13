@@ -14,7 +14,13 @@ details. */
 #define NO_COPY __attribute__((nocommon)) __attribute__((section(".data_cygwin_nocopy")))
 #define NO_COPY_INIT __attribute__((section(".data_cygwin_nocopy")))
 
+#ifdef __cplusplus
 #define EXPORT_ALIAS(sym,symalias) extern "C" __typeof (sym) symalias __attribute__ ((alias(#sym)));
+#else
+#define EXPORT_ALIAS(sym,symalias) __typeof (sym) symalias __attribute__ ((alias(#sym)));
+#endif
+
+#define fallthrough	__attribute__((__fallthrough__))
 
 #define _WIN32_WINNT 0x0a00
 #define WINVER 0x0a00
@@ -28,6 +34,7 @@ details. */
 
 #include <sys/types.h>
 #include <sys/strace.h>
+#include <sys/smallprint.h>
 
 /* Declarations for functions used in C and C++ code. */
 #ifdef __cplusplus
@@ -162,7 +169,11 @@ extern "C" void _pei386_runtime_relocator (per_process *);
 
 #ifdef __i386__
 /* dynamically loaded dll initialization for non-cygwin apps */
+#ifdef __MSYS__
+extern "C" int dll_nonmsys_dllcrt0 (HMODULE, per_process *);
+#else
 extern "C" int dll_noncygwin_dllcrt0 (HMODULE, per_process *);
+#endif
 #endif /* __i386__ */
 
 void __reg1 do_exit (int) __attribute__ ((noreturn));
@@ -178,7 +189,8 @@ extern struct per_process_cxx_malloc default_cygwin_cxx_malloc;
 /* various events */
 void events_init ();
 
-void __stdcall close_all_files (bool = false);
+int chmod_device (class path_conv& pc, mode_t mode);
+void close_all_files (bool = false);
 
 /* debug_on_trap support. see exceptions.cc:try_to_debug() */
 extern "C" void error_start_init (const char*);
@@ -222,8 +234,6 @@ void set_ishybrid_and_switch_to_pcon (HANDLE h);
 /* Printf type functions */
 extern "C" void vapi_fatal (const char *, va_list ap) __attribute__ ((noreturn));
 extern "C" void api_fatal (const char *, ...) __attribute__ ((noreturn));
-int __small_sprintf (char *dst, const char *fmt, ...);
-int __small_vsprintf (char *dst, const char *fmt, va_list ap);
 int __small_swprintf (PWCHAR dst, const WCHAR *fmt, ...);
 int __small_vswprintf (PWCHAR dst, const WCHAR *fmt, va_list ap);
 void multiple_cygwin_problem (const char *, uintptr_t, uintptr_t);

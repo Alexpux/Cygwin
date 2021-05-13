@@ -24,6 +24,9 @@ details. */
 #define _WIN32_WINNT 0x0a00
 #define WINVER 0x0a00
 #define NOCOMATTRIBUTE
+#ifdef __i386__ /* 32-bit MSYS2 won't get new enough mingw-w64-headers */
+#define PMEM_EXTENDED_PARAMETER PVOID
+#endif
 #include <windows.h>
 #include <userenv.h>
 #include <shlobj.h>
@@ -75,7 +78,7 @@ static struct option long_options[] = {
 
 static char options[] = "ac:df:hilmMopst:uUVwAC:DHOPSWF:";
 
-static void
+static void __attribute__ ((__noreturn__))
 usage (FILE * stream, int status)
 {
   if (!ignore_flag || !status)
@@ -970,7 +973,6 @@ do_options (int argc, char **argv, int from_file)
 
 	case 'h':
 	  usage (stdout, 0);
-	  break;
 
 	case 'V':
 	  print_version ();

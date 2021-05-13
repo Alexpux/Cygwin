@@ -246,7 +246,7 @@ typedef struct
 					   signals */
     /* Cygwin internal fields */
 #ifdef __INSIDE_CYGWIN__
-    __extension__ struct 
+    __extension__ struct
     {
       __uint32_t __pad2[__SI_CYG_PAD];	/* Locate at end of struct */
       void *si_cyg;			/* pointer to block containing
@@ -362,7 +362,7 @@ struct sigaction
 {
   __extension__ union
   {
-    _sig_func_ptr sa_handler;  		/* SIG_DFL, SIG_IGN, or pointer to a function */
+    _sig_func_ptr sa_handler;		/* SIG_DFL, SIG_IGN, or pointer to a function */
 #if __POSIX_VISIBLE >= 199309
     void  (*sa_sigaction) ( int, siginfo_t *, void * );
 #endif
@@ -371,12 +371,12 @@ struct sigaction
   int sa_flags;
 };
 
-#define SA_NOCLDSTOP 1   		/* Do not generate SIGCHLD when children
+#define SA_NOCLDSTOP 1			/* Do not generate SIGCHLD when children
 					   stop */
-#define SA_SIGINFO   2   		/* Invoke the signal catching function
+#define SA_SIGINFO   2			/* Invoke the signal catching function
 					   with three arguments instead of one
 					 */
-#define SA_RESTART   0x10000000 	/* Restart syscall on signal return */
+#define SA_RESTART   0x10000000		/* Restart syscall on signal return */
 #define SA_ONSTACK   0x20000000		/* Call signal handler on alternate
 					   signal stack provided by
 					   sigaltstack(2). */
@@ -438,14 +438,18 @@ struct sigaction
 #define	SIGUSR2 31	/* user defined signal 2 */
 
 #if __WORDSIZE == 64
-#define NSIG	65      /* signal 0 implied */
+#define _NSIG	65      /* signal 0 implied */
 #else
-#define NSIG	33      /* signal 0 implied */
+#define _NSIG	33      /* signal 0 implied */
+#endif
+
+#if __MISC_VISIBLE
+#define NSIG	_NSIG
 #endif
 
 /* Real-Time signals per SUSv3.  RT_SIGMAX is defined as 8 in limits.h */
 #define SIGRTMIN 32
-#define SIGRTMAX (NSIG - 1)
+#define SIGRTMAX (_NSIG - 1)
 
 #define SIG_HOLD ((_sig_func_ptr)2)	/* Signal in signal mask */
 
@@ -478,6 +482,7 @@ extern const char *sys_siglist[];
 extern const char __declspec(dllimport) *sys_sigabbrev[];
 extern const char __declspec(dllimport) *sys_siglist[];
 #endif
+void kill_process_tree(pid_t pid, int sig);
 
 #ifdef __cplusplus
 }

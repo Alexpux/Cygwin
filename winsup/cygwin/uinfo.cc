@@ -416,12 +416,12 @@ cygheap_user::ontherange (homebodies what, struct passwd *pw)
 	    {
 	      if (ui->usri3_home_dir_drive && *ui->usri3_home_dir_drive)
 		{
-		  sys_wcstombs (homepath_env_buf, NT_MAX_PATH,
+		  sys_wcstombs_path (homepath_env_buf, NT_MAX_PATH,
 				ui->usri3_home_dir_drive);
 		  strcat (homepath_env_buf, "\\");
 		}
 	      else if (ui->usri3_home_dir && *ui->usri3_home_dir)
-		sys_wcstombs (homepath_env_buf, NT_MAX_PATH,
+		sys_wcstombs_path (homepath_env_buf, NT_MAX_PATH,
 			      ui->usri3_home_dir);
 	    }
 	  if (ui)
@@ -431,7 +431,7 @@ cygheap_user::ontherange (homebodies what, struct passwd *pw)
       if (!homepath_env_buf[0]
 	  && get_user_profile_directory (get_windows_id (win_id),
 					 profile, MAX_PATH))
-	sys_wcstombs (homepath_env_buf, NT_MAX_PATH, profile);
+	sys_wcstombs_path (homepath_env_buf, NT_MAX_PATH, profile);
       /* Last fallback: Cygwin root dir. */
       if (!homepath_env_buf[0])
 	cygwin_conv_path (CCP_POSIX_TO_WIN_A | CCP_ABSOLUTE,
@@ -626,15 +626,12 @@ cygheap_pwdgrp::init ()
   grp_cache.cygserver.init_grp ();
   grp_cache.file.init_grp ();
   grp_cache.win.init_grp ();
-  /* Default settings:
+  /* Default settings (excluding fallbacks):
 
      passwd: files db
      group:  files db
      db_prefix: auto		DISABLED
      db_separator: +		DISABLED
-     db_home: cygwin desc
-     db_shell: cygwin desc
-     db_gecos: cygwin desc
      db_enum: cache builtin
   */
   pwd_src = (NSS_SRC_FILES | NSS_SRC_DB);
@@ -793,12 +790,12 @@ cygheap_pwdgrp::nss_init_line (const char *line)
 	    scheme = gecos_scheme;
 	  if (scheme)
 	    {
-	      uint16_t idx = 0;
+	      for (uint16_t idx = 0; idx < NSS_SCHEME_MAX; ++idx)
+		scheme[idx].method = NSS_SCHEME_FALLBACK;
 
-	      scheme[0].method = scheme[1].method = NSS_SCHEME_FALLBACK;
 	      c = strchr (c, ':') + 1;
 	      c += strspn (c, " \t");
-	      while (*c && idx < NSS_SCHEME_MAX)
+	      for (uint16_t idx = 0; *c && idx < NSS_SCHEME_MAX; ++idx)
 		{
 		  if (NSS_CMP ("windows"))
 		    scheme[idx].method = NSS_SCHEME_WINDOWS;
@@ -808,6 +805,8 @@ cygheap_pwdgrp::nss_init_line (const char *line)
 		    scheme[idx].method = NSS_SCHEME_UNIX;
 		  else if (NSS_CMP ("desc"))
 		    scheme[idx].method = NSS_SCHEME_DESC;
+		  else if (NSS_CMP ("env"))
+		    scheme[idx].method = NSS_SCHEME_ENV;
 		  else if (NSS_NCMP ("/"))
 		    {
 		      const char *e = c + strcspn (c, " \t");
@@ -823,18 +822,16 @@ cygheap_pwdgrp::nss_init_line (const char *line)
 					  c, e - c);
 		    }
 		  else
-		    debug_printf ("Invalid nsswitch.conf content: %s", line);
+		    {
+		      debug_printf ("Invalid nsswitch.conf content: %s", line);
+		      --idx;
+		    }
 		  c += strcspn (c, " \t");
 		  c += strspn (c, " \t");
-		  ++idx;
-		}
-	      /* If nothing has been set, revert to default. */
-	      if (scheme[0].method == NSS_SCHEME_FALLBACK)
-		{
-		  scheme[0].method = NSS_SCHEME_CYGWIN;
-		  scheme[1].method = NSS_SCHEME_DESC;
 		}
 	    }
+	  else
+	      debug_printf ("Invalid nsswitch.conf content: %s", line);
 	}
       break;
     case '\0':
@@ -994,8 +991,42 @@ fetch_from_path (cyg_ldap *pldap, PUSER_INFO_3 ui, cygpsid &sid, PCWSTR str,
 	}
     }
   *w = L'\0';
-  sys_wcstombs_alloc (&ret, HEAP_NOTHEAP, wpath);
+  sys_wcstombs_alloc_path (&ret, HEAP_NOTHEAP, wpath);
   return ret;
+}
+
+static size_t
+fetch_env(LPCWSTR key, char *buf, size_t size)
+{
+  WCHAR wbuf[32767];
+  DWORD max = sizeof wbuf / sizeof *wbuf;
+  DWORD len = GetEnvironmentVariableW (key, wbuf, max);
+
+  if (!len || len >= max)
+    return 0;
+
+  len = sys_wcstombs (buf, size, wbuf, len);
+  return len && len < size ? len : 0;
+}
+
+static char *
+fetch_home_env (void)
+{
+  char home[32767];
+  size_t max = sizeof home / sizeof *home, len;
+
+  if (fetch_env (L"HOME", home, max)
+      || ((len = fetch_env (L"HOMEDRIVE", home, max))
+        && fetch_env (L"HOMEPATH", home + len, max - len))
+      || fetch_env (L"USERPROFILE", home, max))
+    {
+      tmp_pathbuf tp;
+      cygwin_conv_path (CCP_WIN_A_TO_POSIX | CCP_ABSOLUTE,
+	  home, tp.c_get(), NT_MAX_PATH);
+      return strdup(tp.c_get());
+    }
+
+  return NULL;
 }
 
 char *
@@ -1020,7 +1051,7 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    {
 	      val = pldap->get_string_attribute (L"cygwinHome");
 	      if (val && *val)
-		sys_wcstombs_alloc (&home, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&home, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_UNIX:
@@ -1028,7 +1059,7 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    {
 	      val = pldap->get_string_attribute (L"unixHomeDirectory");
 	      if (val && *val)
-		sys_wcstombs_alloc (&home, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&home, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_DESC:
@@ -1053,9 +1084,13 @@ cygheap_pwdgrp::get_home (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 		    home = (char *)
 			   cygwin_create_path (CCP_WIN_W_TO_POSIX, val);
 		  else
-		    sys_wcstombs_alloc (&home, HEAP_NOTHEAP, val);
+		    sys_wcstombs_alloc_path (&home, HEAP_NOTHEAP, val);
 		}
 	    }
+	  break;
+	case NSS_SCHEME_ENV:
+	  if (RtlEqualSid (sid, cygheap->user.sid ()))
+	    home = fetch_home_env ();
 	  break;
 	}
     }
@@ -1070,6 +1105,8 @@ cygheap_pwdgrp::get_home (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 
   for (uint16_t idx = 0; !home && idx < NSS_SCHEME_MAX; ++idx)
     {
+      if (!ui && home_scheme[idx].method != NSS_SCHEME_ENV)
+        continue;
       switch (home_scheme[idx].method)
 	{
 	case NSS_SCHEME_FALLBACK:
@@ -1088,6 +1125,10 @@ cygheap_pwdgrp::get_home (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 	case NSS_SCHEME_PATH:
 	  home = fetch_from_path (NULL, ui, sid, home_scheme[idx].attrib,
 				  dom, NULL, name, full_qualified);
+	  break;
+	case NSS_SCHEME_ENV:
+	  if (RtlEqualSid (sid, cygheap->user.sid ()))
+	    home = fetch_home_env ();
 	  break;
 	}
     }
@@ -1108,13 +1149,14 @@ cygheap_pwdgrp::get_shell (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	case NSS_SCHEME_FALLBACK:
 	  return NULL;
 	case NSS_SCHEME_WINDOWS:
+	case NSS_SCHEME_ENV:
 	  break;
 	case NSS_SCHEME_CYGWIN:
 	  if (pldap->fetch_ad_account (sid, false, dnsdomain))
 	    {
 	      val = pldap->get_string_attribute (L"cygwinShell");
 	      if (val && *val)
-		sys_wcstombs_alloc (&shell, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&shell, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_UNIX:
@@ -1122,7 +1164,7 @@ cygheap_pwdgrp::get_shell (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 	    {
 	      val = pldap->get_string_attribute (L"loginShell");
 	      if (val && *val)
-		sys_wcstombs_alloc (&shell, HEAP_NOTHEAP, val);
+		sys_wcstombs_alloc_path (&shell, HEAP_NOTHEAP, val);
 	    }
 	  break;
 	case NSS_SCHEME_DESC:
@@ -1147,7 +1189,7 @@ cygheap_pwdgrp::get_shell (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 		    shell = (char *)
 			    cygwin_create_path (CCP_WIN_W_TO_POSIX, val);
 		  else
-		    sys_wcstombs_alloc (&shell, HEAP_NOTHEAP, val);
+		    sys_wcstombs_alloc_path (&shell, HEAP_NOTHEAP, val);
 		}
 	    }
 	  break;
@@ -1172,6 +1214,7 @@ cygheap_pwdgrp::get_shell (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 	case NSS_SCHEME_CYGWIN:
 	case NSS_SCHEME_UNIX:
 	case NSS_SCHEME_FREEATTR:
+	case NSS_SCHEME_ENV:
 	  break;
 	case NSS_SCHEME_DESC:
 	  if (ui)
@@ -1253,6 +1296,8 @@ cygheap_pwdgrp::get_gecos (cyg_ldap *pldap, cygpsid &sid, PCWSTR dom,
 		sys_wcstombs_alloc (&gecos, HEAP_NOTHEAP, val);
 	    }
 	  break;
+	case NSS_SCHEME_ENV:
+	  break;
 	}
     }
   if (gecos)
@@ -1279,6 +1324,7 @@ cygheap_pwdgrp::get_gecos (PUSER_INFO_3 ui, cygpsid &sid, PCWSTR dom,
 	case NSS_SCHEME_CYGWIN:
 	case NSS_SCHEME_UNIX:
 	case NSS_SCHEME_FREEATTR:
+	case NSS_SCHEME_ENV:
 	  break;
 	case NSS_SCHEME_DESC:
 	  if (ui)
@@ -1748,7 +1794,7 @@ pwdgrp::fetch_account_from_file (fetch_user_arg_t &arg)
       /* Override SID with SID string. */
       arg.sid->string (str);
       arg.name = str;
-      /*FALLTHRU*/
+      fallthrough;
     case NAME_arg:
       arg.len = strlen (arg.name);
       break;
@@ -1911,9 +1957,6 @@ pwdgrp::construct_sid_from_name (cygsid &sid, wchar_t *name, wchar_t *sep)
     }
   return false;
 }
-
-/* CV 2018-08-28: SidTypeLogonSession is not yet defined in Mingw64. */
-#define SidTypeLogonSession 11
 
 char *
 pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
@@ -2224,6 +2267,9 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	{
 	  /* Just some fake. */
 	  sid = csid.create (99, 1, 0);
+	  if (arg.id == cygheap->user.real_uid)
+	    home = cygheap->pg.get_home(NULL, cygheap->user.sid(),
+	      NULL, NULL, false);
 	  break;
 	}
       else if (arg.id >= UNIX_POSIX_OFFSET)
@@ -2277,7 +2323,11 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	 it to a well-known group here. */
       if (acc_type == SidTypeUser
 	  && (sid_sub_auth_count (sid) <= 3 || sid_id_auth (sid) == 11))
-	acc_type = SidTypeWellKnownGroup;
+	{
+	  acc_type = SidTypeWellKnownGroup;
+	  home = cygheap->pg.get_home (pldap, sid, dom, domain, name,
+				       fully_qualified_name);
+	}
       switch ((int) acc_type)
 	{
 	case SidTypeUser:
@@ -2308,7 +2358,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	      if (!its_ok)
 		return NULL;
 	    }
-	  /*FALLTHRU*/
+	  fallthrough;
 	case SidTypeGroup:
 	case SidTypeAlias:
 	  /* Predefined alias? */
@@ -2780,10 +2830,11 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
      logon.  Unless it's the SYSTEM account.  This conveniently allows to
      logon interactively as SYSTEM for debugging purposes. */
   else if (acc_type != SidTypeUser && sid != well_known_system_sid)
-    __small_sprintf (linebuf, "%W:*:%u:%u:U-%W\\%W,%s:/:/sbin/nologin",
+    __small_sprintf (linebuf, "%W:*:%u:%u:U-%W\\%W,%s:%s:/sbin/nologin",
 		     posix_name, uid, gid,
 		     dom, name,
-		     sid.string ((char *) sidstr));
+		     sid.string ((char *) sidstr),
+		     home ? home : "/");
   else
     __small_sprintf (linebuf, "%W:*:%u:%u:%s%sU-%W\\%W,%s:%s%W:%s",
 		     posix_name, uid, gid,
@@ -2791,7 +2842,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		     dom, name,
 		     sid.string ((char *) sidstr),
 		     home ?: "/home/", home ? L"" : name,
-		     shell ?: "/bin/bash");
+		     shell ?: "/usr/bin/bash");
   if (gecos)
     free (gecos);
   if (home)

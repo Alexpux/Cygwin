@@ -524,7 +524,7 @@ literal:
 
 		case 'k':	/* The hour (24-hour clock representation). */
 			LEGAL_ALT(0);
-			/* FALLTHROUGH */
+			fallthrough;
 		case 'H':
 			LEGAL_ALT(ALT_O);
 			bp = conv_num(bp, &tm->tm_hour, 0, 23, ALT_DIGITS);
@@ -532,7 +532,7 @@ literal:
 
 		case 'l':	/* The hour (12-hour clock representation). */
 			LEGAL_ALT(0);
-			/* FALLTHROUGH */
+			fallthrough;
 		case 'I':
 			LEGAL_ALT(ALT_O);
 			bp = conv_num(bp, &tm->tm_hour, 1, 12, ALT_DIGITS);
@@ -703,8 +703,8 @@ literal:
 				const unsigned char *ep;
 
 				ep = find_string(bp, &i,
-					       	 (const char * const *)tzname,
-					       	  NULL, 2, locale);
+						 (const char * const *)tzname,
+						  NULL, 2, locale);
 				if (ep != NULL) {
 					tm->tm_isdst = i;
 #ifdef TM_GMTOFF
@@ -750,7 +750,7 @@ literal:
 	    /* Check if year falls into the era.  If not, it's an
 	       invalid combination of era and offset. */
 	    if (era->start.tm_year > tm->tm_year
-	    	|| era->end.tm_year < tm->tm_year)
+		|| era->end.tm_year < tm->tm_year)
 	      return NULL;
 	    tm->tm_year -= TM_YEAR_BASE;
 	  }

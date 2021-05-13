@@ -92,7 +92,7 @@ fillout_pinfo (pid_t pid, int winpid)
 	  ep.rusage_self = p->rusage_self;
 	  ep.rusage_children = p->rusage_children;
 	  ep.progname[0] = '\0';
-	  sys_wcstombs(ep.progname, MAX_PATH, p->progname);
+	  sys_wcstombs_path (ep.progname, MAX_PATH, p->progname);
 	  ep.strace_mask = 0;
 	  ep.version = EXTERNAL_PINFO_VERSION;
 
@@ -141,7 +141,7 @@ create_winenv (const char * const *env)
   int unused_envc;
   PWCHAR envblock = NULL;
   char **envp = build_env (env ?: cur_environ (), envblock, unused_envc, false,
-			   NULL);
+			   NULL, true);
   PWCHAR p = envblock;
 
   if (envp)
@@ -452,10 +452,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	res = CYGTLS_PADSIZE;
 	break;
       case CW_SET_DOS_FILE_WARNING:
-	{
-	  dos_file_warning = va_arg (arg, int);
-	  res = 0;
-	}
+	res = 0;
 	break;
       case CW_SET_PRIV_KEY:
 	{
@@ -548,7 +545,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	break;
 
       case CW_ALLOC_DRIVE_MAP:
-      	{
+	{
 	  dos_drive_mappings *ddm = new dos_drive_mappings ();
 	  res = (uintptr_t) ddm;
 	}
@@ -659,7 +656,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 					 "sshd",
 					 username_buffer,
 					 sizeof username_buffer);
-	     
+
 	     If this call succeeds, sshd expects the correct Cygwin
 	     username of the unprivileged sshd account in username_buffer.
 

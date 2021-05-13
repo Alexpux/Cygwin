@@ -496,6 +496,7 @@ dumper [OPTION] FILENAME WIN32PID
     <refsect1 id="dumper-options">
       <title>Options</title>
       <screen>
+-n, --nokill   don't terminate the dumped process
 -d, --verbose  be verbose while dumping
 -h, --help     output help information and exit
 -q, --quiet    be quiet while dumping (default)
@@ -519,16 +520,19 @@ error_start=x:\path\to\dumper.exe
       be started whenever some program encounters a fatal error. </para>
 
     <para> <command>dumper</command> can be also be started from the command
-      line to create a core dump of any running process. Unfortunately, because
-      of a Windows API limitation, when a core dump is created and
-      <command>dumper</command> exits, the target process is terminated too. </para>
+      line to create a core dump of any running process.</para>
+
+    <para>For historical reasons, unless the <literal>-n</literal> option
+    is given, after the core dump is created and when the
+    <command>dumper</command> exits, the target process is also
+    terminated.</para>
 
     <para> To save space in the core dump, <command>dumper</command> doesn't
-      write those portions of target process' memory space that are loaded from
-      executable and dll files and are unchangeable, such as program code and
-      debug info. Instead, <command>dumper</command> saves paths to files which
+      write those portions of the target process's memory space that are loaded
+      from executable and dll files and are unchanged (e.g. program code).
+      Instead, <command>dumper</command> saves paths to the files which
       contain that data. When a core dump is loaded into gdb, it uses these
-      paths to load appropriate files. That means that if you create a core
+      paths to load the appropriate files. That means that if you create a core
       dump on one machine and try to debug it on another, you'll need to place
       identical copies of the executable and dlls in the same directories as on
       the machine where the core dump was created. </para>
@@ -1976,8 +1980,11 @@ remote host in either \\hostname or hostname: format and prefix is any of:
   users    HKU   HKEY_USERS
 
 You can use forward slash ('/') as a separator instead of backslash, in
-that case backslash is treated as escape character
-Example: regtool get '\user\software\Microsoft\Clock\iFormat'
+that case backslash is treated as an escape character.
+You can also supply the registry path prefix /proc/registry{,32,64}/ to
+use path completion.
+Example:
+  regtool list '/HKLM/SOFTWARE/Classes/MIME/Database/Content Type/audio\\/wav'
 </screen>
     </refsect1>
 

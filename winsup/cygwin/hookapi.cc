@@ -42,9 +42,9 @@ PEHeaderFromHModule (HMODULE hModule, bool &is_64bit)
       if (pNTHeader->Signature != IMAGE_NT_SIGNATURE)
 	pNTHeader = NULL;
       else if (pNTHeader->FileHeader.Machine == IMAGE_FILE_MACHINE_AMD64)
-      	is_64bit = true;
+	is_64bit = true;
       else if (pNTHeader->FileHeader.Machine == IMAGE_FILE_MACHINE_I386)
-      	is_64bit = false;
+	is_64bit = false;
       else
 	pNTHeader = NULL;
     }
@@ -401,8 +401,12 @@ hook_or_detect_cygwin (const char *name, const void *fn, WORD& subsys, HANDLE h)
   for (PIMAGE_IMPORT_DESCRIPTOR pd = pdfirst; pd->FirstThunk; pd++)
     {
       if (!ascii_strcasematch (rva (PSTR, map ?: (char *) hm, pd->Name - delta),
+#ifdef __MSYS__
+			       "msys-2.0.dll"))
+#else
 			       "cygwin1.dll"))
-      	continue;
+#endif
+	continue;
       if (!fn)
 	{
 	  /* Just checking if executable used cygwin1.dll. */

@@ -1,5 +1,6 @@
 /* fhandler_serial.cc
 
+
 This file is part of Cygwin.
 
 This software is a copyrighted work licensed under the terms of the
@@ -29,137 +30,145 @@ fhandler_serial::fhandler_serial ()
   need_fork_fixup (true);
 }
 
-void
-fhandler_serial::overlapped_setup ()
-{
-  memset (&io_status, 0, sizeof (io_status));
-  io_status.hEvent = CreateEvent (&sec_none_nih, TRUE, FALSE, NULL);
-  ProtectHandle (io_status.hEvent);
-  overlapped_armed = 0;
-}
-
 void __reg3
 fhandler_serial::raw_read (void *ptr, size_t& ulen)
 {
-  int tot;
-  DWORD n;
+  OVERLAPPED ov = { 0 };
+  DWORD io_err;
+  COMSTAT st;
+  DWORD bytes_to_read, read_bytes;
+  ssize_t tot = 0;
 
-  size_t minchars = vmin_ ? MIN (vmin_, ulen) : ulen;
+  if (ulen > SSIZE_MAX)
+    ulen = SSIZE_MAX;
+  if (ulen == 0)
+    return;
 
-  debug_printf ("ulen %ld, vmin_ %ld, vtime_ %u, hEvent %p",
-		ulen, vmin_, vtime_, io_status.hEvent);
-  if (!overlapped_armed)
+  /* If MIN > 0 in blocking mode, we have to read at least VMIN chars,
+     otherwise we're in polling mode and there's no minimum chars. */
+  ssize_t minchars = (!is_nonblocking () && vmin_) ? MIN (vmin_, ulen) : 0;
+
+  debug_printf ("ulen %ld, vmin_ %u, vtime_ %u", ulen, vmin_, vtime_);
+
+  ov.hEvent = CreateEvent (&sec_none_nih, TRUE, FALSE, NULL);
+
+  do
     {
-      SetCommMask (get_handle (), EV_RXCHAR);
-      ResetEvent (io_status.hEvent);
-    }
-
-  for (n = 0, tot = 0; ulen; ulen -= n, ptr = (char *) ptr + n)
-    {
-      COMSTAT st;
-      DWORD inq = vmin_ ? minchars : vtime_ ? ulen : 1;
-
-      n = 0;
-
-      if (vtime_) // non-interruptible -- have to use kernel timeouts
-	overlapped_armed = -1;
-
-      if (!ClearCommError (get_handle (), &ev, &st))
+      /* First check if chars are already in the inbound queue. */
+      if (!ClearCommError (get_handle (), &io_err, &st))
 	goto err;
-      else if (ev)
-	termios_printf ("error detected %x", ev);
-      else if (st.cbInQue && !vtime_)
-	inq = st.cbInQue;
-      else if (!is_nonblocking () && !overlapped_armed)
+      /* FIXME: In case of I/O error, do we really want to bail out or is it
+		better just trying to pull through? */
+      if (io_err)
 	{
-	  if ((size_t) tot >= minchars)
+	  termios_printf ("error detected %x", io_err);
+	  SetLastError (ERROR_IO_DEVICE);
+	  goto err;
+	}
+      /* ReadFile only handles up to DWORD bytes. */
+      bytes_to_read = MIN (ulen, UINT32_MAX);
+      if (is_nonblocking ())
+	{
+	  /* In O_NONBLOCK mode we just care for the number of chars already
+	     in the inbound queue. */
+	  if (!st.cbInQue)
 	    break;
-	  else if (WaitCommEvent (get_handle (), &ev, &io_status))
-	    {
-	      debug_printf ("WaitCommEvent succeeded: ev %x", ev);
-	      if (!ev)
-		continue;
-	    }
-	  else if (GetLastError () != ERROR_IO_PENDING)
+	  bytes_to_read = MIN (st.cbInQue, bytes_to_read);
+	}
+      else
+	{
+	  /* If the number of chars in the inbound queue is sufficent
+	     (minchars defines the minimum), set bytes_to_read accordingly
+	     and don't wait. */
+	  if (st.cbInQue && (ssize_t) st.cbInQue >= minchars)
+	    bytes_to_read = MIN (st.cbInQue, bytes_to_read);
+	}
+
+      ResetEvent (ov.hEvent);
+      if (!ReadFile (get_handle (), ptr, bytes_to_read, &read_bytes, &ov))
+	{
+	  if (GetLastError () != ERROR_IO_PENDING)
 	    goto err;
+	  if (is_nonblocking ())
+	    {
+	      CancelIo (get_handle ());
+	      if (!GetOverlappedResult (get_handle (), &ov, &read_bytes,
+					TRUE))
+		goto err;
+	    }
 	  else
 	    {
-	      overlapped_armed = 1;
-	      switch (cygwait (io_status.hEvent))
+	      switch (cygwait (ov.hEvent))
 		{
+		default: /* Handle an error case from cygwait basically like
+			    a cancel condition and see if we got "something" */
+		  CancelIo (get_handle ());
+		  fallthrough;
 		case WAIT_OBJECT_0:
-		  if (!GetOverlappedResult (get_handle (), &io_status, &n,
-					    FALSE))
+		  if (!GetOverlappedResult (get_handle (), &ov, &read_bytes,
+					    TRUE))
 		    goto err;
-		  debug_printf ("n %u, ev %x", n, ev);
+		  debug_printf ("got %u bytes from ReadFile", read_bytes);
 		  break;
 		case WAIT_SIGNALED:
-		  tot = -1;
-		  PurgeComm (get_handle (), PURGE_RXABORT);
-		  overlapped_armed = 0;
-		  set_sig_errno (EINTR);
+		  CancelIo (get_handle ());
+		  if (!GetOverlappedResult (get_handle (), &ov, &read_bytes,
+					    TRUE))
+		    goto err;
+		  /* Only if no bytes read, return with EINTR. */
+		  if (!tot && !read_bytes)
+		    {
+		      tot = -1;
+		      set_sig_errno (EINTR);
+		      debug_printf ("signal received, set EINTR");
+		    }
+		  else
+		    debug_printf ("signal received but ignored");
 		  goto out;
 		case WAIT_CANCELED:
-		  PurgeComm (get_handle (), PURGE_RXABORT);
-		  overlapped_armed = 0;
+		  CancelIo (get_handle ());
+		  GetOverlappedResult (get_handle (), &ov, &read_bytes, TRUE);
+		  debug_printf ("thread canceled");
 		  pthread::static_cancel_self ();
 		  /*NOTREACHED*/
-		default:
-		  goto err;
 		}
 	    }
 	}
-
-      overlapped_armed = 0;
-      ResetEvent (io_status.hEvent);
-      if (inq > ulen)
-	inq = ulen;
-      debug_printf ("inq %u", inq);
-      if (ReadFile (get_handle (), ptr, inq, &n, &io_status))
-	/* Got something */;
-      else if (GetLastError () != ERROR_IO_PENDING)
-	goto err;
-      else if (is_nonblocking ())
-	{
-	  /* Use CancelIo rather than PurgeComm (PURGE_RXABORT) since
-	     PurgeComm apparently discards in-flight bytes while CancelIo
-	     only stops the overlapped IO routine. */
-	  CancelIo (get_handle ());
-	  if (GetOverlappedResult (get_handle (), &io_status, &n, FALSE))
-	    tot = n;
-	  else if (GetLastError () != ERROR_OPERATION_ABORTED)
-	    goto err;
-	  if (tot == 0)
-	    {
-	      tot = -1;
-	      set_errno (EAGAIN);
-	    }
-	  goto out;
-	}
-      else if (!GetOverlappedResult (get_handle (), &io_status, &n, TRUE))
-	goto err;
-
-      tot += n;
-      debug_printf ("vtime_ %u, vmin_ %lu, n %u, tot %d", vtime_, vmin_, n, tot);
-      if (vtime_ || !vmin_ || !n)
-	break;
+      tot += read_bytes;
+      ptr = (void *) ((caddr_t) ptr + read_bytes);
+      ulen -= read_bytes;
+      minchars -= read_bytes;
+      debug_printf ("vtime_ %u, vmin_ %u, read_bytes %u, tot %D",
+		    vtime_, vmin_, read_bytes, tot);
       continue;
 
     err:
       debug_printf ("err %E");
       if (GetLastError () != ERROR_OPERATION_ABORTED)
 	{
-	  PurgeComm (get_handle (), PURGE_RXABORT);
-	  tot = -1;
-	  __seterrno ();
+	  if (tot == 0)
+	    {
+	      tot = -1;
+	      __seterrno ();
+	    }
 	  break;
 	}
-
-      n = 0;
     }
+  /* ALL of these are required to loop:
+
+     Still room in user space buffer
+     AND still a minchars requirement (implies blocking mode)
+     AND vtime_ is not set. */
+  while (ulen > 0 && minchars > 0 && vtime_ == 0);
 
 out:
-  ulen = tot;
+  CloseHandle (ov.hEvent);
+  ulen = (size_t) tot;
+  if (is_nonblocking () && ulen == 0)
+    {
+      ulen = (size_t) -1;
+      set_errno (EAGAIN);
+    }
 }
 
 /* Cover function to WriteFile to provide Posix interface and semantics
@@ -251,8 +260,6 @@ fhandler_serial::open (int flags, mode_t mode)
 
   SetCommMask (get_handle (), EV_RXCHAR);
 
-  overlapped_setup ();
-
   memset (&to, 0, sizeof (to));
   SetCommTimeouts (get_handle (), &to);
 
@@ -301,13 +308,6 @@ fhandler_serial::open (int flags, mode_t mode)
   syscall_printf ("%p = fhandler_serial::open (%s, %y, 0%o)",
 		  res, get_name (), flags, mode);
   return res;
-}
-
-int
-fhandler_serial::close ()
-{
-  ForceCloseHandle (io_status.hEvent);
-  return fhandler_base::close ();
 }
 
 /* tcsendbreak: POSIX 7.2.2.1 */
@@ -519,14 +519,7 @@ fhandler_serial::ioctl (unsigned int cmd, void *buf)
 	  }
 	break;
      case TIOCINQ:
-       if (ev & CE_FRAME || ev & CE_IOE || ev & CE_OVERRUN || ev & CE_RXOVER
-	   || ev & CE_RXPARITY)
-	 {
-	   set_errno (EINVAL);	/* FIXME: Use correct errno */
-	   res = -1;
-	 }
-       else
-	 ipbuf = st.cbInQue;
+       ipbuf = st.cbInQue;
        break;
      case TIOCGWINSZ:
        ((struct winsize *) buf)->ws_row = 0;
@@ -592,7 +585,6 @@ fhandler_serial::tcsetattr (int action, const struct termios *t)
   bool dropDTR = false;
   COMMTIMEOUTS to;
   DCB ostate, state;
-  unsigned int ovtime = vtime_, ovmin = vmin_;
   int tmpDtr, tmpRts, res;
   res = tmpDtr = tmpRts = 0;
 
@@ -895,55 +887,53 @@ fhandler_serial::tcsetattr (int action, const struct termios *t)
     }
   else
     {
-      vtime_ = t->c_cc[VTIME] * 100;
+      vtime_ = t->c_cc[VTIME];
       vmin_ = t->c_cc[VMIN];
     }
 
-  debug_printf ("vtime %d, vmin %ld", vtime_, vmin_);
+  debug_printf ("vtime %u, vmin %u", vtime_, vmin_);
 
-  if (ovmin != vmin_ || ovtime != vtime_)
-  {
-    memset (&to, 0, sizeof (to));
+  memset (&to, 0, sizeof (to));
 
-    if ((vmin_ > 0) && (vtime_ == 0))
-      {
-	/* Returns immediately with whatever is in buffer on a ReadFile();
-	   or blocks if nothing found.  We will keep calling ReadFile(); until
-	   vmin_ characters are read */
-	to.ReadIntervalTimeout = to.ReadTotalTimeoutMultiplier = MAXDWORD;
-	to.ReadTotalTimeoutConstant = MAXDWORD - 1;
-      }
-    else if ((vmin_ == 0) && (vtime_ > 0))
-      {
-	/* set timeoout constant appropriately and we will only try to
-	   read one character in ReadFile() */
-	to.ReadTotalTimeoutConstant = vtime_;
-	to.ReadIntervalTimeout = to.ReadTotalTimeoutMultiplier = MAXDWORD;
-      }
-    else if ((vmin_ > 0) && (vtime_ > 0))
-      {
-	/* time applies to the interval time for this case */
-	to.ReadIntervalTimeout = vtime_;
-      }
-    else if ((vmin_ == 0) && (vtime_ == 0))
-      {
-	/* returns immediately with whatever is in buffer as per
-	   Time-Outs docs in Win32 SDK API docs */
-	to.ReadIntervalTimeout = MAXDWORD;
-      }
+  if ((vmin_ > 0) && (vtime_ == 0))
+    {
+      /* Returns immediately with whatever is in buffer on a ReadFile();
+	 or blocks if nothing found.  We will keep calling ReadFile(); until
+	 vmin_ characters are read */
+      to.ReadIntervalTimeout = to.ReadTotalTimeoutMultiplier = MAXDWORD;
+      to.ReadTotalTimeoutConstant = MAXDWORD - 1;
+    }
+  else if ((vmin_ == 0) && (vtime_ > 0))
+    {
+      /* set timeoout constant appropriately and we will only try to
+	 read one character in ReadFile() */
+      to.ReadTotalTimeoutConstant = vtime_ * 100;
+      to.ReadIntervalTimeout = to.ReadTotalTimeoutMultiplier = MAXDWORD;
+    }
+  else if ((vmin_ > 0) && (vtime_ > 0))
+    {
+      /* time applies to the interval time for this case */
+      to.ReadIntervalTimeout = vtime_ * 100;
+    }
+  else if ((vmin_ == 0) && (vtime_ == 0))
+    {
+      /* returns immediately with whatever is in buffer as per
+	 Time-Outs docs in Win32 SDK API docs */
+      to.ReadIntervalTimeout = MAXDWORD;
+    }
 
-    debug_printf ("ReadTotalTimeoutConstant %u, ReadIntervalTimeout %u, ReadTotalTimeoutMultiplier %u",
-		  to.ReadTotalTimeoutConstant, to.ReadIntervalTimeout, to.ReadTotalTimeoutMultiplier);
+  debug_printf ("ReadTotalTimeoutConstant %u, ReadIntervalTimeout %u, "
+		"ReadTotalTimeoutMultiplier %u", to.ReadTotalTimeoutConstant,
+		to.ReadIntervalTimeout, to.ReadTotalTimeoutMultiplier);
 
-    if (!SetCommTimeouts(get_handle (), &to))
-      {
-	/* SetCommTimeouts() failed. Keep track of this so we
-	   can set errno to EINVAL later and return failure */
-	termios_printf ("SetCommTimeouts() failed, %E");
-	__seterrno ();
-	res = -1;
-      }
-  }
+  if (!SetCommTimeouts(get_handle (), &to))
+    {
+      /* SetCommTimeouts() failed. Keep track of this so we
+	 can set errno to EINVAL later and return failure */
+      termios_printf ("SetCommTimeouts() failed, %E");
+      __seterrno ();
+      res = -1;
+    }
 
   return res;
 }
@@ -1130,35 +1120,10 @@ fhandler_serial::tcgetattr (struct termios *t)
   if (!wbinary ())
     t->c_oflag |= ONLCR;
 
-  t->c_cc[VTIME] = vtime_ / 100;
+  t->c_cc[VTIME] = vtime_;
   t->c_cc[VMIN] = vmin_;
 
-  debug_printf ("vmin_ %lu, vtime_ %u", vmin_, vtime_);
+  debug_printf ("vmin_ %u, vtime_ %u", vmin_, vtime_);
 
   return 0;
-}
-
-void
-fhandler_serial::fixup_after_fork (HANDLE parent)
-{
-  if (close_on_exec ())
-    fhandler_base::fixup_after_fork (parent);
-  overlapped_setup ();
-  debug_printf ("io_status.hEvent %p", io_status.hEvent);
-}
-
-void
-fhandler_serial::fixup_after_exec ()
-{
-  if (!close_on_exec ())
-    overlapped_setup ();
-  debug_printf ("io_status.hEvent %p, close_on_exec %d", io_status.hEvent, close_on_exec ());
-}
-
-int
-fhandler_serial::dup (fhandler_base *child, int flags)
-{
-  fhandler_serial *fhc = (fhandler_serial *) child;
-  fhc->overlapped_setup ();
-  return fhandler_base::dup (child, flags);
 }

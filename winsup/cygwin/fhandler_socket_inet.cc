@@ -23,6 +23,8 @@
 #endif
 #include <w32api/ws2tcpip.h>
 #include <w32api/mswsock.h>
+#include <w32api/mstcpip.h>
+#include <netinet/tcp.h>
 #include <unistd.h>
 #include <asm/byteorder.h>
 #include <sys/socket.h>
@@ -291,7 +293,7 @@ fhandler_socket_wsock::evaluate_events (const long event_mask, long &events,
 	    {
 	      wsock_events->connect_errorcode = evts.iErrorCode[FD_CONNECT_BIT];
 
-	      /* Setting the connect_state and calling the AF_LOCAL handshake 
+	      /* Setting the connect_state and calling the AF_LOCAL handshake
 		 here allows to handle this stuff from a single point.  This
 		 is independent of FD_CONNECT being requested.  Consider a
 		 server calling connect(2) and then immediately poll(2) with
@@ -301,7 +303,7 @@ fhandler_socket_wsock::evaluate_events (const long event_mask, long &events,
 		 Something weird occurs in Winsock: If you fork off and call
 		 recv/send on the duplicated, already connected socket, another
 		 FD_CONNECT event is generated in the child process.  This
-		 would trigger a call to af_local_connect which obviously fail. 
+		 would trigger a call to af_local_connect which obviously fail.
 		 Avoid this by calling set_connect_state only if connect_state
 		 is connect_pending. */
 	      if (connect_state () == connect_pending)
@@ -341,7 +343,7 @@ fhandler_socket_wsock::evaluate_events (const long event_mask, long &events,
 		 socket.  We're trying to workaround this problem here by
 		 taking the connect errorcode from the event and write it back
 		 into the SO_ERROR socket option.
-	         
+
 		 CV 2014-06-16: Call WSASetLastError *after* setsockopt since,
 		 apparently, setsockopt sets the last WSA error code to 0 on
 		 success. */
@@ -350,9 +352,13 @@ fhandler_socket_wsock::evaluate_events (const long event_mask, long &events,
 	      WSASetLastError (wsa_err);
 	      ret = SOCKET_ERROR;
 	    }
-	  else
-	    wsock_events->events |= FD_WRITE;
-	  wsock_events->events &= ~FD_CONNECT;
+	  /* Since FD_CONNECT is only given once, we have to keep FD_CONNECT
+	     for connection failed sockets to have consistent behaviour in
+	     programs calling poll/select multiple times.  Example test to
+	     non-listening port: curl -v 127.0.0.1:47 */
+	  if (connect_state () != connect_failed)
+	    wsock_events->events &= ~FD_CONNECT;
+	  wsock_events->events |= FD_WRITE;
 	  wsock_events->connect_errorcode = 0;
 	}
       /* This test makes accept/connect behave as on Linux when accept/connect
@@ -534,7 +540,7 @@ void
 fhandler_socket_wsock::fixup_after_exec ()
 {
   if (need_fixup_before () && !close_on_exec ())
-    fixup_after_fork (NULL);
+    fixup_after_fork (NULL);	/* No parent handle required. */
 }
 
 int
@@ -690,7 +696,12 @@ fhandler_socket_wsock::set_socket_handle (SOCKET sock, int af, int type,
 
 fhandler_socket_inet::fhandler_socket_inet () :
   fhandler_socket_wsock (),
-  oobinline (false)
+  oobinline (false),
+  tcp_quickack (false),
+  tcp_fastopen (false),
+  tcp_keepidle (7200),	/* WinSock default */
+  tcp_keepcnt (10),	/* WinSock default */
+  tcp_keepintvl (1)	/* WinSock default */
 {
 }
 
@@ -1367,7 +1378,7 @@ fhandler_socket_wsock::send_internal (struct _WSAMSG *wsamsg, int flags)
      buffer which only gets partially written. */
   for (DWORD in_idx = 0, in_off = 0;
        in_idx < wsamsg->dwBufferCount;
-       in_off >= wsamsg->lpBuffers[in_idx].len && (++in_idx, in_off = 0))
+       in_off >= wsamsg->lpBuffers[in_idx].len && (++in_idx, (in_off = 0)))
     {
       /* Split a message into the least number of pieces to minimize the
 	 number of WsaSendTo calls.  Don't split datagram messages (bad idea).
@@ -1570,12 +1581,77 @@ fhandler_socket_wsock::writev (const struct iovec *const iov, const int iovcnt,
   return send_internal (&wsamsg, 0);
 }
 
+#define TCP_MAXRT	      5	/* Older systems don't support TCP_MAXRTMS
+				   TCP_MAXRT takes secs, not msecs. */
+
+#ifndef SIO_TCP_SET_ACK_FREQUENCY
+#define SIO_TCP_SET_ACK_FREQUENCY	_WSAIOW(IOC_VENDOR,23)
+#endif
+
+#define MAX_TCP_KEEPIDLE  32767
+#define MAX_TCP_KEEPCNT     255
+#define MAX_TCP_KEEPINTVL 32767
+
+#define FIXED_WSOCK_TCP_KEEPCNT 10
+
+int
+fhandler_socket_inet::set_keepalive (int keepidle, int keepcnt, int keepintvl)
+{
+  struct tcp_keepalive tka;
+  int so_keepalive = 0;
+  int len = sizeof so_keepalive;
+  int ret;
+  DWORD dummy;
+
+  /* Per MSDN,
+     https://docs.microsoft.com/en-us/windows/win32/winsock/sio-keepalive-vals
+     the subsequent keep-alive settings in struct tcp_keepalive are only used
+     if the onoff member is != 0.  Request the current state of SO_KEEPALIVE,
+     then set the keep-alive options with onoff set to 1.  On success, if
+     SO_KEEPALIVE was 0, restore to the original SO_KEEPALIVE setting.  Per
+     the above MSDN doc, the SIO_KEEPALIVE_VALS settings are persistent
+     across switching SO_KEEPALIVE. */
+  ret = ::getsockopt (get_socket (), SOL_SOCKET, SO_KEEPALIVE,
+		      (char *) &so_keepalive, &len);
+  if (ret == SOCKET_ERROR)
+    debug_printf ("getsockopt (SO_KEEPALIVE) failed, %u\n", WSAGetLastError ());
+  tka.onoff = 1;
+  tka.keepalivetime = keepidle * MSPERSEC;
+  /* WinSock TCP_KEEPCNT is fixed.  But we still want that the keep-alive
+     times out after TCP_KEEPIDLE + TCP_KEEPCNT * TCP_KEEPINTVL secs.
+     To that end, we set keepaliveinterval so that
+
+     keepaliveinterval * FIXED_WSOCK_TCP_KEEPCNT == TCP_KEEPINTVL * TCP_KEEPCNT
+
+     FIXME?  Does that make sense?
+
+     Sidenote: Given the max values, the entire operation fits into an int.  */
+  tka.keepaliveinterval = MSPERSEC / FIXED_WSOCK_TCP_KEEPCNT * keepcnt
+			  * keepintvl;
+  if (WSAIoctl (get_socket (), SIO_KEEPALIVE_VALS, (LPVOID) &tka, sizeof tka,
+		NULL, 0, &dummy, NULL, NULL) == SOCKET_ERROR)
+    {
+      set_winsock_errno ();
+      return -1;
+    }
+  if (!so_keepalive)
+    {
+      ret = ::setsockopt (get_socket (), SOL_SOCKET, SO_KEEPALIVE,
+			  (const char *) &so_keepalive, sizeof so_keepalive);
+      if (ret == SOCKET_ERROR)
+	debug_printf ("setsockopt (SO_KEEPALIVE) failed, %u\n",
+		      WSAGetLastError ());
+    }
+  return 0;
+}
+
 int
 fhandler_socket_inet::setsockopt (int level, int optname, const void *optval,
 				  socklen_t optlen)
 {
   bool ignore = false;
   int ret = -1;
+  unsigned int timeout;
 
   /* Preprocessing setsockopt.  Set ignore to true if setsockopt call should
      get skipped entirely. */
@@ -1681,6 +1757,136 @@ fhandler_socket_inet::setsockopt (int level, int optname, const void *optval,
 	}
       }
     default:
+      break;
+
+    case IPPROTO_TCP:
+      /* Check for stream socket early on, so we don't have to do this for
+	 every option.  Also, WinSock returns EINVAL. */
+      if (type != SOCK_STREAM)
+	{
+	  set_errno (EOPNOTSUPP);
+	  return -1;
+	}
+
+      switch (optname)
+	{
+	case TCP_MAXSEG:
+	  /* Winsock doesn't support setting TCP_MAXSEG, only requesting it
+	     via getsockopt.  Make this a no-op. */
+	  ignore = true;
+	  break;
+
+	case TCP_QUICKACK:
+	  /* Various sources on the net claim that TCP_QUICKACK is supported
+	     by Windows, even using the same optname value of 12.  However,
+	     the ws2ipdef.h header calls this option TCP_CONGESTION_ALGORITHM
+	     and there's no official statement, nor official documentation
+	     confirming or denying this option is equivalent to Linux'
+	     TCP_QUICKACK.  Also, weirdly, this option takes values from 0..7.
+
+	     There is another undocumented option to WSAIoctl called
+	     SIO_TCP_SET_ACK_FREQUENCY which is already used by some
+	     projects, so we're going to use it here, too, for now.
+
+	     There's an open issue in the dotnet github,
+	     https://github.com/dotnet/runtime/issues/798
+	     Hopefully this clarifies the situation in the not too distant
+	     future... */
+	  {
+	    DWORD dummy;
+	    /* https://stackoverflow.com/questions/55034112/c-disable-delayed-ack-on-windows
+	       claims that valid values for SIO_TCP_SET_ACK_FREQUENCY are
+	       1..255.  In contrast to that, my own testing shows that
+	       valid values are 0 and 1 exclusively. */
+	    int freq = !!*(int *) optval;
+	    if (WSAIoctl (get_socket (), SIO_TCP_SET_ACK_FREQUENCY, &freq,
+			  sizeof freq, NULL, 0, &dummy, NULL, NULL)
+		== SOCKET_ERROR)
+	      {
+		set_winsock_errno ();
+		return -1;
+	      }
+	    ignore = true;
+	    tcp_quickack = freq ? true : false;
+	  }
+	  break;
+
+	case TCP_MAXRT:
+	  /* Don't let this option slip through from user space. */
+	  set_errno (EOPNOTSUPP);
+	  return -1;
+
+	case TCP_USER_TIMEOUT:
+	  if (!wincap.has_tcp_maxrtms ())
+	    {
+	      /* convert msecs to secs.  Values < 1000 ms are converted to
+		 0 secs, just as in WinSock. */
+	      timeout = *(unsigned int *) optval / MSPERSEC;
+	      optname = TCP_MAXRT;
+	      optval = (const void *) &timeout;
+	    }
+	  break;
+
+	case TCP_FASTOPEN:
+	  /* Fake FastOpen on older systems. */
+	  if (!wincap.has_tcp_fastopen ())
+	    {
+	      ignore = true;
+	      tcp_fastopen = *(int *) optval ? true : false;
+	    }
+	  break;
+
+	case TCP_KEEPIDLE:
+	  /* Handle TCP_KEEPIDLE on older systems. */
+	  if (!wincap.has_linux_tcp_keepalive_sockopts ())
+	    {
+	      if (*(int *) optval < 1 || *(int *) optval > MAX_TCP_KEEPIDLE)
+		{
+		  set_errno (EINVAL);
+		  return -1;
+		}
+	      if (set_keepalive (*(int *) optval, tcp_keepcnt, tcp_keepintvl))
+		return -1;
+	      ignore = true;
+	      tcp_keepidle = *(int *) optval;
+	    }
+	  break;
+
+	case TCP_KEEPCNT:
+	  /* Fake TCP_KEEPCNT on older systems. */
+	  if (!wincap.has_linux_tcp_keepalive_sockopts ())
+	    {
+	      if (*(int *) optval < 1 || *(int *) optval > MAX_TCP_KEEPCNT)
+		{
+		  set_errno (EINVAL);
+		  return -1;
+		}
+	      if (set_keepalive (tcp_keepidle, *(int *) optval, tcp_keepintvl))
+		return -1;
+	      ignore = true;
+	      tcp_keepcnt = *(int *) optval;
+	    }
+	  break;
+
+	case TCP_KEEPINTVL:
+	  /* Handle TCP_KEEPINTVL on older systems. */
+	  if (!wincap.has_linux_tcp_keepalive_sockopts ())
+	    {
+	      if (*(int *) optval < 1 || *(int *) optval > MAX_TCP_KEEPINTVL)
+		{
+		  set_errno (EINVAL);
+		  return -1;
+		}
+	      if (set_keepalive (tcp_keepidle, tcp_keepcnt, *(int *) optval))
+		return -1;
+	      ignore = true;
+	      tcp_keepintvl = *(int *) optval;
+	    }
+	  break;
+
+	default:
+	  break;
+	}
       break;
     }
 
@@ -1810,6 +2016,78 @@ fhandler_socket_inet::getsockopt (int level, int optname, const void *optval,
 	optname = convert_ws1_ip_optname (optname);
       break;
 
+    case IPPROTO_TCP:
+      /* Check for stream socket early on, so we don't have to do this for
+	 every option.  Also, WinSock returns EINVAL. */
+      if (type != SOCK_STREAM)
+	{
+	  set_errno (EOPNOTSUPP);
+	  return -1;
+	}
+
+      switch (optname)
+	{
+	case TCP_QUICKACK:
+	  *(int *) optval = tcp_quickack ? 1 : 0;
+	  *optlen = sizeof (int);
+	  return 0;
+
+	case TCP_MAXRT:
+	  /* Don't let this option slip through from user space. */
+	  set_errno (EOPNOTSUPP);
+	  return -1;
+
+	case TCP_USER_TIMEOUT:
+	  /* Older systems don't support TCP_MAXRTMS, just call TCP_MAXRT. */
+	  if (!wincap.has_tcp_maxrtms ())
+	    optname = TCP_MAXRT;
+	  break;
+
+	case TCP_FASTOPEN:
+	  /* Fake FastOpen on older systems */
+	  if (!wincap.has_tcp_fastopen ())
+	    {
+	      *(int *) optval = tcp_fastopen ? 1 : 0;
+	      *optlen = sizeof (int);
+	      return 0;
+	    }
+	  break;
+
+	case TCP_KEEPIDLE:
+	  /* Use stored value on older systems */
+	  if (!wincap.has_linux_tcp_keepalive_sockopts ())
+	    {
+	      *(int *) optval = tcp_keepidle;
+	      *optlen = sizeof (int);
+	      return 0;
+	    }
+	  break;
+
+	case TCP_KEEPCNT:
+	  /* Use stored value on older systems */
+	  if (!wincap.has_linux_tcp_keepalive_sockopts ())
+	    {
+	      *(int *) optval = tcp_keepcnt;
+	      *optlen = sizeof (int);
+	      return 0;
+	    }
+	  break;
+
+	case TCP_KEEPINTVL:
+	  /* Use stored value on older systems */
+	  if (!wincap.has_linux_tcp_keepalive_sockopts ())
+	    {
+	      *(int *) optval = tcp_keepintvl;
+	      *optlen = sizeof (int);
+	      return 0;
+	    }
+	  break;
+
+	default:
+	  break;
+	}
+      break;
+
     default:
       break;
     }
@@ -1854,6 +2132,15 @@ fhandler_socket_inet::getsockopt (int level, int optname, const void *optval,
 	  onebyte = true;
 	  break;
 
+	case TCP_MAXRT: /* After above conversion from TCP_USER_TIMEOUT */
+	  /* convert secs to msecs */
+	  *(unsigned int *) optval *= MSPERSEC;
+	  break;
+
+	case TCP_FASTOPEN:
+	  onebyte = true;
+	  break;
+
 	default:
 	  break;
 	}
@@ -1866,8 +2153,7 @@ fhandler_socket_inet::getsockopt (int level, int optname, const void *optval,
       /* Regression in Vista and later: instead of a 4 byte BOOL value, a
 	 1 byte BOOLEAN value is returned, in contrast to older systems and
 	 the documentation.  Since an int type is expected by the calling
-	 application, we convert the result here.  For some reason only three
-	 BSD-compatible socket options seem to be affected. */
+	 application, we convert the result here. */
       BOOLEAN *in = (BOOLEAN *) optval;
       int *out = (int *) optval;
       *out = *in;
