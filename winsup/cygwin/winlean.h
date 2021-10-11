@@ -153,6 +153,9 @@ typedef struct DECLSPEC_ALIGN(8) MEM_EXTENDED_PARAMETER
    executed on systems that support it (a run-time condition). */
 PVOID WINAPI VirtualAlloc2 (HANDLE, PVOID, SIZE_T, ULONG, ULONG,
 			    PMEM_EXTENDED_PARAMETER, ULONG);
+/* IsWow64Process2 should be declared in <w32api/wow64apiset.h> but
+   isn't yet. */
+BOOL WINAPI IsWow64Process2(HANDLE, USHORT *, USHORT *);
 
 #ifdef __cplusplus
 }
