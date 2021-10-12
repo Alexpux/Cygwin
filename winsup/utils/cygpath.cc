@@ -24,9 +24,6 @@ details. */
 #define _WIN32_WINNT 0x0a00
 #define WINVER 0x0a00
 #define NOCOMATTRIBUTE
-#ifdef __i386__ /* 32-bit MSYS2 won't get new enough mingw-w64-headers */
-#define PMEM_EXTENDED_PARAMETER PVOID
-#endif
 #include <windows.h>
 #include <userenv.h>
 #include <shlobj.h>

@@ -6,9 +6,6 @@ This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
-#ifdef __i386__ /* 32-bit MSYS2 won't get new enough mingw-w64-headers */
-#define PMEM_EXTENDED_PARAMETER PVOID
-#endif
 #include <errno.h>
 #include <stdio.h>
 #include <locale.h>
