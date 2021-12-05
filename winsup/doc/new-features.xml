@@ -4,6 +4,127 @@
 
 <sect1 id="ov-new"><title>What's new and what changed in Cygwin</title>
 
+<sect2 id="ov-new3.3"><title>What's new and what changed in 3.3</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+An IP-sampling profiler named 'profiler' has been added.  It can be used
+to profile any Cygwin program along with any DLLs loaded.
+</para></listitem>
+
+<listitem><para>
+A new tool 'gmondump' has been added.  It can dump the raw information
+of any "gmon.out" file created by profiler, ssp, or use of the gcc/g++
+option '-pg'.  (Continue using gprof to get symbolic profile displays.)
+</para></listitem>
+
+<listitem><para>
+New GNU-specific APIs, slated to become part of the next POSIX standard:
+pthread_cond_clockwait, pthread_mutex_clocklock, pthread_rwlock_clockrdlock,
+pthread_rwlock_clockwrlock, sem_clockwait.
+</para></listitem>
+
+<listitem><para>
+New Solaris-specific APIs, slated to become part of the next POSIX standard:
+sig2str, str2sig.
+</para></listitem>
+
+<listitem><para>
+The speed argument to cfsetspeed(3) can now be a numerical baud rate
+rather than a Bnnn constant, as on Linux.
+</para></listitem>
+
+<listitem><para>
+The internal implementation of pipes has been overhauled; this should
+result in improved performance.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="ov-new3.2"><title>What's new and what changed in 3.2</title>
+
+<itemizedlist mark="bullet">
+
+<listitem><para>
+Revamped pseudo console support.  Conditionally activating it only when
+a non-cygwin application is run.
+</para></listitem>
+
+<listitem><para>
+New C11 threads API: call_once, cnd_broadcast, cnd_destroy, cnd_init,
+cnd_signal, cnd_timedwait, cnd_wait, mtx_destroy, mtx_init, mtx_lock,
+mtx_timedlock, mtx_trylock, mtx_unlock, thrd_create, thrd_current,
+thrd_detach, thrd_equal, thrd_exit, thrd_join, thrd_sleep, thrd_yield,
+tss_create, tss_delete, tss_get, tss_set.
+</para></listitem>
+
+<listitem><para>
+In cygwin console, new thread which handles special keys/signals such
+as Ctrl-Z (VSUSP), Ctrl-\ (VQUIT), Ctrl-S (VSTOP), Ctrl-Q (VSTART) and
+SIGWINCH has been introduced. There have been a long standing issue
+that these keys/signals are handled only when app calls read() or
+select(). Now, these work even if app does not call read() or select().
+</para></listitem>
+
+<listitem><para>
+Allow ~5000 child processes per process on 64 bit, ~1200 child processes
+per process on 32 bit.  So far, only 256 child processes per process were
+supported.
+</para></listitem>
+
+<listitem><para>
+A few FAQ updates.
+</para></listitem>
+
+<listitem><para>
+Have tmpfile(3) make use of Win32 FILE_ATTRIBUTE_TEMPORARY via open(2)
+flag O_TMPFILE.
+</para></listitem>
+
+<listitem><para>
+Utilize Windows 10 1809 FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE flag
+to allow simpler unlink of files with DOS readonly flags set.
+</para></listitem>
+
+<listitem><para>
+fchmodat(2) now has limited support for the AT_SYMLINK_NOFOLLOW flag.
+</para></listitem>
+
+<listitem><para>
+getdtablesize(3), sysconf(_SC_OPEN_MAX), and getrlimit(RLIMIT_NOFILE)
+now return the true limit on the number of open descriptors, 3200.
+Previously they returned the current size of Cygwin's internal file
+descriptor table, which can grow dynamically.
+</para></listitem>
+
+<listitem><para>
+Cygwin now recognizes native Windows AF_UNIX sockets (as regular
+files, not as socket files).  This allows tools like 'ls' and 'rm' to
+work.
+</para></listitem>
+
+<listitem><para>
+facl(2) now fails with EBADF on a file opened with O_PATH.
+</para></listitem>
+
+<listitem><para>
+Allow to start Windows Store executables via their "app execution
+aliases".  Handle these aliases (which are special reparse points)
+as symlinks to the actual executables.
+</para></listitem>
+
+<listitem><para>
+The speed argument to cfsetspeed(3) can now be a numerical baud rate
+rather than a Bnnn constant, as on Linux.
+</para></listitem>
+
+</itemizedlist>
+
+</sect2>
+
 <sect2 id="ov-new3.1"><title>What's new and what changed in 3.1</title>
 
 <itemizedlist mark="bullet">

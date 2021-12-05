@@ -772,7 +772,7 @@ getdomainname (char *domain, size_t len)
 	  && GetNetworkParams(info, &size) == ERROR_SUCCESS)
 	{
 	  strncpy(domain, info->DomainName, len);
-	  debug_printf ("gethostname %s", domain);
+	  debug_printf ("getdomainname %s", domain);
 	  return 0;
 	}
       __seterrno ();
@@ -1595,6 +1595,7 @@ static void
 get_ipv4fromreg (struct ifall *ifp, const char *name, DWORD idx)
 {
   WCHAR regkey[256], *c;
+  bool got_addr = false, got_mask = false;
 
   c = wcpcpy (regkey, L"Tcpip\\Parameters\\Interfaces\\");
   sys_mbstowcs (c, 220, name);
@@ -1637,9 +1638,15 @@ get_ipv4fromreg (struct ifall *ifp, const char *name, DWORD idx)
       if (dhcp)
 	{
 	  if (udipa.Buffer)
-	    inet_uton (udipa.Buffer, &addr->sin_addr);
+	    {
+	      inet_uton (udipa.Buffer, &addr->sin_addr);
+	      got_addr = true;
+	    }
 	  if (udsub.Buffer)
-	    inet_uton (udsub.Buffer, &mask->sin_addr);
+	    {
+	      inet_uton (udsub.Buffer, &mask->sin_addr);
+	      got_mask = true;
+	    }
 	}
       else
 	{
@@ -1649,7 +1656,10 @@ get_ipv4fromreg (struct ifall *ifp, const char *name, DWORD idx)
 		   c += wcslen (c) + 1)
 		ifs++;
 	      if (*c)
-		inet_uton (c, &addr->sin_addr);
+		{
+		  inet_uton (c, &addr->sin_addr);
+		  got_addr = true;
+		}
 	    }
 	  if (usub.Buffer)
 	    {
@@ -1657,9 +1667,16 @@ get_ipv4fromreg (struct ifall *ifp, const char *name, DWORD idx)
 		   c += wcslen (c) + 1)
 		ifs++;
 	      if (*c)
-		inet_uton (c, &mask->sin_addr);
+		{
+		  inet_uton (c, &mask->sin_addr);
+		  got_mask = true;
+		}
 	    }
 	}
+      if (got_addr)
+	ifp->ifa_ifa.ifa_addr = (struct sockaddr *) addr;
+      if (got_mask)
+	ifp->ifa_ifa.ifa_netmask = (struct sockaddr *) mask;
       if (ifp->ifa_ifa.ifa_flags & IFF_BROADCAST)
 	brdc->sin_addr.s_addr = (addr->sin_addr.s_addr
 				 & mask->sin_addr.s_addr)
@@ -1800,13 +1817,13 @@ get_ifs (ULONG family)
 	      ifp->ifa_ifa.ifa_flags |= IFF_BROADCAST;
 	    /* Address */
 	    ifp->ifa_addr.ss_family = AF_INET;
-	    ifp->ifa_ifa.ifa_addr = (struct sockaddr *) &ifp->ifa_addr;
+	    ifp->ifa_ifa.ifa_addr = NULL;
 	    /* Broadcast/Destination address */
 	    ifp->ifa_brddstaddr.ss_family = AF_INET;
 	    ifp->ifa_ifa.ifa_dstaddr = NULL;
 	    /* Netmask */
 	    ifp->ifa_netmask.ss_family = AF_INET;
-	    ifp->ifa_ifa.ifa_netmask = (struct sockaddr *) &ifp->ifa_netmask;
+	    ifp->ifa_ifa.ifa_netmask = NULL;
 	    /* Try to fetch real IPv4 address information from registry. */
 	    get_ipv4fromreg (ifp, pap->AdapterName, idx);
 	    /* Hardware address */
@@ -1869,6 +1886,7 @@ get_ifs (ULONG family)
 		    if (prefix < 32)
 		      if_sin6->sin6_addr.s6_addr32[cnt] <<= 32 - prefix;
 		  }
+		if_sin6->sin6_family = AF_INET6;
 		break;
 	      }
 	    ifp->ifa_ifa.ifa_netmask = (struct sockaddr *) &ifp->ifa_netmask;
@@ -2892,14 +2910,62 @@ ga_duplist (struct addrinfoW *ai, bool v4mapped, int idn_flags, int &err)
 {
   struct addrinfo *tmp, *nai = NULL, *nai0 = NULL;
 
-  for (; ai; ai = ai->ai_next, nai = tmp)
+  for (; ai; ai = ai->ai_next)
     {
+      /* Workaround for a Windows weirdness.  If a service is supported as
+	 TCP and UDP service, GetAddrInfo does not return two entries, one
+	 for TCP, one for UDP, as on Linux.  Rather, it just returns a single
+	 entry with ai_socktype and ai_protocol set to 0, kind of like a
+	 placeholder.  If the service only exists as TCP or UDP service, then
+	 ai->ai_socktype is set, but ai_protocol isn't.  Fix up the fields,
+	 and in case ai_socktype and ai_protocol are 0 duplicate the entry
+	 with valid values for ai_socktype and ai_protocol. */
+      switch (ai->ai_socktype)
+	{
+	case SOCK_STREAM:
+	  if (ai->ai_protocol == 0)
+	    ai->ai_protocol = IPPROTO_TCP;
+	  break;
+	case SOCK_DGRAM:
+	  if (ai->ai_protocol == 0)
+	    ai->ai_protocol = IPPROTO_UDP;
+	  break;
+	case 0:
+	  switch (ai->ai_protocol)
+	    {
+	    case IPPROTO_TCP:
+	      ai->ai_socktype = SOCK_STREAM;
+	      break;
+	    case IPPROTO_UDP:
+	      ai->ai_socktype = SOCK_DGRAM;
+	      break;
+	    case 0:
+	      ai->ai_socktype = SOCK_STREAM;
+	      ai->ai_protocol = IPPROTO_TCP;
+	      if (!(tmp = ga_dup (ai, v4mapped, idn_flags, err)))
+		goto bad;
+	      if (!nai0)
+		nai0 = tmp;
+	      if (nai)
+		nai->ai_next = tmp;
+	      nai = tmp;
+	      ai->ai_socktype = SOCK_DGRAM;
+	      ai->ai_protocol = IPPROTO_UDP;
+	      break;
+	    default:
+	      break;
+	    }
+	  break;
+	default:
+	  break;
+	}
       if (!(tmp = ga_dup (ai, v4mapped, idn_flags, err)))
 	goto bad;
       if (!nai0)
 	nai0 = tmp;
       if (nai)
 	nai->ai_next = tmp;
+      nai = tmp;
     }
   return nai0;
 

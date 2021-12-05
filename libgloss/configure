@@ -667,6 +667,7 @@ CCASFLAGS'
 ac_subdirs_all='doc
 aarch64
 arc
+csky
 epiphany
 i386
 m32r
@@ -2408,6 +2409,10 @@ case "${target}" in
 	;;
   arc*-*-*)
 	subdirs="$subdirs arc"
+
+	;;
+  csky*-*-*)
+	subdirs="$subdirs csky"
 
 	;;
   epiphany-*-*)

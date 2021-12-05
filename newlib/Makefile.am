@@ -107,7 +107,7 @@ MATHOBJS_IN_LIBC = \
 	$(lpfx)s_isnand.$(oext) $(lpfx)sf_isnanf.$(oext) \
 	$(lpfx)s_nan.$(oext) $(lpfx)sf_nan.$(oext) \
 	$(lpfx)s_ldexp.$(oext) $(lpfx)sf_ldexp.$(oext) \
-	$(lpfx)s_frexp.$(oext) $(lpfx)sf_frexp.$(oext) \
+	$(lpfx)s_frexp.$(oext) $(lpfx)sf_frexp.$(oext) $(lpfx)frexpl.$(oext) \
 	$(lpfx)s_modf.$(oext) \
 	$(lpfx)sf_modf.$(oext) $(lpfx)s_scalbn.$(oext) \
 	$(lpfx)sf_scalbn.$(oext) \
@@ -237,6 +237,23 @@ stmp-targ-include: config.status
 	$(MAKE) targ-include/sys \
 		targ-include/machine \
 		targ-include/bits
+	-if [ -n "$(shared_machine_dir)" ]; then \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/machine/*.h; do \
+		if [ -f $$i ]; then \
+		  cp $$i targ-include/machine/`basename $$i`; \
+		else true; fi ; \
+	      done; \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/sys/*.h; do \
+		if [ -f $$i ]; then \
+		  cp $$i targ-include/sys/`basename $$i`; \
+		else true; fi ; \
+	      done; \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/include/*.h; do \
+		if [ -f $$i ]; then \
+		  cp $$i targ-include/`basename $$i`; \
+		else true; fi ; \
+	      done; \
+	  fi
 	-for i in $(srcdir)/libc/machine/$(machine_dir)/machine/*.h; do \
 	    if [ -f $$i ]; then \
 	      cp $$i targ-include/machine/`basename $$i`; \
@@ -315,6 +332,13 @@ endif
 	  for i in $(srcdir)/libc/include/machine/*.h; do \
 	   $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/machine/`basename $$i`; \
 	  done; \
+	  if [ -n "$(shared_machine_dir)" ]; then \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/machine/*.h; do \
+	      if [ -f $$i ]; then \
+	       $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/machine/`basename $$i`; \
+	      else true; fi ; \
+	    done; \
+	  fi ; \
 	  for i in $(srcdir)/libc/machine/$(machine_dir)/machine/*.h; do \
 	    if [ -f $$i ]; then \
 	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/machine/`basename $$i`; \
@@ -332,6 +356,18 @@ endif
 	  for i in $(srcdir)/libc/include/sys/*.h; do \
 	   $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
 	  done; \
+	  if [ -n "$(shared_machine_dir)" ]; then \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/sys/*.h; do \
+	      if [ -f $$i ]; then \
+	       $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
+	      else true; fi ; \
+	    done ; \
+	    for i in $(srcdir)/libc/machine/$(shared_machine_dir)/include/*.h; do \
+	      if [ -f $$i ]; then \
+	       $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/`basename $$i`; \
+	      else true; fi ; \
+	    done ; \
+	  fi ; \
 	  for i in $(srcdir)/libc/machine/$(machine_dir)/sys/*.h; do \
 	    if [ -f $$i ]; then \
 	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
@@ -384,10 +420,6 @@ endif
 
 # Generate Unicode data tables for libc/string/wcwidth and libc/ctype/??w*
 unidata:
-	cd $(srcdir)/libc/string; ./mkunidata
-	cd $(srcdir)/libc/ctype; ./mkunidata
-
-unidate-download:
 	cd $(srcdir)/libc/string; ./mkunidata -u
 	cd $(srcdir)/libc/ctype; ./mkunidata -u
 

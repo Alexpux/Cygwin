@@ -497,7 +497,8 @@ enum {
   FILE_DISPOSITION_DELETE				= 0x01,
   FILE_DISPOSITION_POSIX_SEMANTICS			= 0x02,
   FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK		= 0x04,
-  FILE_DISPOSITION_ON_CLOSE				= 0x08
+  FILE_DISPOSITION_ON_CLOSE				= 0x08,
+  FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE		= 0x10,
 };
 
 enum
@@ -618,6 +619,23 @@ typedef struct _SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION
   LARGE_INTEGER InterruptTime;
   ULONG InterruptCount;
 } SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION, *PSYSTEM_PROCESSOR_PERFORMANCE_INFORMATION;
+
+typedef struct _SYSTEM_HANDLE_TABLE_ENTRY_INFO
+{
+  USHORT UniqueProcessId;
+  USHORT CreatorBackTraceIndex;
+  UCHAR ObjectTypeIndex;
+  UCHAR HandleAttributes;
+  USHORT HandleValue;
+  PVOID Object;
+  ULONG GrantedAccess;
+} SYSTEM_HANDLE_TABLE_ENTRY_INFO, *PSYSTEM_HANDLE_TABLE_ENTRY_INFO;
+
+typedef struct _SYSTEM_HANDLE_INFORMATION
+{
+  ULONG NumberOfHandles;
+  SYSTEM_HANDLE_TABLE_ENTRY_INFO Handles[1];
+} SYSTEM_HANDLE_INFORMATION, *PSYSTEM_HANDLE_INFORMATION;
 
 typedef LONG KPRIORITY;
 
@@ -824,8 +842,27 @@ typedef enum _PROCESSINFOCLASS
   ProcessSessionInformation = 24,
   ProcessWow64Information = 26,
   ProcessImageFileName = 27,
-  ProcessDebugFlags = 31
+  ProcessDebugFlags = 31,
+  ProcessHandleInformation = 51 /* Since Win8 */
 } PROCESSINFOCLASS;
+
+typedef struct _PROCESS_HANDLE_TABLE_ENTRY_INFO
+{
+  HANDLE HandleValue;
+  ULONG_PTR HandleCount;
+  ULONG_PTR PointerCount;
+  ULONG GrantedAccess;
+  ULONG ObjectTypeIndex;
+  ULONG HandleAttributes;
+  ULONG Reserved;
+} PROCESS_HANDLE_TABLE_ENTRY_INFO, *PPROCESS_HANDLE_TABLE_ENTRY_INFO;
+
+typedef struct _PROCESS_HANDLE_SNAPSHOT_INFORMATION
+{
+  ULONG_PTR NumberOfHandles;
+  ULONG_PTR Reserved;
+  PROCESS_HANDLE_TABLE_ENTRY_INFO Handles[1];
+} PROCESS_HANDLE_SNAPSHOT_INFORMATION, *PPROCESS_HANDLE_SNAPSHOT_INFORMATION;
 
 typedef struct _DEBUG_BUFFER
 {
@@ -1637,13 +1674,14 @@ extern "C"
 
   /* RtlInitEmptyUnicodeString is defined as a macro in wdm.h, but that file
      is missing entirely in w32api. */
+
   inline
-  VOID NTAPI RtlInitEmptyUnicodeString(PUNICODE_STRING dest, PCWSTR buf,
+  VOID NTAPI RtlInitEmptyUnicodeString(PUNICODE_STRING dest, PWSTR buf,
 				       USHORT len)
   {
     dest->Length = 0;
     dest->MaximumLength = len;
-    dest->Buffer = (PWSTR) buf;
+    dest->Buffer = buf;
   }
   /* Like RtlInitEmptyUnicodeString, but initialize Length to len, too.
      This is for instance useful when creating a UNICODE_STRING from an

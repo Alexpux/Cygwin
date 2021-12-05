@@ -24,6 +24,7 @@ details. */
 
 #define _WIN32_WINNT 0x0a00
 #define WINVER 0x0a00
+#define NTDDI_VERSION WDK_NTDDI_VERSION
 
 #define _NO_W32_PSEUDO_MODIFIERS
 
@@ -138,20 +139,16 @@ extern int cygserver_running;
 #undef issep
 #define issep(ch) (strchr (" \t\n\r", (ch)) != NULL)
 
-/* Every path beginning with / or \, as well as every path being X:
-   or starting with X:/ or X:\ */
-#define isabspath_u(p) \
-  ((p)->Length && \
-   (iswdirsep ((p)->Buffer[0]) || \
-    ((p)->Length > sizeof (WCHAR) && iswalpha ((p)->Buffer[0]) \
-    && (p)->Buffer[1] == L':' && \
-    ((p)->Length == 2 * sizeof (WCHAR) || iswdirsep ((p)->Buffer[2])))))
-
-#define iswabspath(p) \
-  (iswdirsep (*(p)) || (iswalpha (*(p)) && (p)[1] == L':' && (!(p)[2] || iswdirsep ((p)[2]))))
-
+/* Treats "X:" as absolute path.
+   FIXME: We should drop the notion that "X:" is a valid absolute path.
+   Only "X:/" and "X:\\" should be (see isabspath_strict below).  The
+   problem is to find out if we have code depending on this behaviour. */
 #define isabspath(p) \
   (isdirsep (*(p)) || (isalpha (*(p)) && (p)[1] == ':' && (!(p)[2] || isdirsep ((p)[2]))))
+
+/* Treats "X:/" and "X:\\" as absolute paths, but not "X:" */
+#define isabspath_strict(p) \
+  (isdirsep (*(p)) || (isalpha (*(p)) && (p)[1] == ':' && isdirsep ((p)[2])))
 
 /******************** Initialization/Termination **********************/
 
@@ -194,7 +191,7 @@ void close_all_files (bool = false);
 
 /* debug_on_trap support. see exceptions.cc:try_to_debug() */
 extern "C" void error_start_init (const char*);
-extern "C" int try_to_debug (bool waitloop = 1);
+extern "C" int try_to_debug ();
 
 void ld_preload ();
 void fixup_hooks_after_fork ();
@@ -227,9 +224,6 @@ void __stdcall set_console_title (char *);
 void init_console_handler (bool);
 
 extern bool wsock_started;
-
-/* PTY related */
-void set_ishybrid_and_switch_to_pcon (HANDLE h);
 
 /* Printf type functions */
 extern "C" void vapi_fatal (const char *, va_list ap) __attribute__ ((noreturn));

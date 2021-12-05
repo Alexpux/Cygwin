@@ -67,11 +67,12 @@ enum path_types
 {
   PATH_CTTY		= _BIT ( 0),	/* could later be used as ctty */
   PATH_OPEN		= _BIT ( 1),	/* use open semantics */
-  PATH_LNK		= _BIT ( 2),
-  PATH_REP		= _BIT ( 3),
-  PATH_SYMLINK		= _BIT ( 4),
-  PATH_SOCKET		= _BIT ( 5),
-  PATH_RESOLVE_PROCFD	= _BIT ( 6),
+  PATH_LNK		= _BIT ( 2),	/* *.lnk-type symlink */
+  PATH_REP		= _BIT ( 3),	/* reparse point known to Cygwin */
+  PATH_SYMLINK		= _BIT ( 4),	/* symlink understood by Cygwin */
+  PATH_SOCKET		= _BIT ( 5),	/* AF_UNIX socket file */
+  PATH_RESOLVE_PROCFD	= _BIT ( 6),	/* fd symlink via /proc */
+  PATH_REP_NOAPI	= _BIT ( 7),	/* rep. point unknown to WinAPI */
   PATH_DONT_USE		= _BIT (31)	/* conversion to signed happens. */
 };
 
@@ -105,9 +106,10 @@ public:
   }
   inline void dup (const path_conv_handle &pch)
   {
-    if (!DuplicateHandle (GetCurrentProcess (), pch.handle (),
-			  GetCurrentProcess (), &hdl,
-			  0, TRUE, DUPLICATE_SAME_ACCESS))
+    if (pch.handle ()
+	&& !DuplicateHandle (GetCurrentProcess (), pch.handle (),
+			     GetCurrentProcess (), &hdl,
+			     0, TRUE, DUPLICATE_SAME_ACCESS))
       hdl = NULL;
   }
   inline HANDLE handle () const { return hdl; }
@@ -180,7 +182,18 @@ class path_conv
   }
   int issymlink () const {return path_flags & PATH_SYMLINK;}
   int is_lnk_symlink () const {return path_flags & PATH_LNK;}
+  /* This indicates any known reparse point */
   int is_known_reparse_point () const {return path_flags & PATH_REP;}
+  /* This indicates any known reparse point, handled sanely by WinAPI.
+     The difference is crucial: WSL symlinks, for instance, are known
+     reparse points, so we want to open them as reparse points usually.
+     However they are foreign to WinAPI and not handled sanely.  If one
+     is part of $PATH, WinAPI functions may fail under the hood with
+     STATUS_IO_REPARSE_TAG_NOT_HANDLED. */
+  int is_winapi_reparse_point () const
+  {
+    return (path_flags & (PATH_REP | PATH_REP_NOAPI)) == PATH_REP;
+  }
   int isdevice () const {return dev.not_device (FH_FS) && dev.not_device (FH_FIFO);}
   int isfifo () const {return dev.is_device (FH_FIFO);}
   int isspecial () const {return dev.not_device (FH_FS);}
@@ -270,7 +283,7 @@ class path_conv
   ~path_conv ();
   inline const char *get_win32 () const { return path; }
   void set_nt_native_path (PUNICODE_STRING);
-  PUNICODE_STRING get_nt_native_path ();
+  PUNICODE_STRING get_nt_native_path (PUNICODE_STRING = NULL);
   inline POBJECT_ATTRIBUTES get_object_attr (OBJECT_ATTRIBUTES &attr,
 					     SECURITY_ATTRIBUTES &sa)
   {
@@ -321,9 +334,11 @@ class path_conv
        contrast to statically allocated strings.  Calling device::dup()
        will duplicate the string if the source was allocated. */
     dev.dup ();
-    path = cstrdup (in_path);
+    if (in_path)
+      path = cstrdup (in_path);
     conv_handle.dup (pc.conv_handle);
-    posix_path = cstrdup(pc.posix_path);
+    if (pc.posix_path)
+      posix_path = cstrdup(pc.posix_path);
     if (pc.wide_path)
       {
 	wide_path = cwcsdup (uni_path.Buffer);
@@ -393,7 +408,6 @@ class path_conv
     return conv_handle.get_finfo (h, fs.is_nfs ());
   }
   inline ino_t get_ino () const { return conv_handle.get_ino (fs.is_nfs ()); }
-  void reset_conv_handle () { conv_handle.set (NULL); }
   void close_conv_handle () { conv_handle.close (); }
 
   ino_t get_ino_by_handle (HANDLE h);

@@ -20,5 +20,17 @@ jobs:
       - name: Build
         shell: msys2 {0}
         run: |
+          (cd winsup && ./autogen.sh)
           ./configure
           make -j8
+
+      - name: Install
+        shell: msys2 {0}
+        run: |
+          make DESTDIR="$(pwd)"/_dest install
+
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: install
+          path: _dest/

@@ -83,6 +83,8 @@ set_winsymlinks (const char *buf)
     allow_winsymlinks = WSYM_lnk;
   else if (ascii_strncasematch (buf, "lnk", 3))
     allow_winsymlinks = WSYM_lnk;
+  else if (ascii_strncasematch (buf, "sys", 3))
+    allow_winsymlinks = WSYM_sysfile;
   /* Make sure to try native symlinks only on systems supporting them. */
   else if (ascii_strncasematch (buf, "native", 6))
     allow_winsymlinks = ascii_strcasematch (buf + 6, "strict")
@@ -126,6 +128,8 @@ static struct parse_thing
   {"winsymlinks", {func: set_winsymlinks}, isfunc, NULL, {{0}, {0}}},
   {"disable_pcon", {&disable_pcon}, setbool, NULL, {{false}, {true}}},
   {"enable_pcon", {&disable_pcon}, setnegbool, NULL, {{true}, {false}}},
+  {"winjitdebug", {&winjitdebug}, setbool, NULL, {{false}, {true}}},
+  {"nativeinnerlinks", {&nativeinnerlinks}, setbool, NULL, {{false}, {true}}},
   {NULL, {0}, setdword, 0, {{0}, {0}}}
 };
 
@@ -504,8 +508,8 @@ posify_maybe (char **here, const char *value, char *outenv)
 static char *
 my_findenv (const char *name, int *offset)
 {
-  register int len;
-  register char **p;
+  int len;
+  char **p;
   const char *c;
 
   if (cur_environ () == NULL)
@@ -728,7 +732,7 @@ setenv (const char *name, const char *value, int overwrite)
 extern "C" int
 unsetenv (const char *name)
 {
-  register char **e;
+  char **e;
   int offset;
 
   __try

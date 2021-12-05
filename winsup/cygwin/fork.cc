@@ -134,36 +134,6 @@ child_info::prefork (bool detached)
 int __stdcall
 frok::child (volatile char * volatile here)
 {
-  cygheap_fdenum cfd (false);
-  while (cfd.next () >= 0)
-    if (cfd->get_major () == DEV_PTYM_MAJOR)
-      {
-	fhandler_base *fh = cfd;
-	fhandler_pty_master *ptym = (fhandler_pty_master *) fh;
-	if (ptym->get_pseudo_console ())
-	  {
-	    debug_printf ("found a PTY master %d: helper_PID=%d",
-			  ptym->get_minor (), ptym->get_helper_process_id ());
-	    if (fhandler_console::get_console_process_id (
-				ptym->get_helper_process_id (), true))
-	      /* Already attached */
-	      break;
-	    else
-	      {
-		if (ptym->attach_pcon_in_fork ())
-		  {
-		    FreeConsole ();
-		    if (!AttachConsole (ptym->get_helper_process_id ()))
-		      /* Error */;
-		    else
-		      break;
-		  }
-	      }
-	  }
-      }
-  extern void clear_pcon_attached_to (void); /* fhandler_tty.cc */
-  clear_pcon_attached_to ();
-
   HANDLE& hParent = ch.parent;
 
   sync_with_parent ("after longjmp", true);
@@ -445,7 +415,7 @@ frok::parent (volatile char * volatile stack_here)
      it in afterwards.  This requires more bookkeeping than I like, though,
      so we'll just do it the easy way.  So, terminate any child process if
      we can't actually record the pid in the internal table. */
-  if (!child.remember (false))
+  if (!child.remember ())
     {
       this_errno = EAGAIN;
 #ifdef DEBUGGING0
@@ -539,11 +509,11 @@ frok::parent (volatile char * volatile stack_here)
 
   /* Do not attach to the child before it has successfully initialized.
      Otherwise we may wait forever, or deliver an orphan SIGCHILD. */
-  if (!child.reattach ())
+  if (!child.attach ())
     {
       this_errno = EAGAIN;
 #ifdef DEBUGGING0
-      error ("child reattach failed");
+      error ("child attach failed");
 #endif
       goto cleanup;
     }

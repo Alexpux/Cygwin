@@ -11,6 +11,9 @@
    Red Hat, Inc.
 */
 
+int write (int fd, const char *buf, int len);
+void abort (void);
+
 char *
 _sbrk (int adj)
 {
@@ -21,8 +24,8 @@ _sbrk (int adj)
 
   if (heap + adj > sp)
     {
-#define MESSAGE "Heap and stack collision\n"
-      write (1, MESSAGE, sizeof MESSAGE);
+      const char msg[] = "Heap and stack collision\n";
+      write (1, msg, sizeof (msg) - 1);
       abort ();
     }
 

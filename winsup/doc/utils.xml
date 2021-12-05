@@ -26,19 +26,36 @@
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-chattr [-RVfhv] [+-=mode]... [file]...
-      </screen>
+      <cmdsynopsis>
+	<command>chattr</command>
+	<arg>-RVf</arg>
+	<arg rep="repeat">
+	  <group choice="req">
+	    <arg choice="plain">+</arg>
+	    <arg choice="plain">-</arg>
+	    <arg choice="plain">=</arg>
+	  </group>
+	  <replaceable>MODE</replaceable>
+	</arg>
+	<arg rep="repeat"><replaceable>FILE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>chattr</command>
+	<group choice="plain">
+	  <arg choice="plain">-H</arg>
+	  <arg choice="plain">-v</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="chattr-options">
       <title>Options</title>
       <screen>
-  -R, --recursive     recursively list attributes of directories and their
-                      contents
+  -R, --recursive     recursively apply the changes to directories and
+                      their contents
   -V, --verbose       Be verbose during operation
   -f, --force         suppress error messages
-  -h, --help          this help text
+  -H, --help          this help text
   -v, --version       display the program version
 </screen>
     </refsect1>
@@ -53,14 +70,15 @@ chattr [-RVfhv] [+-=mode]... [file]...
 
     <para>The format of 'mode' is {+-=}[acCehnrsSt]</para>
 
-    <para>The  operator '+' causes the selected attributes to be added to the
+    <para>The operator '+' causes the selected attributes to be added to the
       existing attributes of the files; '-' causes them to be removed; and
-      '=' causes them to be the only attributes that the files have.</para>
+      '=' causes them to be the only attributes that the files have.
+      A single '=' causes all attributes to be removed.</para>
 
     <para>Supported attributes:</para>
 
     <screen>
-  'r', 'Readonly':     file is read-only
+  'r', 'Readonly':      file is read-only
   'h', 'Hidden':        file or directory is hidden
   's', 'System':        file or directory that the operating system uses
   'a', 'Archive':       file or directory has the archive marker set
@@ -90,17 +108,54 @@ chattr [-RVfhv] [+-=mode]... [file]...
       </refnamediv>
 
       <refsynopsisdiv>
-	<screen>
-cygcheck [-v] [-h] PROGRAM
-cygcheck -c [-d] [PACKAGE]
-cygcheck -s [-r] [-v] [-h]
-cygcheck -k
-cygcheck -f FILE [FILE]...
-cygcheck -l [PACKAGE]...
-cygcheck -p REGEXP
-cygcheck --delete-orphaned-installation-keys
-cygcheck -h
-	</screen>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg>-v</arg>
+	  <arg>-h</arg>
+	  <arg choice="plain"><replaceable>PROGRAM</replaceable></arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg choice="plain">-c</arg>
+	  <arg>-d</arg>
+	  <arg><replaceable>PACKAGE</replaceable></arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg choice="plain">-s</arg>
+	  <arg>-r</arg>
+	  <arg>-v</arg>
+	  <arg>-h</arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg choice="plain">-k</arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg choice="plain">-f</arg>
+	  <arg choice="plain" rep="repeat"><replaceable>FILE</replaceable></arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg choice="plain">-l</arg>
+	  <arg rep="repeat"><replaceable>PACKAGE</replaceable></arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg choice="plain">-p <replaceable>REGEXP</replaceable></arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <arg choice="plain">--delete-orphaned-installation-keys</arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+	  <command>cygcheck</command>
+	  <group choice="plain">
+	    <arg choice="plain">-h</arg>
+	    <arg choice="plain">-V</arg>
+	  </group>
+	</cmdsynopsis>
       </refsynopsisdiv>
 
       <refsect1 id="cygcheck-options">
@@ -301,12 +356,44 @@ coreutils-5.3.0-6         GNU core utilities (includes fileutils, sh-utils and t
     </refnamediv>
 
     <refsynopsisdiv>
-    <screen>
-cygpath (-d|-m|-u|-w|-t TYPE) [-f FILE] [OPTION]... NAME...
-cygpath [-c HANDLE]
-cygpath [-ADHOPSW]
-cygpath [-F ID]
-    </screen>
+      <cmdsynopsis>
+	<command>cygpath</command>
+	<group choice="req">
+	  <arg choice="plain">-d</arg>
+	  <arg choice="plain">-m</arg>
+	  <arg choice="plain">-u</arg>
+	  <arg choice="plain">-w</arg>
+	  <arg choice="plain">-t <replaceable>TYPE</replaceable></arg>
+	</group>
+	<arg>-f <replaceable>FILE</replaceable></arg>
+	<arg>-i</arg>
+	<arg rep="repeat"><replaceable>CONVERSION_OPTION</replaceable></arg>
+	<arg rep="repeat" choice="plain"><replaceable>NAME</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>cygpath</command>
+	<arg>-c <replaceable>HANDLE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>cygpath</command>
+	<arg>-A</arg>
+	<group choice="req">
+	  <arg choice="plain">-D</arg>
+	  <arg choice="plain">-H</arg>
+	  <arg choice="plain">-O</arg>
+	  <arg choice="plain">-P</arg>
+	  <arg choice="plain">-S</arg>
+	  <arg choice="plain">-W</arg>
+	  <arg choice="plain">-F <replaceable>ID</replaceable></arg>
+	</group>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>cygpath</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="cygpath-options">
@@ -488,9 +575,21 @@ explorer $XPATH &
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-dumper [OPTION] FILENAME WIN32PID
-      </screen>
+      <cmdsynopsis>
+	<command>dumper</command>
+	<arg>-n</arg>
+	<arg>-d</arg>
+	<arg>-q</arg>
+	<arg choice="plain"><replaceable>FILENAME</replaceable></arg>
+	<arg choice="plain"><replaceable>WIN32PID</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>dumper</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="dumper-options">
@@ -552,10 +651,24 @@ error_start=x:\path\to\dumper.exe
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-getconf [-v specification] variable_name [pathname]
-getconf -a [pathname]
-      </screen>
+      <cmdsynopsis>
+	<command>getconf</command>
+	<arg>-v <replaceable>specification</replaceable></arg>
+	<arg choice="plain"><replaceable>variable_name</replaceable></arg>
+	<arg><replaceable>pathname</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>getconf</command>
+	<arg choice="plain">-a</arg>
+	<arg><replaceable>pathname</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>getconf</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="getconf-options">
@@ -616,9 +729,18 @@ Other options:
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-getfacl [-adceEn] FILE [FILE2...]
-      </screen>
+      <cmdsynopsis>
+	<command>getfacl</command>
+	<arg>-adceEn</arg>
+	<arg choice="plain" rep="repeat"><replaceable>FILE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>getfacl</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="getfacl-options">
@@ -671,6 +793,65 @@ line separates the ACLs for each file.
     </refsect1>
   </refentry>
 
+  <refentry id="gmondump">
+    <refmeta>
+      <refentrytitle>gmondump</refentrytitle>
+      <manvolnum>1</manvolnum>
+      <refmiscinfo class="manual">Cygwin Utilities</refmiscinfo>
+    </refmeta>
+
+    <refnamediv>
+      <refname>gmondump</refname>
+      <refpurpose>Display formatted contents of profile data files</refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+      <cmdsynopsis>
+	<command>gmondump</command>
+	<arg>-v</arg>
+	<arg rep="repeat">FILENAME</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>gmondump</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1 id="gmondump-options">
+      <title>Options</title>
+      <screen>
+  -h, --help             Display usage information and exit
+  -v, --verbose          Display more file details (toggle: default false)
+  -V, --version          Display version information and exit
+</screen>
+    </refsect1>
+
+    <refsect1 id="gmondump-desc">
+      <title>Description</title>
+    <para>The <command>gmondump</command> utility displays the contents of
+      one or more profile data files. Such files usually have names starting
+      with "gmon.out" and are created by a profiling program such as
+      <command>profiler</command> or <command>ssp</command>. Compiling your
+      gcc/g++ programs with option <literal>-pg</literal> also works.</para>
+    <para> By default, summary information is shown. You can use the
+      option <literal>-v</literal> to get more detailed displays.</para>
+    <para>Note that <command>gmondump</command> just displays the raw data;
+      one would usually use <command>gprof</command> to display the data in
+      a useful form incorporating symbolic info such as function names and
+      source line numbers.</para>
+    <para>Here is an example of <command>gmondump</command> operation:</para>
+<screen>
+$ gmondump gmon.out.21900.zstd.exe
+file gmon.out.21900.zstd.exe, gmon version 0x51879, sample rate 100
+  address range 0x0x100401000..0x0x1004cc668
+  numbuckets 208282, hitbuckets 1199, hitcount 12124, numrawarcs 0
+</screen>
+    </refsect1>
+  </refentry>
+
   <refentry id="kill">
     <refmeta>
       <refentrytitle>kill</refentrytitle>
@@ -684,10 +865,26 @@ line separates the ACLs for each file.
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-kill [-f] [-signal] [-s signal] pid1 [pid2 ...]
-kill -l [signal]
-      </screen>
+      <cmdsynopsis>
+	<command>kill</command>
+	<arg>-f</arg>
+	<arg>-signal</arg>
+	<arg>-s <replaceable>signal</replaceable></arg>
+	<arg choice="plain" rep="repeat"><replaceable>pid</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>kill</command>
+	<arg choice="plain">-l</arg>
+	<arg choice="repeat"><replaceable>signal</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>kill</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
+
     </refsynopsisdiv>
 
     <refsect1 id="kill-options">
@@ -810,9 +1007,18 @@ SIGUSR2     31    user defined signal 2
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-ldd [OPTION]... FILE...
-      </screen>
+      <cmdsynopsis>
+	<command>ldd</command>
+	<arg>-ruv</arg>
+	<arg rep="repeat" choice="plain"><replaceable>FILE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>ldd</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="ldd-options">
@@ -860,11 +1066,27 @@ ldd [OPTION]... FILE...
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-locale [-amvhV]
-locale [-ck] NAME
-locale [-iusfnU]
-      </screen>
+      <cmdsynopsis>
+	<command>locale</command>
+	<arg>-amvhV</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>locale</command>
+	<arg>-ck</arg>
+	<arg choice="plain"><replaceable>NAME</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>locale</command>
+	<arg>-iusfnU</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>locale</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
+
     </refsynopsisdiv>
 
     <refsect1  id="locale-options">
@@ -1040,9 +1262,18 @@ bash$ locale noexpr
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-lsattr [-RVadhln] [file]...
-      </screen>
+      <cmdsynopsis>
+	<command>lsattr</command>
+	<arg>-Radln</arg>
+	<arg rep="repeat"><replaceable>FILE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>lsattr</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="lsattr-options">
@@ -1105,9 +1336,22 @@ lsattr [-RVadhln] [file]...
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-minidumper [OPTION] FILENAME WIN32PID
-      </screen>
+      <cmdsynopsis>
+	<command>minidumper</command>
+	<arg>-d</arg>
+	<arg>-n</arg>
+	<arg>-q</arg>
+	<arg>-t <replaceable>TYPE</replaceable></arg>
+	<arg choice="plain"><replaceable>FILENAME</replaceable></arg>
+	<arg choice="plain"><replaceable>WIN32PID</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>minidumper</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="minidumper-options">
@@ -1158,21 +1402,40 @@ minidumper [OPTION] FILENAME WIN32PID
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-mkgroup [OPTION]...
-      </screen>
+      <cmdsynopsis>
+	<command>mkgroup</command>
+	<arg>
+	  <group choice="plain">
+	    <arg choice="plain">-l</arg>
+	    <arg choice="plain">-L</arg>
+	  </group>
+	  <arg><replaceable>MACHINE</replaceable></arg>
+	</arg>
+	<arg>-d <arg><replaceable>DOMAIN</replaceable></arg></arg>
+	<arg>-c</arg>
+	<arg>-S <replaceable>CHAR</replaceable></arg>
+	<arg>-o <replaceable>OFFSET</replaceable></arg>
+	<arg>-g <replaceable>GROUPNAME</replaceable></arg>
+	<arg>-b</arg>
+	<arg>-U  <replaceable>GROUPLIST</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>mkgroup</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="mkgroup-options">
       <title>Options</title>
       <screen>
-Options:
-
    -l,--local [machine]    Print local group accounts of \"machine\",
                            from local machine if no machine specified.
                            Automatically adding machine prefix for local
                            machine depends on settings in /etc/nsswitch.conf.
-   -L,--Local machine      Ditto, but generate groupname with machine prefix.
+   -L,--Local [machine]    Ditto, but generate groupname with machine prefix.
    -d,--domain [domain]    Print domain groups,
                            from current domain if no domain specified.
    -c,--current            Print current group.
@@ -1262,21 +1525,40 @@ groups on domain controllers and domain member machines.
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-mkpasswd [OPTIONS]...
-      </screen>
+      <cmdsynopsis>
+	<command>mkpasswd</command>
+	<arg>
+	  <group choice="plain">
+	    <arg choice="plain">-l</arg>
+	    <arg choice="plain">-L</arg>
+	  </group>
+	  <arg><replaceable>MACHINE</replaceable></arg>
+	</arg>
+	<arg>-d <arg><replaceable>DOMAIN</replaceable></arg></arg>
+	<arg>-c</arg>
+	<arg>-S <replaceable>CHAR</replaceable></arg>
+	<arg>-o <replaceable>OFFSET</replaceable></arg>
+	<arg>-u <replaceable>USERNAME</replaceable></arg>
+	<arg>-b</arg>
+	<arg>-U  <replaceable>USERLIST</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>mkpassword</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="mkpasswd-options">
       <title>Options</title>
       <screen>
-    Options:
-
    -l,--local [machine]    Print local user accounts of \"machine\",
                            from local machine if no machine specified.
                            Automatically adding machine prefix for local
                            machine depends on settings in /etc/nsswitch.conf.
-   -L,--Local machine      Ditto, but generate username with machine prefix.
+   -L,--Local [machine]    Ditto, but generate username with machine prefix.
    -d,--domain [domain]    Print domain accounts,
                            from current domain if no domain specified.
    -c,--current            Print current user.
@@ -1374,11 +1656,41 @@ on domain controllers and domain member machines.
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-mount [OPTION] [&lt;win32path&gt; &lt;posixpath&gt;]
-mount -a
-mount &lt;posixpath&gt;
-      </screen>
+      <cmdsynopsis>
+	<command>mount</command>
+	<arg>-f</arg>
+	<arg>-o <arg choice="plain" rep="repeat"><replaceable>MOUNT_OPTION,</replaceable></arg></arg>
+	<arg choice="plain">
+	  <replaceable>WIN32PATH</replaceable>
+	  <replaceable>POSIXPATH</replaceable>
+	</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>mount</command>
+	<arg choice="plain">-a</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>mount</command>
+	<arg choice="plain"><replaceable>POSIXPATH</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>mount</command>
+	<arg>-m</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>mount</command>
+	<group choice="plain">
+	  <arg choice="plain">-c <replaceable>POSIXPATH</replaceable></arg>
+	  <arg choice="plain">-p</arg>
+	</group>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>mount</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
      </refsynopsisdiv>
 
     <refsect1 id="mount-options">
@@ -1636,13 +1948,56 @@ D: on /d type fat (binary,user,noumount)
 
     <refnamediv>
       <refname>passwd</refname>
-      <refpurpose>Change USER's password or password attributes.</refpurpose>
+      <refpurpose>Change password or password attributes</refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-passwd [OPTION] [USER]
-      </screen>
+      <cmdsynopsis>
+	<command>passwd</command>
+	<group choice="plain">
+	  <arg>-S</arg>
+	  <arg choice="req">
+	    <group>
+	      <arg choice="plain">-l</arg>
+	      <arg choice="plain">-u</arg>
+	    </group>
+	    <group>
+	      <arg choice="plain">-c</arg>
+	      <arg choice="plain">-C</arg>
+	    </group>
+	    <group>
+	      <arg choice="plain">-e</arg>
+	      <arg choice="plain">-E</arg>
+	    </group>
+	    <group>
+	      <arg choice="plain">-p</arg>
+	      <arg choice="plain">-P</arg>
+	    </group>
+	  </arg>
+	</group>
+	<arg>-d <replaceable>SERVER</replaceable></arg>
+	<arg><replaceable>USER</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>passwd</command>
+	<arg choice="plain">-R</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+      <command>passwd</command>
+      <group choice="plain">
+	<arg choice="plain">-i <replaceable>NUM</replaceable></arg>
+	<arg choice="plain">-n <replaceable>MINDAYS</replaceable></arg>
+	<arg choice="plain">-x <replaceable>MAXDAYS</replaceable></arg>
+	<arg choice="plain">-L <replaceable>LEN</replaceable></arg>
+      </group>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>passwd</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="passwd-options">
@@ -1801,9 +2156,18 @@ specifying an empty password.
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-pldd [OPTION...] PID
-      </screen>
+      <cmdsynopsis>
+	<command>pldd</command>
+	<arg choice="plain"><replaceable>PID</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>pldd</command>
+	<group choice="plain">
+	  <arg choice="plain">-?</arg>
+	  <arg choice="plain">--usage</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="pldd-options">
@@ -1822,6 +2186,92 @@ pldd [OPTION...] PID
     </refsect1>
   </refentry>
 
+  <refentry id="profiler">
+    <refmeta>
+      <refentrytitle>profiler</refentrytitle>
+      <manvolnum>1</manvolnum>
+      <refmiscinfo class="manual">Cygwin Utilities</refmiscinfo>
+    </refmeta>
+
+    <refnamediv>
+      <refname>profiler</refname>
+      <refpurpose>Sampling profiler of Cygwin programs with their DLLs</refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+      <cmdsynopsis>
+	<command>profiler</command>
+	<arg>-defw</arg>
+	<arg>-o <replaceable>FILENAME</replaceable></arg>
+	<arg>-s <replaceable>N</replaceable></arg>
+	<group choice="plain">
+	  <arg choice="plain">
+	    <arg choice="plain"><replaceable>PROGRAM</replaceable></arg>
+	    <arg rep="repeat" choice="plain"><replaceable>ARG</replaceable></arg>
+	  </arg>
+	  <arg choice="plain">-p <replaceable>PID</replaceable></arg>
+	</group>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>profiler</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1 id="profiler-options">
+      <title>Options</title>
+      <screen>
+  -d, --debug            Display debugging messages (toggle: default false)
+  -e, --events           Display Windows DEBUG_EVENTS (toggle: default false)
+  -f, --fork-profile     Profiles child processes (toggle: default false)
+  -h, --help             Display usage information and exit
+  -o, --output=FILENAME  Write output to file FILENAME rather than stdout
+  -p, --pid=N            Attach to running program with Cygwin pid N
+                         ...                    or with Windows pid -N
+  -s, --sample-rate=N    Set IP sampling rate to N Hz (default 100)
+  -v, --verbose          Display more status messages (toggle: default false)
+  -V, --version          Display version information and exit
+  -w, --new-window       Launch given command in a new window
+</screen>
+    </refsect1>
+
+    <refsect1 id="profiler-desc">
+      <title>Description</title>
+    <para>The <command>profiler</command> utility executes a given program and
+      any children of that program, collecting the location of the CPU
+      instruction pointer (IP) many times per second. (It is optional to
+      collect this info from child processes.) This info gives a profile
+      of the program's execution, showing where the most time is being spent.
+      This profiling technique is called "IP sampling".</para>
+
+    <para>A novel feature of <command>profiler</command> is that time spent in
+      DLLs loaded with or by your program is profiled too. You use
+      <command>gprof</command> to process and display the resulting profile
+      information. In this fashion you can determine whether your own code,
+      the Cygwin DLL, or another DLL has "hot spots" that might benefit from
+      tuning.</para>
+
+    <para>(See also <command>ssp</command>, another profiler that
+      operates in a different fashion: stepping by instruction. This can
+      provide a different view on your program's operation.)</para>
+
+    <para>Here is an example of <command>profiler</command> operation:</para>
+<screen>
+$ profiler du -khs .
+22G     .
+97 samples across 83 buckets written to gmon.out.5908.cygwin1.dll
+4 samples across 4 buckets written to gmon.out.5908.KernelBase.dll
+1 sample across 1 bucket written to gmon.out.5908.kernel32.dll
+7318 samples across 42 buckets written to gmon.out.5908.ntdll.dll
+5 samples across 4 buckets written to gmon.out.5908.du.exe
+</screen>
+    </refsect1>
+
+  </refentry>
+
   <refentry id="ps">
     <refmeta>
       <refentrytitle>ps</refentrytitle>
@@ -1835,9 +2285,19 @@ pldd [OPTION...] PID
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-ps [-aefls] [-u UID]
-      </screen>
+      <cmdsynopsis>
+	<command>ps</command>
+	<arg>-aeflsW</arg>
+	<arg>-u <replaceable>UID</replaceable></arg>
+	<arg>-p <replaceable>PID</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>ps</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="ps-options">
@@ -1908,9 +2368,87 @@ With no options, ps outputs the long format by default
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-regtool [OPTION] (add|check|get|list|remove|unset|load|unload|save) KEY
-      </screen>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg>-qvwW</arg>
+	<arg choice="plain">add|check|get|list|remove|unset|load|unload|save</arg>
+	<arg choice="plain"><replaceable>KEY</replaceable></arg>
+	<group>
+	  <arg choice="plain"><replaceable>PATH</replaceable></arg>
+	  <arg choice="plain" rep="repeat"><replaceable>DATA</replaceable></arg>
+	</group>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg choice="plain">add</arg>
+	<arg choice="plain"><replaceable>KEY\SUBKEY</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg choice="plain">check</arg>
+	<arg choice="plain"><replaceable>KEY</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg>-bnx</arg>
+	<arg choice="plain">get</arg>
+	<arg choice="plain"><replaceable>KEY</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg>-klp</arg>
+	<arg choice="plain">list</arg>
+	<arg choice="plain"><replaceable>KEY</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg choice="plain">remove</arg>
+	<arg choice="plain"><replaceable>KEY</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg>-bDeimnQsf</arg>
+	<arg choice="plain">set</arg>
+	<arg choice="plain"><replaceable>KEY\VALUE</replaceable></arg>
+	<arg rep="repeat"><replaceable>DATA</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg>-f</arg>
+	<arg choice="plain">unset</arg>
+	<arg choice="plain"><replaceable>KEY\VALUE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg choice="plain">load</arg>
+	<arg choice="plain"><replaceable>KEY\SUBKEY</replaceable></arg>
+	<arg choice="plain"><replaceable>PATH</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg choice="plain">unload</arg>
+	<arg choice="plain"><replaceable>KEY\SUBKEY</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg choice="plain">save</arg>
+	<arg choice="plain"><replaceable>KEY\SUBKEY</replaceable></arg>
+	<arg choice="plain"><replaceable>PATH</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<arg>-f</arg>
+	<arg choice="plain">restore</arg>
+	<arg choice="plain"><replaceable>KEY/SUBKEY</replaceable></arg>
+	<arg choice="plain"><replaceable>PATH</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>regtool</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="regtool-options">
@@ -2101,28 +2639,52 @@ Example:
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-setfacl [-n] {-f ACL_FILE | -s acl_entries} FILE...
-setfacl [-n] {[-bk]|[-x acl_entries] [-m acl_entries]} FILE...
-      </screen>
+      <cmdsynopsis>
+	<command>setfacl</command>
+	<arg>-n</arg>
+	<group choice="req">
+	  <arg choice="plain">-f <replaceable>ACL_FILE</replaceable></arg>
+	  <arg choice="plain">-s <replaceable>acl_entries</replaceable></arg>
+	</group>
+	<arg choice="plain" rep="repeat"><replaceable>FILE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>setfacl</command>
+	<arg>-n</arg>
+	<arg choice="req">
+	  <group choice="plain">
+	    <arg>-bk</arg>
+	    <arg>-x <replaceable>acl_entries</replaceable></arg>
+	  </group>
+	  <arg>-m <replaceable>acl_entries</replaceable></arg>
+	</arg>
+	<arg choice="plain" rep="repeat"><replaceable>FILE</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>setfacl</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
      </refsynopsisdiv>
 
     <refsect1 id="setfacl-options">
       <title>Options</title>
       <screen>
-  -b, --remove-all       remove all extended ACL entries\n"
-  -x, --delete           delete one or more specified ACL entries\n"
-  -f, --set-file         set ACL entries for FILE to ACL entries read\n"
-                         from ACL_FILE\n"
-  -k, --remove-default   remove all default ACL entries\n"
-  -m, --modify           modify one or more specified ACL entries\n"
-  -n, --no-mask          don't recalculate the effective rights mask\n"
-      --mask             do recalculate the effective rights mask\n"
-  -s, --set              set specified ACL entries on FILE\n"
-  -V, --version          print version and exit\n"
-  -h, --help             this help text\n"
+  -b, --remove-all       remove all extended ACL entries
+  -x, --delete           delete one or more specified ACL entries
+  -f, --set-file         set ACL entries for FILE to ACL entries read
+                         from ACL_FILE
+  -k, --remove-default   remove all default ACL entries
+  -m, --modify           modify one or more specified ACL entries
+  -n, --no-mask          don't recalculate the effective rights mask
+      --mask             do recalculate the effective rights mask
+  -s, --set              set specified ACL entries on FILE
+  -V, --version          print version and exit
+  -h, --help             this help text
 
-At least one of (-b, -x, -f, -k, -m, -s) must be specified\n"
+At least one of (-b, -x, -f, -k, -m, -s) must be specified
 </screen>
     </refsect1>
 
@@ -2250,9 +2812,20 @@ $ getfacl source_file | setfacl -f - target_file
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-setmetamode [metabit|escprefix]
-      </screen>
+      <cmdsynopsis>
+	<command>setmetamode</command>
+	<group>
+	  <arg choice="plain">metabit</arg>
+	  <arg choice="plain">escprefix</arg>
+	</group>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>setmetamode</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="setmetamode-options">
@@ -2284,15 +2857,34 @@ Other options:
       <refmiscinfo class="manual">Cygwin Utilities</refmiscinfo>
     </refmeta>
 
+    <refentryinfo>
+      <author>
+	<firstname>DJ</firstname>
+	<surname>Delorie</surname>
+	<contrib>Original Author</contrib>
+      </author>
+    </refentryinfo>
+
     <refnamediv>
       <refname>ssp</refname>
-      <refpurpose>Single-step profile COMMAND</refpurpose>
+      <refpurpose>The Single Step Profiler</refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-ssp [options] low_pc high_pc command...
-      </screen>
+      <cmdsynopsis>
+	<command>ssp</command>
+	<arg>-cdelstv</arg>
+	<arg choice="plain"><replaceable>low_pc</replaceable></arg>
+	<arg choice="plain"><replaceable>high_pc</replaceable></arg>
+	<arg choice="plain" rep="repeat"><replaceable>command</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>ssp</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="ssp-options">
@@ -2319,9 +2911,6 @@ Example: ssp 0x401000 0x403000 hello.exe
 
     <refsect1 id="ssp-desc">
       <title>Description</title>
-    <para> SSP - The Single Step Profiler </para>
-
-    <para> Original Author: DJ Delorie </para>
 
     <para> The SSP is a program that uses the Win32 debug API to run a program
       one ASM instruction at a time. It records the location of each
@@ -2330,6 +2919,10 @@ Example: ssp 0x401000 0x403000 hello.exe
       profiling program <command>gprof</command>, although
       <command>gprof</command> will claim the values are seconds, they really
       are instruction counts. More on that later. </para>
+
+    <para>(See also <command>profiler</command>, another profiler that
+      operates in a different fashion: IP sampling. This can provide a
+      different view on your program's operation.)</para>
 
     <para> Because the SSP was originally designed to profile the Cygwin DLL,
       it does not automatically select a block of code to report statistics on.
@@ -2464,10 +3057,28 @@ $ ssp <literal>-v</literal> <literal>-s</literal> <literal>-l</literal> <literal
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-strace [OPTIONS] &lt;command-line&gt;
-strace [OPTIONS] -p &lt;pid&gt;
-      </screen>
+      <cmdsynopsis>
+	<command>strace</command>
+	<arg>-defnqtuw</arg>
+	<arg>-b <replaceable>SIZE</replaceable></arg>
+	<arg>-m <replaceable>MASK</replaceable></arg>
+	<arg>-o <replaceable>FILENAME</replaceable></arg>
+	<arg>-f <replaceable>PERIOD</replaceable></arg>
+	<group choice="req">
+	  <arg choice="plain" rep="repeat"><replaceable>command-line</replaceable></arg>
+	  <arg choice="plain">
+	    <arg>-T</arg>
+	    <arg choice="plain">-p <replaceable>pid</replaceable></arg>
+	  </arg>
+	</group>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>strace</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1  id="strace-options">
@@ -2514,7 +3125,7 @@ strace [OPTIONS] -p &lt;pid&gt;
     wm       0x000400 (_STRACE_WM)       Trace Windows msgs (enable _strace_wm).
     sigp     0x000800 (_STRACE_SIGP)     Trace signal and process handling.
     minimal  0x001000 (_STRACE_MINIMAL)  Very minimal strace output.
-    pthread  0x002000 (_STRACE_PTHREAD)	Pthread calls.
+    pthread  0x002000 (_STRACE_PTHREAD)  Pthread calls.
     exitdump 0x004000 (_STRACE_EXITDUMP) Dump strace cache on exit.
     system   0x008000 (_STRACE_SYSTEM)   Serious error; goes to console and log.
     nomutex  0x010000 (_STRACE_NOMUTEX)  Don't use mutex for synchronization.
@@ -2559,9 +3170,13 @@ $ strace -o tracing_output -w sh -c 'while true; do echo "tracing..."; done' &am
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-tzset [OPTION]
-      </screen>
+      <cmdsynopsis>
+	<command>tzset</command>
+	<group>
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="tzset-options">
@@ -2575,6 +3190,7 @@ Options:
 
     <refsect1 id="tzset-desc">
       <title>Description</title>
+      <para>
       Use tzset to set your TZ variable. In POSIX-compatible shells like bash,
       dash, mksh, or zsh:
       <screen>
@@ -2584,6 +3200,7 @@ export TZ=$(tzset)
       <screen>
 setenv TZ `tzset`
       </screen>
+      </para>
 
     <para>The <command>tzset</command> tool reads the current timezone from
       Windows and generates a POSIX-compatible timezone information for the TZ
@@ -2605,9 +3222,21 @@ setenv TZ `tzset`
     </refnamediv>
 
     <refsynopsisdiv>
-      <screen>
-umount [OPTION] [&lt;posixpath&gt;]
-      </screen>
+      <cmdsynopsis>
+	<command>umount</command>
+	<arg choice="plain"><replaceable>POSIXPATH</replaceable></arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>umount</command>
+	<arg choice="plain">-U</arg>
+      </cmdsynopsis>
+      <cmdsynopsis>
+	<command>umount</command>
+	<group choice="plain">
+	  <arg choice="plain">-h</arg>
+	  <arg choice="plain">-V</arg>
+	</group>
+      </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1 id="umount-options">

@@ -34,6 +34,8 @@
 # It sets the following shell variables:
 #   newlib_cflags	Special CFLAGS to use when building
 #   machine_dir		Subdirectory of libc/machine to configure
+#   shared_machine_dir	Subdirectory of libc/machine for files shared
+#			between specific architectures, optional
 #   sys_dir		Subdirectory of libc/sys to configure
 #   have_sys_mach_dir	Is there a machine subdirectory in sys subdirectory
 #   posix_dir		"posix" to build libc/posix, "" otherwise
@@ -55,6 +57,7 @@
 newlib_cflags=
 libm_machine_dir=
 machine_dir=
+shared_machine_dir=
 sys_dir=
 posix_dir=
 signal_dir=signal
@@ -153,6 +156,10 @@ case "${host_cpu}" in
   crx*)
 	machine_dir=crx
 	;;
+  csky*)
+	machine_dir=csky
+	default_newlib_atexit_dynamic_alloc="no"
+	;;
   d10v*)
 	machine_dir=d10v
 	;;
@@ -189,15 +196,14 @@ case "${host_cpu}" in
 	machine_dir=i960
 	;;
   i[34567]86)
+	libm_machine_dir=i386
+	machine_dir=i386
+	shared_machine_dir=shared_x86
 	# Don't use for these since they provide their own setjmp.
 	case ${host} in
-	*-*-sco* | *-*-cygwin* | *-*-msys*)
-		libm_machine_dir=i386
-		machine_dir=i386
+	*-*-sco* | *-*-cygwin* | *-*-msys*) 
 		;;
 	*) 
-		libm_machine_dir=i386
-		machine_dir=i386
 		mach_add_setjmp=true
 		;;
 	esac
@@ -283,7 +289,7 @@ case "${host_cpu}" in
 	;;
   nvptx*)
 	machine_dir=nvptx
-	newlib_cflags="${newlib_cflags} -DMALLOC_PROVIDED"
+	newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED"
 	;;
   or1k*|or1knd*)
 	machine_dir=or1k
@@ -297,6 +303,7 @@ case "${host_cpu}" in
 	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED"
 	newlib_cflags="${newlib_cflags} -DNO_EXEC"
 	newlib_cflags="${newlib_cflags} -DSMALL_MEMORY"
+	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
 	default_newlib_nano_malloc="yes"
 	default_newlib_atexit_dynamic_alloc="no"
 	machine_dir=pru
@@ -354,6 +361,7 @@ case "${host_cpu}" in
   x86_64)
 	machine_dir=x86_64
 	libm_machine_dir=x86_64
+	shared_machine_dir=shared_x86
 	;;
   xc16x*)
         machine_dir=xc16x
@@ -723,6 +731,10 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
 	;;
   crx-*-*)
 	newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DMISSING_SYSCALL_NAMES"
+	syscall_dir=
+	;;
+  csky*)
+	newlib_cflags="${newlib_cflags} -DHAVE_RENAME -DHAVE_SYSTEM -DMISSING_SYSCALL_NAMES"
 	syscall_dir=
 	;;
   d10v*)

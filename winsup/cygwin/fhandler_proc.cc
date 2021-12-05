@@ -315,7 +315,7 @@ fhandler_proc::open (int flags, mode_t mode)
 	}
       else
 	{
-	  flags |= O_DIROPEN;
+	  diropen = true;
 	  goto success;
 	}
     }
@@ -342,7 +342,7 @@ fhandler_proc::open (int flags, mode_t mode)
 	      }
 	    else
 	      {
-		flags |= O_DIROPEN;
+		diropen = true;
 		goto success;
 	      }
 	  }
@@ -1165,6 +1165,14 @@ format_proc_cpuinfo (void *, char *&destbuf)
 	  ftcprint (features1,  0, "aperfmperf");   /* P state hw coord fb */
 	}
 
+      /* cpuid 0x80000007 edx Advanced power management */
+      if (maxe >= 0x80000007)
+	{
+	  cpuid (&unused, &unused, &unused, &features2, 0x80000007);
+
+	  ftcprint (features2, 14, "rapl"); /* runtime avg power limit */
+	}
+
       /* Penwell, Cloverview, ... TSC doesn't sleep on S3 */
       if (is_intel && family == 6)
 	switch (model)
@@ -1293,7 +1301,7 @@ format_proc_cpuinfo (void *, char *&destbuf)
 
 /* features scattered in various CPUID levels. */
       /* cpuid 0x80000007 edx */
-      if (maxf >= 0x00000007)
+      if (maxe >= 0x80000007)
 	{
 	  cpuid (&unused, &unused, &unused, &features1, 0x80000007);
 
@@ -1330,13 +1338,6 @@ format_proc_cpuinfo (void *, char *&destbuf)
 	  ftcprint (features1,  7, "hw_pstate");	/* hw P state */
 	  ftcprint (features1, 11, "proc_feedback"); /* proc feedback interf */
 	}
-      /* cpuid 0x8000001f eax */
-      if (maxe >= 0x8000001f)
-	{
-	  cpuid (&features1, &unused, &unused, &unused, 0x8000001f);
-
-	  ftcprint (features1,  0, "sme");	/* secure memory encryption */
-	}
 
 /*	  ftcprint (features1, 11, "pti");*//* Page Table Isolation reqd with Meltdown */
 
@@ -1370,13 +1371,6 @@ format_proc_cpuinfo (void *, char *&destbuf)
 /*	  from above */
 	  ftcprint (features1,  6, "mba");	/* memory bandwidth alloc */
 	}
-      /* cpuid 0x8000001f eax */
-      if (maxe >= 0x8000001f)
-	{
-	  cpuid (&features2, &unused, &unused, &unused, 0x8000001f);
-
-	  ftcprint (features2,  1, "sev");	/* secure encrypted virt */
-	}
       /* cpuid 0x80000008 ebx */
       if (maxe >= 0x80000008)
         {
@@ -1407,6 +1401,7 @@ format_proc_cpuinfo (void *, char *&destbuf)
 
 	  ftcprint (features1,  0, "fsgsbase");	    /* rd/wr fs/gs base */
 	  ftcprint (features1,  1, "tsc_adjust");   /* TSC adjustment MSR 0x3B */
+	  ftcprint (features1,  2, "sgx");	    /* software guard extensions */
 	  ftcprint (features1,  3, "bmi1");         /* bit manip ext group 1 */
 	  ftcprint (features1,  4, "hle");          /* hardware lock elision */
 	  ftcprint (features1,  5, "avx2");         /* AVX ext instructions */
@@ -1470,6 +1465,7 @@ format_proc_cpuinfo (void *, char *&destbuf)
 	{
 	  cpuid (&features1, &unused, &unused, &unused, 0x00000007, 1);
 
+	  ftcprint (features1,  4, "avx_vnni");	    /* vex enc NN vec */
 	  ftcprint (features1,  5, "avx512_bf16");  /* vec bfloat16 short */
 	}
 
@@ -1531,6 +1527,8 @@ format_proc_cpuinfo (void *, char *&destbuf)
 	  ftcprint (features1, 13, "avic");             /* virt int control */
 	  ftcprint (features1, 15, "v_vmsave_vmload");  /* virt vmsave vmload */
 	  ftcprint (features1, 16, "vgif");             /* virt glb int flag */
+	  ftcprint (features1, 20, "v_spec_ctrl");	/* virt spec ctrl support */
+/*	  ftcprint (features1, 28, "svme_addr_chk");  *//* secure vmexit addr check */
         }
 
       /* Intel cpuid 0x00000007 ecx */
@@ -1553,9 +1551,12 @@ format_proc_cpuinfo (void *, char *&destbuf)
 	  ftcprint (features1, 14, "avx512_vpopcntdq"); /* vec popcnt dw/qw */
 	  ftcprint (features1, 16, "la57");             /* 5 level paging */
 	  ftcprint (features1, 22, "rdpid");            /* rdpid instruction */
+	  ftcprint (features1, 24, "bus_lock_detect");	/* bus lock detect dbg excptn */
 	  ftcprint (features1, 25, "cldemote");         /* cldemote instr */
 	  ftcprint (features1, 27, "movdiri");          /* movdiri instr */
 	  ftcprint (features1, 28, "movdir64b");        /* movdir64b instr */
+	  ftcprint (features1, 29, "enqcmd");		/* enqcmd/s instructions*/
+	  ftcprint (features1, 30, "sgx_lc");		/* sgx launch control */
         }
 
       /* AMD MCA cpuid 0x80000007 ebx */
@@ -1579,11 +1580,33 @@ format_proc_cpuinfo (void *, char *&destbuf)
           ftcprint (features1,  8, "avx512_vp2intersect"); /* vec intcpt d/q */
           ftcprint (features1, 10, "md_clear");            /* verw clear buf */
           ftcprint (features1, 14, "serialize");           /* SERIALIZE instruction */
+          ftcprint (features1, 16, "tsxldtrk");		   /* TSX Susp Ld Addr Track */
           ftcprint (features1, 18, "pconfig");		   /* platform config */
           ftcprint (features1, 19, "arch_lbr");		   /* last branch records */
+          ftcprint (features1, 23, "avx512_fp16");	   /* avx512 fp16 */
           ftcprint (features1, 28, "flush_l1d");	   /* flush l1d cache */
           ftcprint (features1, 29, "arch_capabilities");   /* arch cap MSR */
         }
+
+      /* cpuid x8000001f eax */
+      if (is_amd && maxe >= 0x8000001f)
+	{
+	  cpuid (&features2, &unused, &unused, &unused, 0x8000001f);
+
+	  ftcprint (features2,  0, "sme");	/* secure memory encryption */
+	  ftcprint (features2,  1, "sev");	/* AMD secure encrypted virt */
+/*	  ftcprint (features2,  2, "vm_page_flush");*/	/* VM page flush MSR */
+	  ftcprint (features2,  3, "sev_es");	/* AMD SEV encrypted state */
+/*	  ftcprint (features2,  4, "sev_snp");*//* AMD SEV secure nested paging */
+/*	  ftcprint (features2,  5, "vmpl");   *//* VM permission levels support */
+/*	  ftcprint (features2, 10, "sme_coherent");   *//* SME h/w cache coherent */
+/*	  ftcprint (features2, 11, "sev_64b");*//* SEV 64 bit host guest only */
+/*	  ftcprint (features2, 12, "sev_rest_inj");   *//* SEV restricted injection */
+/*	  ftcprint (features2, 13, "sev_alt_inj");    *//* SEV alternate injection */
+/*	  ftcprint (features2, 14, "sev_es_dbg_swap");*//* SEV-ES debug state swap */
+/*	  ftcprint (features2, 15, "no_host_ibs");    *//* host IBS unsupported */
+/*	  ftcprint (features2, 16, "vte");    *//* virtual transparent encryption */
+	}
 
       print ("\n");
 
@@ -1667,15 +1690,6 @@ format_proc_partitions (void *, char *&destbuf)
   IO_STATUS_BLOCK io;
   NTSTATUS status;
   HANDLE dirhdl;
-  tmp_pathbuf tp;
-
-  char *buf = tp.c_get ();
-  char *bufptr = buf;
-  char *ioctl_buf = tp.c_get ();
-  PWCHAR mp_buf = tp.w_get ();
-  WCHAR fpath[MAX_PATH];
-  WCHAR gpath[MAX_PATH];
-  DWORD len;
 
   /* Open \Device object directory. */
   wchar_t wpath[MAX_PATH] = L"\\Device";
@@ -1689,141 +1703,169 @@ format_proc_partitions (void *, char *&destbuf)
       return 0;
     }
 
+  tmp_pathbuf tp;
+  char *buf = tp.c_get ();
+  char *bufptr = buf;
+  char *ioctl_buf = tp.c_get ();
+  PWCHAR mp_buf = tp.w_get ();
+  PDIRECTORY_BASIC_INFORMATION dbi_buf = (PDIRECTORY_BASIC_INFORMATION)
+					 tp.w_get ();
+  WCHAR fpath[MAX_PATH];
+  WCHAR gpath[MAX_PATH];
+  DWORD len;
+
   /* Traverse \Device directory ... */
-  PDIRECTORY_BASIC_INFORMATION dbi = (PDIRECTORY_BASIC_INFORMATION)
-				     alloca (640);
   BOOLEAN restart = TRUE;
   bool got_one = false;
+  bool last_run = false;
   ULONG context = 0;
-  while (NT_SUCCESS (NtQueryDirectoryObject (dirhdl, dbi, 640, TRUE, restart,
-					     &context, NULL)))
+  while (!last_run)
     {
-      HANDLE devhdl;
-      PARTITION_INFORMATION_EX *pix = NULL;
-      PARTITION_INFORMATION *pi = NULL;
-      DWORD bytes_read;
-      DWORD part_cnt = 0;
-      unsigned long long size;
-
-      restart = FALSE;
-      /* ... and check for a "Harddisk[0-9]*" entry. */
-      if (dbi->ObjectName.Length < 9 * sizeof (WCHAR)
-	  || wcsncasecmp (dbi->ObjectName.Buffer, L"Harddisk", 8) != 0
-	  || !iswdigit (dbi->ObjectName.Buffer[8]))
-	continue;
-      /* Got it.  Now construct the path to the entire disk, which is
-	 "\\Device\\HarddiskX\\Partition0", and open the disk with
-	 minimum permissions. */
-      unsigned long drive_num = wcstoul (dbi->ObjectName.Buffer + 8, NULL, 10);
-      wcscpy (wpath, dbi->ObjectName.Buffer);
-      PWCHAR wpart = wpath + dbi->ObjectName.Length / sizeof (WCHAR);
-      wcpcpy (wpart, L"\\Partition0");
-      upath.Length = dbi->ObjectName.Length + 22;
-      upath.MaximumLength = upath.Length + sizeof (WCHAR);
-      InitializeObjectAttributes (&attr, &upath, OBJ_CASE_INSENSITIVE,
-				  dirhdl, NULL);
-      status = NtOpenFile (&devhdl, READ_CONTROL, &attr, &io,
-			   FILE_SHARE_VALID_FLAGS, 0);
+      status = NtQueryDirectoryObject (dirhdl, dbi_buf, 65536, FALSE, restart,
+				       &context, NULL);
       if (!NT_SUCCESS (status))
 	{
-	  debug_printf ("NtOpenFile(%S), status %y", &upath, status);
+	  debug_printf ("NtQueryDirectoryObject, status %y", status);
 	  __seterrno_from_nt_status (status);
-	  continue;
+	  break;
 	}
-      if (!got_one)
+      if (status != STATUS_MORE_ENTRIES)
+	last_run = true;
+      restart = FALSE;
+      for (PDIRECTORY_BASIC_INFORMATION dbi = dbi_buf;
+	   dbi->ObjectName.Length > 0;
+	   dbi++)
 	{
-	  print ("major minor  #blocks  name   win-mounts\n\n");
-	  got_one = true;
-	}
-      /* Fetch partition info for the entire disk to get its size. */
-      if (DeviceIoControl (devhdl, IOCTL_DISK_GET_PARTITION_INFO_EX, NULL, 0,
-			   ioctl_buf, NT_MAX_PATH, &bytes_read, NULL))
-	{
-	  pix = (PARTITION_INFORMATION_EX *) ioctl_buf;
-	  size = pix->PartitionLength.QuadPart;
-	}
-      else if (DeviceIoControl (devhdl, IOCTL_DISK_GET_PARTITION_INFO, NULL, 0,
-				ioctl_buf, NT_MAX_PATH, &bytes_read, NULL))
-	{
-	  pi = (PARTITION_INFORMATION *) ioctl_buf;
-	  size = pi->PartitionLength.QuadPart;
-	}
-      else
-	{
-	  debug_printf ("DeviceIoControl (%S, "
-			 "IOCTL_DISK_GET_PARTITION_INFO{_EX}) %E", &upath);
-	  size = 0;
-	}
-      device dev (drive_num, 0);
-      bufptr += __small_sprintf (bufptr, "%5d %5d %9U %s\n",
-				 dev.get_major (), dev.get_minor (),
-				 size >> 10, dev.name () + 5);
-      /* Fetch drive layout info to get size of all partitions on the disk. */
-      if (DeviceIoControl (devhdl, IOCTL_DISK_GET_DRIVE_LAYOUT_EX,
-			   NULL, 0, ioctl_buf, NT_MAX_PATH, &bytes_read, NULL))
-	{
-	  PDRIVE_LAYOUT_INFORMATION_EX pdlix = (PDRIVE_LAYOUT_INFORMATION_EX)
-					       ioctl_buf;
-	  part_cnt = pdlix->PartitionCount;
-	  pix = pdlix->PartitionEntry;
-	}
-      else if (DeviceIoControl (devhdl, IOCTL_DISK_GET_DRIVE_LAYOUT,
-				NULL, 0, ioctl_buf, NT_MAX_PATH, &bytes_read, NULL))
-	{
-	  PDRIVE_LAYOUT_INFORMATION pdli = (PDRIVE_LAYOUT_INFORMATION) ioctl_buf;
-	  part_cnt = pdli->PartitionCount;
-	  pi = pdli->PartitionEntry;
-	}
-      else
-	debug_printf ("DeviceIoControl(%S, "
-		      "IOCTL_DISK_GET_DRIVE_LAYOUT{_EX}): %E", &upath);
-      /* Loop over partitions. */
-      if (pix || pi)
-	for (DWORD i = 0; i < part_cnt && i < 64; ++i)
-	  {
-	    DWORD part_num;
+	  HANDLE devhdl;
+	  PARTITION_INFORMATION_EX *pix = NULL;
+	  PARTITION_INFORMATION *pi = NULL;
+	  DWORD bytes_read;
+	  DWORD part_cnt = 0;
+	  unsigned long drive_num;
+	  unsigned long long size;
 
-	    if (pix)
-	      {
-		size = pix->PartitionLength.QuadPart;
-		part_num = pix->PartitionNumber;
-		++pix;
-	      }
-	    else
-	      {
-		size = pi->PartitionLength.QuadPart;
-		part_num = pi->PartitionNumber;
-		++pi;
-	      }
-	    /* A partition number of 0 denotes an extended partition or a
-	       filler entry as described in fhandler_dev_floppy::lock_partition.
-	       Just skip. */
-	    if (part_num == 0)
+	  /* ... and check for a "Harddisk[0-9]*" entry. */
+	  if (dbi->ObjectName.Length < 9 * sizeof (WCHAR)
+	      || wcsncasecmp (dbi->ObjectName.Buffer, L"Harddisk", 8) != 0
+	      || !iswdigit (dbi->ObjectName.Buffer[8]))
+	    continue;
+	  /* Got it.  Now construct the path to the entire disk, which is
+	     "\\Device\\HarddiskX\\Partition0", and open the disk with
+	     minimum permissions. */
+	  drive_num = wcstoul (dbi->ObjectName.Buffer + 8, NULL, 10);
+	  wcscpy (wpath, dbi->ObjectName.Buffer);
+	  PWCHAR wpart = wpath + dbi->ObjectName.Length / sizeof (WCHAR);
+	  wcpcpy (wpart, L"\\Partition0");
+	  upath.Length = dbi->ObjectName.Length + 22;
+	  upath.MaximumLength = upath.Length + sizeof (WCHAR);
+	  InitializeObjectAttributes (&attr, &upath, OBJ_CASE_INSENSITIVE,
+				      dirhdl, NULL);
+	  status = NtOpenFile (&devhdl, READ_CONTROL, &attr, &io,
+			       FILE_SHARE_VALID_FLAGS, 0);
+	  if (!NT_SUCCESS (status))
+	    {
+	      debug_printf ("NtOpenFile(%S), status %y", &upath, status);
+	      __seterrno_from_nt_status (status);
 	      continue;
-	    device dev (drive_num, part_num);
-
-	    bufptr += __small_sprintf (bufptr, "%5d %5d %9U %s",
-				       dev.get_major (), dev.get_minor (),
-				       size >> 10, dev.name () + 5);
-	    /* Check if the partition is mounted in Windows and, if so,
-	       print the mount point list. */
-	    __small_swprintf (fpath,
-			      L"\\\\?\\GLOBALROOT\\Device\\%S\\Partition%u\\",
-			      &dbi->ObjectName, part_num);
-	    if (GetVolumeNameForVolumeMountPointW (fpath, gpath, MAX_PATH)
-		&& GetVolumePathNamesForVolumeNameW (gpath, mp_buf,
-						     NT_MAX_PATH, &len))
+	    }
+	  if (!got_one)
+	    {
+	      print ("major minor  #blocks  name   win-mounts\n\n");
+	      got_one = true;
+	    }
+	  /* Fetch partition info for the entire disk to get its size. */
+	  if (DeviceIoControl (devhdl, IOCTL_DISK_GET_PARTITION_INFO_EX, NULL,
+			       0, ioctl_buf, NT_MAX_PATH, &bytes_read, NULL))
+	    {
+	      pix = (PARTITION_INFORMATION_EX *) ioctl_buf;
+	      size = pix->PartitionLength.QuadPart;
+	    }
+	  else if (DeviceIoControl (devhdl, IOCTL_DISK_GET_PARTITION_INFO, NULL,
+				    0, ioctl_buf, NT_MAX_PATH, &bytes_read,
+				    NULL))
+	    {
+	      pi = (PARTITION_INFORMATION *) ioctl_buf;
+	      size = pi->PartitionLength.QuadPart;
+	    }
+	  else
+	    {
+	      debug_printf ("DeviceIoControl (%S, "
+			     "IOCTL_DISK_GET_PARTITION_INFO{_EX}) %E", &upath);
+	      size = 0;
+	    }
+	  device dev (drive_num, 0);
+	  bufptr += __small_sprintf (bufptr, "%5d %5d %9U %s\n",
+				     dev.get_major (), dev.get_minor (),
+				     size >> 10, dev.name () + 5);
+	  /* Fetch drive layout info to get size of all partitions on disk. */
+	  if (DeviceIoControl (devhdl, IOCTL_DISK_GET_DRIVE_LAYOUT_EX, NULL, 0,
+			       ioctl_buf, NT_MAX_PATH, &bytes_read, NULL))
+	    {
+	      PDRIVE_LAYOUT_INFORMATION_EX pdlix =
+		  (PDRIVE_LAYOUT_INFORMATION_EX) ioctl_buf;
+	      part_cnt = pdlix->PartitionCount;
+	      pix = pdlix->PartitionEntry;
+	    }
+	  else if (DeviceIoControl (devhdl, IOCTL_DISK_GET_DRIVE_LAYOUT, NULL,
+				    0, ioctl_buf, NT_MAX_PATH, &bytes_read,
+				    NULL))
+	    {
+	      PDRIVE_LAYOUT_INFORMATION pdli =
+		  (PDRIVE_LAYOUT_INFORMATION) ioctl_buf;
+	      part_cnt = pdli->PartitionCount;
+	      pi = pdli->PartitionEntry;
+	    }
+	  else
+	    debug_printf ("DeviceIoControl(%S, "
+			  "IOCTL_DISK_GET_DRIVE_LAYOUT{_EX}): %E", &upath);
+	  /* Loop over partitions. */
+	  if (pix || pi)
+	    for (DWORD i = 0; i < part_cnt && i < 64; ++i)
 	      {
-		len = strlen (dev.name () + 5);
-		while (len++ < 6)
-		  *bufptr++ = ' ';
-		for (PWCHAR p = mp_buf; *p; p = wcschr (p, L'\0') + 1)
-		  bufptr += __small_sprintf (bufptr, " %W", p);
-	      }
+		DWORD part_num;
 
-	    *bufptr++ = '\n';
-	  }
-      NtClose (devhdl);
+		if (pix)
+		  {
+		    size = pix->PartitionLength.QuadPart;
+		    part_num = pix->PartitionNumber;
+		    ++pix;
+		  }
+		else
+		  {
+		    size = pi->PartitionLength.QuadPart;
+		    part_num = pi->PartitionNumber;
+		    ++pi;
+		  }
+		/* A partition number of 0 denotes an extended partition or a
+		   filler entry as described in
+		   fhandler_dev_floppy::lock_partition.  Just skip. */
+		if (part_num == 0)
+		  continue;
+		device dev (drive_num, part_num);
+
+		bufptr += __small_sprintf (bufptr, "%5d %5d %9U %s",
+					   dev.get_major (), dev.get_minor (),
+					   size >> 10, dev.name () + 5);
+		/* Check if the partition is mounted in Windows and, if so,
+		   print the mount point list. */
+		__small_swprintf (fpath,
+				L"\\\\?\\GLOBALROOT\\Device\\%S\\Partition%u\\",
+				&dbi->ObjectName, part_num);
+		if (GetVolumeNameForVolumeMountPointW (fpath, gpath, MAX_PATH)
+		    && GetVolumePathNamesForVolumeNameW (gpath, mp_buf,
+							 NT_MAX_PATH, &len))
+		  {
+		    len = strlen (dev.name () + 5);
+		    while (len++ < 6)
+		      *bufptr++ = ' ';
+		    for (PWCHAR p = mp_buf; *p; p = wcschr (p, L'\0') + 1)
+		      bufptr += __small_sprintf (bufptr, " %W", p);
+		  }
+
+		*bufptr++ = '\n';
+	      }
+	  NtClose (devhdl);
+	}
     }
   NtClose (dirhdl);
 
@@ -1905,7 +1947,7 @@ format_proc_swaps (void *, char *&destbuf)
     }
 
   bufptr += __small_sprintf (bufptr,
-			     "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+			"Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n");
 
   if (spi && NT_SUCCESS (status))
     {
@@ -1917,8 +1959,17 @@ format_proc_swaps (void *, char *&destbuf)
 	  used = (unsigned long long) spp->TotalUsed * wincap.page_size ();
 	  cygwin_conv_path (CCP_WIN_W_TO_POSIX, spp->FileName.Buffer,
 			    filename, NT_MAX_PATH);
-	  bufptr += sprintf (bufptr, "%-40s%-16s%-8llu%-8llu%-8d\n",
-			     filename, "file", total >> 10, used >> 10, 0);
+	  /* ensure space between fields for clarity */
+	  size_t tabo = strlen (filename) / 8;	/* offset tabs to space name */
+	  bufptr += sprintf (bufptr, "%s%s%s\t\t%llu%s\t%llu%s\t%d\n",
+				    filename,
+				    tabo < 5 ? "\t\t\t\t\t" + tabo : " ",
+					"file",
+					    total >> 10,
+					    total < 10000000000 ? "\t" : "",
+						used  >> 10,
+						used  < 10000000000 ? "\t" : "",
+								0);
 	}
       while (spp->NextEntryOffset
 	     && (spp = (PSYSTEM_PAGEFILE_INFORMATION)

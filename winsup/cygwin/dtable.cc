@@ -74,10 +74,10 @@ dtable::extend (size_t howmuch, size_t min)
   size_t new_size = size + howmuch;
   fhandler_base **newfds;
 
-  if (new_size <= OPEN_MAX_MAX)
+  if (new_size <= OPEN_MAX)
     /* ok */;
-  else if (size < OPEN_MAX_MAX && min < OPEN_MAX_MAX)
-    new_size = OPEN_MAX_MAX;
+  else if (size < OPEN_MAX && min < OPEN_MAX)
+    new_size = OPEN_MAX;
   else
     {
       set_errno (EMFILE);
@@ -147,38 +147,6 @@ dtable::get_debugger_info ()
 void
 dtable::stdio_init ()
 {
-  for (int i = 0; i < 3; i ++)
-    {
-      const int chk_order[] = {1, 0, 2};
-      int fd = chk_order[i];
-      fhandler_base *fh = cygheap->fdtab[fd];
-      if (fh && fh->get_major () == DEV_PTYS_MAJOR)
-	{
-	  fhandler_pty_slave *ptys = (fhandler_pty_slave *) fh;
-	  if (ptys->get_pseudo_console ())
-	    {
-	      bool attached = !!fhandler_console::get_console_process_id
-		(ptys->get_helper_process_id (), true);
-	      if (attached)
-		break;
-	      else
-		{
-		  /* Not attached to pseudo console in fork() or spawn()
-		     by some reason. This happens if the executable is
-		     a windows GUI binary, such as mintty. */
-		  FreeConsole ();
-		  if (AttachConsole (ptys->get_helper_process_id ()))
-		    {
-		      ptys->fixup_after_attach (false, fd);
-		      break;
-		    }
-		}
-	    }
-	}
-      else if (fh && fh->get_major () == DEV_CONS_MAJOR)
-	break;
-    }
-
   if (myself->cygstarted || ISSTATE (myself, PID_CYGPARENT))
     {
       tty_min *t = cygwin_shared->tty.get_cttyp ();
@@ -438,8 +406,14 @@ dtable::init_std_file_from_handle (int fd, HANDLE handle)
 	}
       if (!fh->init (handle, access, bin))
 	api_fatal ("couldn't initialize fd %d for %s", fd, fh->get_name ());
+      if (fh->ispipe ())
+	{
+	  fhandler_pipe *fhp = (fhandler_pipe *) fh;
+	  fhp->set_pipe_buf_size ();
+	}
 
-      fh->open_setup (openflags);
+      if (!fh->open_setup (openflags))
+	api_fatal ("open_setup failed, %E");
       fh->usecount = 0;
       cygheap->fdtab[fd] = fh;
       cygheap->fdtab[fd]->inc_refcnt ();
@@ -613,6 +587,9 @@ fh_alloc (path_conv& pc)
 	case FH_TIMERFD:
 	  fh = cnew (fhandler_timerfd);
 	  break;
+	case FH_MQUEUE:
+	  fh = cnew (fhandler_mqueue);
+	  break;
 	case FH_TTY:
 	  if (!pc.isopen ())
 	    {
@@ -711,18 +688,15 @@ out:
 fhandler_base *
 dtable::dup_worker (fhandler_base *oldfh, int flags)
 {
-  /* Don't call set_name in build_fh_pc.  It will be called in
-     fhandler_base::operator= below.  Calling it twice will result
-     in double allocation. */
   fhandler_base *newfh = oldfh->clone ();
   if (!newfh)
-    debug_printf ("build_fh_pc failed");
+    debug_printf ("clone failed");
   else
     {
       if (!oldfh->archetype)
 	newfh->set_handle (NULL);
 
-      newfh->pc.reset_conv_handle ();
+      newfh->pc.close_conv_handle ();
       if (oldfh->dup (newfh, flags))
 	{
 	  delete newfh;
@@ -770,7 +744,7 @@ dtable::dup3 (int oldfd, int newfd, int flags)
       set_errno (EBADF);
       goto done;
     }
-  if (newfd >= OPEN_MAX_MAX || newfd < 0)
+  if (newfd >= OPEN_MAX || newfd < 0)
     {
       syscall_printf ("new fd out of bounds: %d", newfd);
       set_errno (EBADF);

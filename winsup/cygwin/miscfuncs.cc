@@ -18,6 +18,22 @@ details. */
 #include "tls_pbuf.h"
 #include "mmap_alloc.h"
 
+/* Get handle count of an object. */
+ULONG
+get_obj_handle_count (HANDLE h)
+{
+  OBJECT_BASIC_INFORMATION obi;
+  NTSTATUS status;
+  ULONG hdl_cnt = 0;
+
+  status = NtQueryObject (h, ObjectBasicInformation, &obi, sizeof obi, NULL);
+  if (!NT_SUCCESS (status))
+    debug_printf ("NtQueryObject: %y", status);
+  else
+    hdl_cnt = obi.HandleCount;
+  return hdl_cnt;
+}
+
 int __reg2
 check_invalid_virtual_addr (const void *s, unsigned sz)
 {
@@ -532,15 +548,16 @@ class thread_allocator
   PVOID (thread_allocator::*alloc_func) (SIZE_T);
   PVOID _alloc (SIZE_T size)
   {
-    MEM_ADDRESS_REQUIREMENTS thread_req = {
+    static const MEM_ADDRESS_REQUIREMENTS thread_req = {
       (PVOID) THREAD_STORAGE_LOW,
       (PVOID) (THREAD_STORAGE_HIGH - 1),
       THREAD_STACK_SLOT
     };
-    MEM_EXTENDED_PARAMETER thread_ext = {
-      .Type = MemExtendedParameterAddressRequirements,
-      .Pointer = (PVOID) &thread_req
-    };
+    /* g++ 11.2 workaround: don't use initializer */
+    MEM_EXTENDED_PARAMETER thread_ext = { 0 };
+    thread_ext.Type = MemExtendedParameterAddressRequirements;
+    thread_ext.Pointer = (PVOID) &thread_req;
+
     SIZE_T real_size = roundup2 (size, THREAD_STACK_SLOT);
     PVOID real_stackaddr = NULL;
 
@@ -552,15 +569,16 @@ class thread_allocator
        monster stack, fulfill request from mmap area. */
     if (!real_stackaddr)
       {
-	MEM_ADDRESS_REQUIREMENTS mmap_req = {
+	static const MEM_ADDRESS_REQUIREMENTS mmap_req = {
 	  (PVOID) MMAP_STORAGE_LOW,
 	  (PVOID) (MMAP_STORAGE_HIGH - 1),
 	  THREAD_STACK_SLOT
 	};
-	MEM_EXTENDED_PARAMETER mmap_ext = {
-	  .Type = MemExtendedParameterAddressRequirements,
-	  .Pointer = (PVOID) &mmap_req
-	};
+	/* g++ 11.2 workaround: don't use initializer */
+	MEM_EXTENDED_PARAMETER mmap_ext = { 0 };
+	mmap_ext.Type = MemExtendedParameterAddressRequirements;
+	mmap_ext.Pointer = (PVOID) &mmap_req;
+
 	real_stackaddr = VirtualAlloc2 (GetCurrentProcess(), NULL, real_size,
 					MEM_RESERVE | MEM_TOP_DOWN,
 					PAGE_READWRITE, &mmap_ext, 1);

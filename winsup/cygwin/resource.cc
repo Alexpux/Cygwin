@@ -14,7 +14,6 @@ details. */
 #include <unistd.h>
 #include <sys/param.h>
 #include "pinfo.h"
-#include "psapi.h"
 #include "cygtls.h"
 #include "path.h"
 #include "fhandler.h"
@@ -182,10 +181,7 @@ getrlimit (int resource, struct rlimit *rlp)
 	  __get_rlimit_stack (rlp);
 	  break;
 	case RLIMIT_NOFILE:
-	  rlp->rlim_cur = getdtablesize ();
-	  if (rlp->rlim_cur < OPEN_MAX)
-	    rlp->rlim_cur = OPEN_MAX;
-	  rlp->rlim_max = OPEN_MAX_MAX;
+	  rlp->rlim_cur = rlp->rlim_max = OPEN_MAX;
 	  break;
 	case RLIMIT_CORE:
 	  rlp->rlim_cur = cygheap->rlim_core;

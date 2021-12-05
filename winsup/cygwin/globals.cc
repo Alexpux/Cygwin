@@ -23,10 +23,12 @@ HMODULE NO_COPY hntdll;
 int NO_COPY sigExeced;
 WCHAR windows_system_directory[MAX_PATH];
 UINT windows_system_directory_length;
-#ifdef __i386__
 WCHAR system_wow64_directory[MAX_PATH];
 UINT system_wow64_directory_length;
-#endif /* __i386__ */
+WCHAR windows_directory_buf[MAX_PATH];
+PWCHAR windows_directory = windows_directory_buf + 4;
+UINT windows_directory_length;
+UNICODE_STRING windows_directory_path;
 WCHAR global_progname[NT_MAX_PATH];
 
 /* program exit the program */
@@ -51,11 +53,12 @@ enum exit_states
    "winsymlinks" setting of the CYGWIN environment variable. */
 enum winsym_t
 {
-  WSYM_sysfile = 0,
+  WSYM_default = 0,
   WSYM_lnk,
   WSYM_native,
   WSYM_nativestrict,
   WSYM_nfs,
+  WSYM_sysfile,
   WSYM_deepcopy
 };
 
@@ -72,6 +75,8 @@ bool reset_com;
 bool wincmdln = true;
 winsym_t allow_winsymlinks = WSYM_deepcopy;
 bool disable_pcon = true;
+bool winjitdebug = false;
+bool nativeinnerlinks = true;
 
 bool NO_COPY in_forkee;
 
@@ -152,6 +157,7 @@ const int __collate_load_error = 0;
   extern UNICODE_STRING _RDATA ro_u_natsyml = _ROU (L"SymbolicLink");
   extern UNICODE_STRING _RDATA ro_u_natdev = _ROU (L"Device");
   extern UNICODE_STRING _RDATA ro_u_npfs = _ROU (L"\\Device\\NamedPipe\\");
+  extern UNICODE_STRING _RDATA ro_u_mq_suffix = _ROU (L":mqueue");
   #undef _ROU
 
   /* This is an exported copy of environ which can be used by DLLs

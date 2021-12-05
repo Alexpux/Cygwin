@@ -25,9 +25,12 @@ main (int argc, char **argv)
 
   if (argc < 2)
     {
-      fprintf (stderr, "Usage: cygrun [program]\n");
+      fprintf (stderr, "Usage: cygrun [program] [tmpdir]\n");
       exit (0);
     }
+
+  if (argc >= 3)
+    SetEnvironmentVariable ("TDIRECTORY", argv[2]);
 
   SetEnvironmentVariable ("MSYS_TESTING", "1");
   if ((p = getenv ("MSYS")) == NULL || (strstr (p, "ntsec") == NULL))

@@ -673,11 +673,12 @@ fhandler_socket_local::fcntl (int cmd, intptr_t arg)
 int __reg2
 fhandler_socket_local::fstat (struct stat *buf)
 {
-  int res;
-
-  if (get_sun_path () && get_sun_path ()[0] == '\0')
+  if (!dev ().isfs ())
+    /* fstat called on a socket. */
     return fhandler_socket_wsock::fstat (buf);
-  res = fhandler_base::fstat_fs (buf);
+
+  /* stat/lstat on a socket file or fstat on a socket opened w/ O_PATH. */
+  int res = fhandler_base::fstat_fs (buf);
   if (!res)
     {
       buf->st_mode = (buf->st_mode & ~S_IFMT) | S_IFSOCK;
@@ -689,8 +690,11 @@ fhandler_socket_local::fstat (struct stat *buf)
 int __reg2
 fhandler_socket_local::fstatvfs (struct statvfs *sfs)
 {
-  if (get_sun_path () && get_sun_path ()[0] == '\0')
+  if (!dev ().isfs ())
+    /* fstatvfs called on a socket. */
     return fhandler_socket_wsock::fstatvfs (sfs);
+
+  /* statvfs on a socket file or fstatvfs on a socket opened w/ O_PATH. */
   if (get_flags () & O_PATH)
     /* We already have a handle. */
     {
@@ -706,8 +710,12 @@ fhandler_socket_local::fstatvfs (struct statvfs *sfs)
 int
 fhandler_socket_local::fchmod (mode_t newmode)
 {
-  if (get_sun_path () && get_sun_path ()[0] == '\0')
+  if (!dev ().isfs ())
+    /* fchmod called on a socket. */
     return fhandler_socket_wsock::fchmod (newmode);
+
+  /* chmod on a socket file.  [We won't get here if fchmod is called
+     on a socket opened w/ O_PATH.] */
   fhandler_disk_file fh (pc);
   fh.get_device () = FH_FS;
   return fh.fchmod (S_IFSOCK | adjust_socket_file_mode (newmode));
@@ -716,8 +724,12 @@ fhandler_socket_local::fchmod (mode_t newmode)
 int
 fhandler_socket_local::fchown (uid_t uid, gid_t gid)
 {
-  if (get_sun_path () && get_sun_path ()[0] == '\0')
+  if (!dev ().isfs ())
+    /* fchown called on a socket. */
     return fhandler_socket_wsock::fchown (uid, gid);
+
+  /* chown/lchown on a socket file.  [We won't get here if fchown is
+     called on a socket opened w/ O_PATH.] */
   fhandler_disk_file fh (pc);
   return fh.fchown (uid, gid);
 }
@@ -725,8 +737,12 @@ fhandler_socket_local::fchown (uid_t uid, gid_t gid)
 int
 fhandler_socket_local::facl (int cmd, int nentries, aclent_t *aclbufp)
 {
-  if (get_sun_path () && get_sun_path ()[0] == '\0')
+  if (!dev ().isfs ())
+    /* facl called on a socket. */
     return fhandler_socket_wsock::facl (cmd, nentries, aclbufp);
+
+  /* facl on a socket file.  [We won't get here if facl is called on a
+     socket opened w/ O_PATH.] */
   fhandler_disk_file fh (pc);
   return fh.facl (cmd, nentries, aclbufp);
 }
@@ -734,9 +750,14 @@ fhandler_socket_local::facl (int cmd, int nentries, aclent_t *aclbufp)
 int
 fhandler_socket_local::link (const char *newpath)
 {
-  if (get_sun_path () && get_sun_path ()[0] == '\0')
+  if (!dev ().isfs ())
+    /* linkat w/ AT_EMPTY_PATH called on a socket not opened w/ O_PATH. */
     return fhandler_socket_wsock::link (newpath);
+  /* link on a socket file or linkat w/ AT_EMPTY_PATH called on a
+     socket opened w/ O_PATH. */
   fhandler_disk_file fh (pc);
+  if (get_flags () & O_PATH)
+    fh.set_handle (get_handle ());
   return fh.link (newpath);
 }
 
@@ -873,19 +894,34 @@ fhandler_socket_local::connect (const struct sockaddr *name, int namelen)
 {
   struct sockaddr_storage sst;
   int type = 0;
+  bool reset = (name->sa_family == AF_UNSPEC
+		&& get_socket_type () == SOCK_DGRAM);
 
-  if (get_inet_addr_local (name, namelen, &sst, &namelen, &type, connect_secret)
-      == SOCKET_ERROR)
+  if (reset)
+    {
+      if (connect_state () == unconnected)
+	return 0;
+      /* To reset a connected DGRAM socket, call Winsock's connect
+	 function with the address member of the sockaddr structure
+	 filled with zeroes. */
+      memset (&sst, 0, sizeof sst);
+      sst.ss_family = get_addr_family ();
+    }
+  else if (get_inet_addr_local (name, namelen, &sst, &namelen, &type,
+				connect_secret) == SOCKET_ERROR)
     return SOCKET_ERROR;
 
-  if (get_socket_type () != type)
+  if (get_socket_type () != type && !reset)
     {
       WSASetLastError (WSAEPROTOTYPE);
       set_winsock_errno ();
       return SOCKET_ERROR;
     }
 
-  set_peer_sun_path (name->sa_data);
+  if (reset)
+    set_peer_sun_path (NULL);
+  else
+    set_peer_sun_path (name->sa_data);
 
   /* Don't move af_local_set_cred into af_local_connect which may be called
      via select, possibly running under another identity.  Call early here,
@@ -893,11 +929,13 @@ fhandler_socket_local::connect (const struct sockaddr *name, int namelen)
   if (get_socket_type () == SOCK_STREAM)
     af_local_set_cred ();
 
-  /* Initialize connect state to "connect_pending".  State is ultimately set
-     to "connected" or "connect_failed" in wait_for_events when the FD_CONNECT
-     event occurs.  Note that the underlying OS sockets are always non-blocking
-     and a successfully initiated non-blocking Winsock connect always returns
-     WSAEWOULDBLOCK.  Thus it's safe to rely on event handling.
+  /* Initialize connect state to "connect_pending".  In the SOCK_STREAM
+     case, the state is ultimately set to "connected" or "connect_failed" in
+     wait_for_events when the FD_CONNECT event occurs.  Note that the
+     underlying OS sockets are always non-blocking in this case and a
+     successfully initiated non-blocking Winsock connect always returns
+     WSAEWOULDBLOCK.  Thus it's safe to rely on event handling.  For DGRAM
+     sockets, however, connect can return immediately.
 
      Check for either unconnected or connect_failed since in both cases it's
      allowed to retry connecting the socket.  It's also ok (albeit ugly) to
@@ -909,7 +947,14 @@ fhandler_socket_local::connect (const struct sockaddr *name, int namelen)
     connect_state (connect_pending);
 
   int res = ::connect (get_socket (), (struct sockaddr *) &sst, namelen);
-  if (!is_nonblocking ()
+  if (!res)
+    {
+      if (reset)
+	connect_state (unconnected);
+      else
+	connect_state (connected);
+    }
+  else if (!is_nonblocking ()
       && res == SOCKET_ERROR
       && WSAGetLastError () == WSAEWOULDBLOCK)
     res = wait_for_events (FD_CONNECT | FD_CLOSE, 0);
@@ -932,8 +977,7 @@ fhandler_socket_local::connect (const struct sockaddr *name, int namelen)
 	 Convert to POSIX/Linux compliant EISCONN. */
       else if (err == WSAEINVAL && connect_state () == listener)
 	WSASetLastError (WSAEISCONN);
-      /* Any other error except WSAEALREADY during connect_pending means the
-         connect failed. */
+      /* Any other error except WSAEALREADY means the connect failed. */
       else if (connect_state () == connect_pending && err != WSAEALREADY)
 	connect_state (connect_failed);
       set_winsock_errno ();
@@ -1212,7 +1256,7 @@ fhandler_socket_local::recv_internal (LPWSAMSG wsamsg, bool use_recvmsg)
 		  --wsacnt;
 		}
 	    }
-	  if (!wret)
+	  if (!wsacnt)
 	    break;
 	}
       else if (WSAGetLastError () != WSAEWOULDBLOCK)
@@ -1430,10 +1474,14 @@ fhandler_socket_local::setsockopt (int level, int optname, const void *optval,
 	     FIXME: In the long run we should find a more generic solution
 	     which doesn't require a blocking handshake in accept/connect
 	     to exchange SO_PEERCRED credentials. */
-	  if (optval || optlen)
-	    set_errno (EINVAL);
-	  else
+	  /* Temporary: Allow SO_PEERCRED to only be zeroed. Two ways to
+	     accomplish this: pass NULL,0 for optval,optlen; or pass the
+	     address,length of an '(int) 0' set up by the caller. */
+	  if ((!optval && !optlen) ||
+		(optlen == (socklen_t) sizeof (int) && !*(int *) optval))
 	    ret = af_local_set_no_getpeereid ();
+	  else
+	    set_errno (EINVAL);
 	  return ret;
 
 	case SO_REUSEADDR:

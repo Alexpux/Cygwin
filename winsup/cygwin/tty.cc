@@ -234,20 +234,26 @@ tty::init ()
   was_opened = false;
   master_pid = 0;
   is_console = false;
-  attach_pcon_in_fork = false;
-  h_pseudo_console = NULL;
   column = 0;
+  pcon_activated = false;
   switch_to_pcon_in = false;
-  switch_to_pcon_out = false;
-  screen_alternated = false;
-  mask_switch_to_pcon_in = false;
   pcon_pid = 0;
   term_code_page = 0;
-  need_redraw_screen = true;
   pcon_last_time = 0;
-  pcon_in_empty = true;
-  req_transfer_input_to_pcon = false;
-  req_flush_pcon_input = false;
+  pcon_start = false;
+  pcon_start_pid = 0;
+  pcon_cap_checked = false;
+  has_csi6n = false;
+  need_invisible_console = false;
+  invisible_console_pid = 0;
+  previous_code_page = 0;
+  previous_output_code_page = 0;
+  master_is_running_as_service = false;
+  req_xfer_input = false;
+  pcon_input_state = to_cyg;
+  last_sig = 0;
+  mask_flusho = false;
+  discard_input = false;
 }
 
 HANDLE
@@ -294,17 +300,71 @@ tty_min::ttyname ()
 }
 
 void
-tty::set_switch_to_pcon_out (bool v)
+tty_min::setpgid (int pid)
 {
-  if (switch_to_pcon_out != v)
+  fhandler_pty_slave *ptys = NULL;
+  cygheap_fdenum cfd (false);
+  while (cfd.next () >= 0 && ptys == NULL)
+    if (cfd->get_device () == getntty ())
+      ptys = (fhandler_pty_slave *) (fhandler_base *) cfd;
+
+  if (ptys)
     {
-      wait_pcon_fwd ();
-      switch_to_pcon_out = v;
+      tty *ttyp = ptys->get_ttyp ();
+      WaitForSingleObject (ptys->pcon_mutex, INFINITE);
+      bool was_pcon_fg = ttyp->pcon_fg (pgid);
+      bool pcon_fg = ttyp->pcon_fg (pid);
+      if (!was_pcon_fg && pcon_fg && ttyp->switch_to_pcon_in
+	  && ttyp->pcon_input_state_eq (tty::to_cyg))
+	{
+	WaitForSingleObject (ptys->input_mutex, INFINITE);
+	fhandler_pty_slave::transfer_input (tty::to_nat,
+					    ptys->get_handle (), ttyp,
+					    ptys->get_input_available_event ());
+	ReleaseMutex (ptys->input_mutex);
+	}
+      else if (was_pcon_fg && !pcon_fg && ttyp->switch_to_pcon_in
+	       && ttyp->pcon_input_state_eq (tty::to_nat))
+	{
+	  bool attach_restore = false;
+	  HANDLE from = ptys->get_handle_nat ();
+	  if (ttyp->pcon_activated && ttyp->pcon_pid
+	      && !ptys->get_console_process_id (ttyp->pcon_pid, true))
+	    {
+	      HANDLE pcon_owner =
+		OpenProcess (PROCESS_DUP_HANDLE, FALSE, ttyp->pcon_pid);
+	      DuplicateHandle (pcon_owner, ttyp->h_pcon_in,
+			       GetCurrentProcess (), &from,
+			       0, TRUE, DUPLICATE_SAME_ACCESS);
+	      CloseHandle (pcon_owner);
+	      FreeConsole ();
+	      AttachConsole (ttyp->pcon_pid);
+	      attach_restore = true;
+	    }
+	  WaitForSingleObject (ptys->input_mutex, INFINITE);
+	  fhandler_pty_slave::transfer_input (tty::to_cyg, from, ttyp,
+				  ptys->get_input_available_event ());
+	  ReleaseMutex (ptys->input_mutex);
+	  if (attach_restore)
+	    {
+	      FreeConsole ();
+	      pinfo p (myself->ppid);
+	      if (p)
+		{
+		  if (!AttachConsole (p->dwProcessId))
+		    AttachConsole (ATTACH_PARENT_PROCESS);
+		}
+	      else
+		AttachConsole (ATTACH_PARENT_PROCESS);
+	    }
+	}
+      ReleaseMutex (ptys->pcon_mutex);
     }
+  pgid = pid;
 }
 
 void
-tty::wait_pcon_fwd (void)
+tty::wait_pcon_fwd (bool init)
 {
   /* The forwarding in pseudo console sometimes stops for
      16-32 msec even if it already has data to transfer.
@@ -314,10 +374,28 @@ tty::wait_pcon_fwd (void)
      thread when the last data is transfered. */
   const int sleep_in_pcon = 16;
   const int time_to_wait = sleep_in_pcon * 2 + 1/* margine */;
-  pcon_last_time = GetTickCount ();
+  if (init)
+    pcon_last_time = GetTickCount ();
   while (GetTickCount () - pcon_last_time < time_to_wait)
     {
       int tw = time_to_wait - (GetTickCount () - pcon_last_time);
       cygwait (tw);
     }
+}
+
+bool
+tty::pcon_fg (pid_t pgid)
+{
+  /* Check if the terminal pgid matches with the pgid of the
+     non-cygwin process. */
+  winpids pids ((DWORD) 0);
+  for (unsigned i = 0; i < pids.npids; i++)
+    {
+      _pinfo *p = pids[i];
+      if (p->ctty == ntty && p->pgid == pgid && p->exec_dwProcessId)
+	return true;
+    }
+  if (pgid > MAX_PID)
+    return true;
+  return false;
 }

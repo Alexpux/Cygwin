@@ -324,8 +324,10 @@ normalize_posix_path (const char *src, char *dst, char *&tail)
 			  if (!tp.check_usage (4, 3))
 			    return ELOOP;
 			  path_conv head (dst, PC_SYM_FOLLOW | PC_POSIX);
-			  if (!head.isdir())
+			  if (!head.exists ())
 			    return ENOENT;
+			  if (!head.isdir ())
+			    return ENOTDIR;
 			  /* At this point, dst is a normalized path.  If the
 			     normalized path created by path_conv does not
 			     match the normalized path we're just testing, then
@@ -501,8 +503,10 @@ path_conv::set_nt_native_path (PUNICODE_STRING new_path)
   uni_path.Buffer = wide_path;
 }
 
+/* If suffix is not NULL, append the suffix string verbatim.
+   This is used by fhandler_mqueue::mq_open to append an NTFS stream suffix. */
 PUNICODE_STRING
-path_conv::get_nt_native_path ()
+path_conv::get_nt_native_path (PUNICODE_STRING suffix)
 {
   PUNICODE_STRING res;
   if (wide_path)
@@ -513,9 +517,13 @@ path_conv::get_nt_native_path ()
     {
       uni_path.Length = 0;
       uni_path.MaximumLength = (strlen (path) + 10) * sizeof (WCHAR);
+      if (suffix)
+	uni_path.MaximumLength += suffix->Length;
       wide_path = (PWCHAR) cmalloc_abort (HEAP_STR, uni_path.MaximumLength);
       uni_path.Buffer = wide_path;
       ::get_nt_native_path (path, uni_path, has_dos_filenames_only ());
+      if (suffix)
+	RtlAppendUnicodeStringToString (&uni_path, suffix);
       res = &uni_path;
     }
   return res;
@@ -722,9 +730,10 @@ path_conv::check (const char *src, unsigned opt,
 	  int symlen = 0;
 
 	  /* Make sure to check certain flags on last component only. */
-	  for (unsigned pc_flags = opt & (PC_NO_ACCESS_CHECK | PC_KEEP_HANDLE);
+	  for (unsigned pc_flags = opt & (PC_NO_ACCESS_CHECK | PC_KEEP_HANDLE
+					 | PC_SYM_FOLLOW | PC_SYM_NOFOLLOW_REP);
 	       ;
-	       pc_flags = 0)
+	       pc_flags = opt & (PC_SYM_FOLLOW | PC_SYM_NOFOLLOW_REP))
 	    {
 	      const suffix_info *suff;
 	      char *full_path;
@@ -817,6 +826,15 @@ path_conv::check (const char *src, unsigned opt,
 			  delete fh;
 			  goto retry_fs_via_processfd;
 			}
+		      else if (file_type == virt_none && dev == FH_PROCESSFD)
+			{
+			  error = get_errno ();
+			  if (error)
+			    {
+			      delete fh;
+			      return;
+			    }
+			}
 		      delete fh;
 		    }
 		  switch (file_type)
@@ -862,19 +880,28 @@ path_conv::check (const char *src, unsigned opt,
 			dev.parse (FH_FS);
 			goto is_fs_via_procsys;
 		      case virt_blk:
-			/* Block special device.  If the trailing slash has been
-			   requested, the target is the root directory of the
-			   filesystem on this block device.  So we convert this
-			   to a real file and attach the backslash. */
-			if (component == 0 && need_directory)
+			/* Block special device.  Convert to a /dev/sd* like
+			   block device unless the trailing slash has been
+			   requested.  In this case, the target is the root
+			   directory of the filesystem on this block device.
+			   So we convert this to a real file and attach the
+			   backslash. */
+			if (component == 0)
 			  {
-			    dev.parse (FH_FS);
-			    strcat (full_path, "\\");
-			    fileattr = FILE_ATTRIBUTE_DIRECTORY
-				       | FILE_ATTRIBUTE_DEVICE;
+			    fileattr = FILE_ATTRIBUTE_DEVICE;
+			    if (!need_directory)
+			      /* Use a /dev/sd* device number > /dev/sddx.
+				 FIXME: Define a new major DEV_ice number. */
+			      dev.parse (DEV_SD_HIGHPART_END, 9999);
+			    else
+			      {
+				dev.parse (FH_FS);
+				strcat (full_path, "\\");
+				fileattr |= FILE_ATTRIBUTE_DIRECTORY;
+			      }
 			    goto out;
 			  }
-			fallthrough;
+			break;
 		      case virt_chr:
 			if (component == 0)
 			  fileattr = FILE_ATTRIBUTE_DEVICE;
@@ -998,17 +1025,25 @@ path_conv::check (const char *src, unsigned opt,
 		    }
 		  goto out;	// file found
 		}
-	      /* Found a symlink if symlen > 0.  If component == 0, then the
-		 src path itself was a symlink.  If !follow_mode then
-		 we're done.  Otherwise we have to insert the path found
-		 into the full path that we are building and perform all of
-		 these operations again on the newly derived path. */
-	      else if (symlen > 0)
+	      /* Found a symlink if symlen > 0 or short-circuited a native
+		 symlink or junction point if symlen < 0.
+		 If symlen > 0 and component == 0, then the src path itself
+		 was a symlink.  If !follow_mode then we're done.  Otherwise
+		 we have to insert the path found into the full path that we
+		 are building and perform all of these operations again on the
+		 newly derived path. */
+	      else if (symlen)
 		{
-		  if (component == 0
-		      && (!(opt & PC_SYM_FOLLOW)
-			  || (is_known_reparse_point ()
-			      && (opt & PC_SYM_NOFOLLOW_REP))))
+		  /* if symlen is negativ, the actual native symlink or
+		      junction point is an inner path component.  Just fix up
+		      symlen to be positive and don't try any PC_SYM_FOLLOW
+		      handling. */
+		  if (symlen < 0)
+		    symlen = -symlen;
+		  else if (component == 0
+			   && (!(opt & PC_SYM_FOLLOW)
+			       || (is_winapi_reparse_point ()
+				   && (opt & PC_SYM_NOFOLLOW_REP))))
 		    {
 		      /* Usually a trailing slash requires to follow a symlink,
 			 even with PC_SYM_NOFOLLOW.  The reason is that "foo/"
@@ -1162,6 +1197,10 @@ path_conv::check (const char *src, unsigned opt,
 	  return;
 	}
 
+      /* Restore last path component */
+      if (tail < path_end && tail > path_copy + 1)
+	*tail = '/';
+
       if (dev.isfs ())
 	{
 	  /* If FS hasn't been checked already in symlink_info::check,
@@ -1199,6 +1238,10 @@ path_conv::check (const char *src, unsigned opt,
 	    set_exec (1);
 	  else if (issymlink () || issocket ())
 	    set_exec (0);
+
+	  /* FIXME: bad hack alert!!!  We need a better solution */
+	  if (!strncmp (path_copy, MQ_PATH, MQ_LEN) && path_copy[MQ_LEN])
+	    dev.parse (FH_MQUEUE);
 	}
 
       if (opt & PC_NOFULL)
@@ -1247,11 +1290,7 @@ path_conv::check (const char *src, unsigned opt,
 	path_flags |= PATH_CTTY;
 
       if (opt & PC_POSIX)
-	{
-	  if (tail < path_end && tail > path_copy + 1)
-	    *tail = '/';
-	  set_posix (path_copy);
-	}
+	set_posix (path_copy);
 
 #if 0
       if (!error)
@@ -2104,7 +2143,7 @@ symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
       /* Don't try native symlinks on FSes not supporting reparse points. */
       else if ((wsym_type == WSYM_native || wsym_type == WSYM_nativestrict)
 	       && !(win32_newpath.fs_flags () & FILE_SUPPORTS_REPARSE_POINTS))
-	wsym_type = WSYM_sysfile;
+	wsym_type = WSYM_default;
 
       /* Attach .lnk suffix when shortcut is requested. */
       if (wsym_type == WSYM_lnk && !win32_newpath.exists ()
@@ -2150,9 +2189,9 @@ symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
 	      __leave;
 	    }
 	  /* Otherwise, fall back to default symlink type. */
-	  wsym_type = WSYM_sysfile;
+	  wsym_type = WSYM_default;
 	  fallthrough;
-	case WSYM_sysfile:
+	case WSYM_default:
 	  if (win32_newpath.fs_flags () & FILE_SUPPORTS_REPARSE_POINTS)
 	    {
 	      res = symlink_wsl (oldpath, win32_newpath);
@@ -2162,6 +2201,7 @@ symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
 	  /* On FSes not supporting reparse points, or in case of an error
 	     creating the WSL symlink, fall back to creating the plain old
 	     SYSTEM file symlink. */
+	  wsym_type = WSYM_sysfile;
 	  break;
 	default:
 	  break;
@@ -2302,7 +2342,7 @@ symlink_worker (const char *oldpath, path_conv &win32_newpath, bool isdevice)
 		  * sizeof (WCHAR);
 	  cp += *plen;
 	}
-      else
+      else /* wsym_type == WSYM_sysfile */
 	{
           if (wsym_type == WSYM_deepcopy)
 	    {
@@ -2683,8 +2723,8 @@ check_reparse_point_string (PUNICODE_STRING subst)
 
 /* Return values:
     <0: Negative errno.
-     0: No symlink.
-     1: Symlink.
+     0: Not a reparse point recognized by us.
+    >0: Path flags for a recognized reparse point, always including PATH_REP.
 */
 int
 check_reparse_point_target (HANDLE h, bool remote, PREPARSE_DATA_BUFFER rp,
@@ -2845,19 +2885,26 @@ check_reparse_point_target (HANDLE h, bool remote, PREPARSE_DATA_BUFFER rp,
 	    }
 	  RtlInitCountedUnicodeString (psymbuf, utf16_buf,
 				       utf16_bufsize * sizeof (WCHAR));
-	  return PATH_SYMLINK | PATH_REP;
+	  return PATH_SYMLINK | PATH_REP | PATH_REP_NOAPI;
 	}
       return -EIO;
     }
-#ifdef __WITH_AF_UNIX
   else if (rp->ReparseTag == IO_REPARSE_TAG_CYGUNIX)
     {
       PREPARSE_GUID_DATA_BUFFER rgp = (PREPARSE_GUID_DATA_BUFFER) rp;
 
       if (memcmp (CYGWIN_SOCKET_GUID, &rgp->ReparseGuid, sizeof (GUID)) == 0)
-	return PATH_SOCKET | PATH_REP;
+#ifdef __WITH_AF_UNIX
+	return PATH_SOCKET | PATH_REP | PATH_REP_NOAPI;
+#else
+        /* Recognize this as a reparse point but not as a socket.  */
+        return PATH_REP | PATH_REP_NOAPI;
+#endif
     }
-#endif /* __WITH_AF_UNIX */
+  else if (rp->ReparseTag == IO_REPARSE_TAG_AF_UNIX)
+    /* Native Windows AF_UNIX socket; recognize this as a reparse
+       point but not as a socket. */
+    return PATH_REP;
   return 0;
 }
 
@@ -2886,11 +2933,15 @@ symlink_info::check_reparse_point (HANDLE h, bool remote)
   /* ret is > 0, so it's a known reparse point, path in symbuf. */
   path_flags |= ret;
   if (ret & PATH_SYMLINK)
-    sys_wcstombs_path (srcbuf, SYMLINK_MAX + 7, symbuf.Buffer,
-		       symbuf.Length / sizeof (WCHAR));
-  /* A symlink is never a directory. */
-  fileattr &= ~FILE_ATTRIBUTE_DIRECTORY;
-  return posixify (srcbuf);
+    {
+      sys_wcstombs_path (srcbuf, SYMLINK_MAX + 7, symbuf.Buffer,
+		         symbuf.Length / sizeof (WCHAR));
+      /* A symlink is never a directory. */
+      fileattr &= ~FILE_ATTRIBUTE_DIRECTORY;
+      return posixify (srcbuf);
+    }
+  else
+    return 0;
 }
 
 int
@@ -3505,6 +3556,9 @@ restart:
 		&= ~FILE_ATTRIBUTE_DIRECTORY;
 	      break;
 	    }
+	  else if (res == 0 && (path_flags & PATH_REP))
+	    /* Known reparse point but not a symlink. */
+	    goto file_not_symlink;
 	  else
 	    {
 	      /* Volume moint point or unrecognized reparse point type.
@@ -3599,6 +3653,79 @@ restart:
 	  res = check_nfs_symlink (h);
 	  if (res)
 	    break;
+	}
+
+      /* Check if the inner path components contain native symlinks or
+	 junctions, or if the drive is a virtual drive.  Compare incoming
+	 path with path returned by GetFinalPathNameByHandleA.  If they
+	 differ, return the final path as symlink content and set symlen
+	 to a negative value.  This forces path_conv::check to restart
+	 symlink evaluation with the new path. */
+#ifdef __i386__
+      /* On WOW64, ignore any potential problems if the path is inside
+	 the Windows dir to avoid false positives for stuff under File
+	 System Redirector control.  Believe it or not, but even
+	 GetFinalPathNameByHandleA returns the converted path for the
+	 Sysnative dir.  I. e.
+
+	     C:\Windows\Sysnative --> C:\Windows\System32
+
+	 This is obviously wrong when using this path for further
+	 file manipulation because the non-final path points to another
+	 file than the final path.  Oh well... */
+      if (!fs.is_remote_drive () && wincap.is_wow64 ())
+	{
+	  /* windows_directory_path is stored without trailing backslash,
+	     so we have to check this explicitely. */
+	  if (RtlEqualUnicodePathPrefix (&upath, &windows_directory_path, TRUE)
+	      && upath.Buffer[windows_directory_path.Length / sizeof (WCHAR)]
+		 == L'\\')
+	    goto file_not_symlink;
+	}
+#endif /* __i386__ */
+      if (nativeinnerlinks
+	  && (pc_flags & (PC_SYM_FOLLOW | PC_SYM_NOFOLLOW_REP)) == PC_SYM_FOLLOW)
+	{
+	  PWCHAR fpbuf = tp.w_get ();
+	  DWORD ret;
+
+	  ret = GetFinalPathNameByHandleW (h, fpbuf, NT_MAX_PATH, 0);
+	  if (ret)
+	    {
+	      UNICODE_STRING fpath;
+
+	      RtlInitCountedUnicodeString (&fpath, fpbuf, ret * sizeof (WCHAR));
+	      fpbuf[1] = L'?';	/* \\?\ --> \??\ */
+	      if (!RtlEqualUnicodeString (&upath, &fpath, !!ci_flag))
+	        {
+		  issymlink = true;
+		  /* upath.Buffer is big enough and unused from this point on.
+		     Reuse it here, avoiding yet another buffer allocation. */
+		  char *nfpath = (char *) upath.Buffer;
+		  sys_wcstombs (nfpath, NT_MAX_PATH, fpbuf);
+		  res = posixify (nfpath);
+
+		  /* If the incoming path consisted of a drive prefix only,
+		     we just handle a virtual drive, created with, e.g.
+
+		       subst X: C:\foo\bar
+
+		     Treat it like a symlink.  This is required to tell an
+		     lstat caller that the "drive" is actually pointing
+		     somewhere else, thus, it's a symlink in POSIX speak. */
+		  if (upath.Length == 14)	/* \??\X:\ */
+		    {
+		      fileattr &= ~FILE_ATTRIBUTE_DIRECTORY;
+		      path_flags |= PATH_SYMLINK;
+		    }
+		  /* For final paths differing in inner path components return
+		     length as negative value.  This informs path_conv::check
+		     to skip realpath handling on the last path component. */
+		  else
+		    res = -res;
+		  break;
+	        }
+	    }
 	}
 
     /* Normal file. */
@@ -5028,6 +5155,7 @@ cwdstuff::set (path_conv *nat_cwd, const char *posix_cwd)
 {
   NTSTATUS status;
   UNICODE_STRING upath;
+  OBJECT_ATTRIBUTES attr;
   PEB &peb = *NtCurrentTeb ()->Peb;
   bool virtual_path = false;
   bool unc_path = false;
@@ -5069,7 +5197,23 @@ cwdstuff::set (path_conv *nat_cwd, const char *posix_cwd)
     {
       upath = *nat_cwd->get_nt_native_path ();
       if (nat_cwd->isspecial ())
-	virtual_path = true;
+	{
+	  virtual_path = true;
+	  /* But allow starting of native apps from /dev if /dev actually
+	     exists on disk. */
+	  if (isdev_dev (nat_cwd->dev))
+	    {
+	      FILE_BASIC_INFORMATION fbi;
+
+	      InitializeObjectAttributes (&attr, &upath,
+					  OBJ_CASE_INSENSITIVE | OBJ_INHERIT,
+					  NULL, NULL);
+	      status = NtQueryAttributesFile (&attr, &fbi);
+	      if (status != STATUS_OBJECT_NAME_NOT_FOUND
+		  && status != STATUS_OBJECT_PATH_NOT_FOUND)
+		virtual_path = false;
+	    }
+	}
     }
 
   /* Memorize old DismountCount before opening the dir.  This value is
@@ -5086,7 +5230,6 @@ cwdstuff::set (path_conv *nat_cwd, const char *posix_cwd)
   if (!virtual_path)
     {
       IO_STATUS_BLOCK io;
-      OBJECT_ATTRIBUTES attr;
 
       if (!nat_cwd)
 	{
@@ -5315,6 +5458,8 @@ char *
 cwdstuff::get (char *buf, int need_posix, int with_chroot, unsigned ulen)
 {
   tmp_pathbuf tp;
+
+  errno = 0;
   if (ulen)
     /* nothing */;
   else if (buf == NULL)

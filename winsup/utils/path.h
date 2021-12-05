@@ -6,6 +6,9 @@ This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
+#ifndef _PATH_H_
+#define _PATH_H_
+
 struct mnt_t
 {
   char *native;
@@ -27,4 +30,9 @@ extern int max_mount_entry;
 
 #ifndef SYMLINK_MAX
 #define SYMLINK_MAX 4095  /* PATH_MAX - 1 */
+#endif
+
+DWORD testsuite_getcwd (DWORD nBufferLength, LPSTR lpBuffer);
+void testsuite_read_mounts (void);
+
 #endif

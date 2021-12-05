@@ -361,20 +361,30 @@ fhandler_socket_wsock::evaluate_events (const long event_mask, long &events,
 	  wsock_events->events |= FD_WRITE;
 	  wsock_events->connect_errorcode = 0;
 	}
-      /* This test makes accept/connect behave as on Linux when accept/connect
-         is called on a socket for which shutdown has been called.  The second
-	 half of this code is in the shutdown method. */
       if (events & FD_CLOSE)
 	{
-	  if ((event_mask & FD_ACCEPT) && saw_shutdown_read ())
+	  if (evts.iErrorCode[FD_CLOSE_BIT])
 	    {
-	      WSASetLastError (WSAEINVAL);
+	      WSASetLastError (evts.iErrorCode[FD_CLOSE_BIT]);
 	      ret = SOCKET_ERROR;
 	    }
-	  if (event_mask & FD_CONNECT)
+	  /* This test makes accept/connect behave as on Linux when accept/
+	     connect is called on a socket for which shutdown has been called.
+	     The second half of this code is in the shutdown method.  Note that
+	     we only do this when called from accept/connect, not from select.
+	     In this case erase == false, just as with read (MSG_PEEK). */
+	  if (erase)
 	    {
-	      WSASetLastError (WSAECONNRESET);
-	      ret = SOCKET_ERROR;
+	      if ((event_mask & FD_ACCEPT) && saw_shutdown_read ())
+		{
+		  WSASetLastError (WSAEINVAL);
+		  ret = SOCKET_ERROR;
+		}
+	      if (event_mask & FD_CONNECT)
+		{
+		  WSASetLastError (WSAECONNRESET);
+		  ret = SOCKET_ERROR;
+		}
 	    }
 	}
       if (erase)
@@ -771,15 +781,29 @@ int
 fhandler_socket_inet::connect (const struct sockaddr *name, int namelen)
 {
   struct sockaddr_storage sst;
+  bool reset = (name->sa_family == AF_UNSPEC
+		&& get_socket_type () == SOCK_DGRAM);
 
-  if (get_inet_addr_inet (name, namelen, &sst, &namelen) == SOCKET_ERROR)
+  if (reset)
+    {
+      if (connect_state () == unconnected)
+	return 0;
+      /* To reset a connected DGRAM socket, call Winsock's connect
+	 function with the address member of the sockaddr structure
+	 filled with zeroes. */
+      memset (&sst, 0, sizeof sst);
+      sst.ss_family = get_addr_family ();
+    }
+  else if (get_inet_addr_inet (name, namelen, &sst, &namelen) == SOCKET_ERROR)
     return SOCKET_ERROR;
 
-  /* Initialize connect state to "connect_pending".  State is ultimately set
-     to "connected" or "connect_failed" in wait_for_events when the FD_CONNECT
-     event occurs.  Note that the underlying OS sockets are always non-blocking
-     and a successfully initiated non-blocking Winsock connect always returns
-     WSAEWOULDBLOCK.  Thus it's safe to rely on event handling.
+  /* Initialize connect state to "connect_pending".  In the SOCK_STREAM
+     case, the state is ultimately set to "connected" or "connect_failed" in
+     wait_for_events when the FD_CONNECT event occurs.  Note that the
+     underlying OS sockets are always non-blocking in this case and a
+     successfully initiated non-blocking Winsock connect always returns
+     WSAEWOULDBLOCK.  Thus it's safe to rely on event handling.  For DGRAM
+     sockets, however, connect can return immediately.
 
      Check for either unconnected or connect_failed since in both cases it's
      allowed to retry connecting the socket.  It's also ok (albeit ugly) to
@@ -791,7 +815,14 @@ fhandler_socket_inet::connect (const struct sockaddr *name, int namelen)
     connect_state (connect_pending);
 
   int res = ::connect (get_socket (), (struct sockaddr *) &sst, namelen);
-  if (!is_nonblocking ()
+  if (!res)
+    {
+      if (reset)
+	connect_state (unconnected);
+      else
+	connect_state (connected);
+    }
+  else if (!is_nonblocking ()
       && res == SOCKET_ERROR
       && WSAGetLastError () == WSAEWOULDBLOCK)
     res = wait_for_events (FD_CONNECT | FD_CLOSE, 0);
@@ -814,8 +845,7 @@ fhandler_socket_inet::connect (const struct sockaddr *name, int namelen)
 	 Convert to POSIX/Linux compliant EISCONN. */
       else if (err == WSAEINVAL && connect_state () == listener)
 	WSASetLastError (WSAEISCONN);
-      /* Any other error except WSAEALREADY during connect_pending means the
-         connect failed. */
+      /* Any other error except WSAEALREADY means the connect failed. */
       else if (connect_state () == connect_pending && err != WSAEALREADY)
 	connect_state (connect_failed);
       set_winsock_errno ();
@@ -1208,7 +1238,7 @@ fhandler_socket_inet::recv_internal (LPWSAMSG wsamsg, bool use_recvmsg)
 		  --wsacnt;
 		}
 	    }
-	  if (!wret)
+	  if (!wsacnt)
 	    break;
 	}
       else if (WSAGetLastError () != WSAEWOULDBLOCK)

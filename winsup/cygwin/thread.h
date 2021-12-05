@@ -111,7 +111,20 @@ typedef enum
 } verifyable_object_state;
 
 template <class list_node> inline void
-List_insert (list_node *&head, list_node *node)
+List_insert (fast_mutex &mx, list_node *&head, list_node *node)
+{
+  if (!node)
+    return;
+  mx.lock ();
+  do
+    node->next = head;
+  while (InterlockedCompareExchangePointer ((PVOID volatile *) &head,
+					    node, node->next) != node->next);
+  mx.unlock ();
+}
+
+template <class list_node> inline void
+List_insert_nolock (list_node *&head, list_node *node)
 {
   if (!node)
     return;
@@ -163,7 +176,7 @@ template <class list_node> class List
 
   void insert (list_node *node)
   {
-    List_insert (head, node);
+    List_insert (mx, head, node);
   }
 
   void remove (list_node *node)
@@ -197,6 +210,7 @@ protected:
 class pthread_key: public verifyable_object
 {
   DWORD tls_index;
+  static bool iterate_dtors_once_more;
 public:
   static bool is_good_object (pthread_key_t const *);
 
@@ -218,7 +232,24 @@ public:
 
   static void run_all_destructors ()
   {
-    keys.for_each (&pthread_key::run_destructor);
+    /* POSIX requires at least four iterations of running destructors:
+
+       If, after all the destructors have been called for all non-NULL
+       values with associated destructors, there are still some non-NULL
+       values with associated destructors, then the process is repeated.
+       If, after at least {PTHREAD_DESTRUCTOR_ITERATIONS} iterations of
+       destructor calls for outstanding non-NULL values, there are still
+       some non-NULL values with associated destructors, implementations
+       may stop calling destructors, or they may continue calling
+       destructors until no non-NULL values with associated destructors
+       exist, even though this might result in an infinite loop. */
+    for (int i = 0; i < PTHREAD_DESTRUCTOR_ITERATIONS; ++i)
+      {
+	iterate_dtors_once_more = false;
+	keys.for_each (&pthread_key::run_destructor);
+	if (!iterate_dtors_once_more)
+	  break;
+      }
   }
 
   /* List support calls */
@@ -661,7 +692,8 @@ public:
   static int post (sem_t *sem);
   static int getvalue (sem_t *sem, int *sval);
   static int trywait (sem_t *sem);
-  static int timedwait (sem_t *sem, const struct timespec *abstime);
+  static int clockwait (sem_t *sem, clockid_t clock_id,
+			const struct timespec *abstime);
 
   static int getinternal (sem_t *sem, int *sfd, unsigned long long *shash,
 			  LUID *sluid, unsigned int *sval);

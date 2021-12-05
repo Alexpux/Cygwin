@@ -30,14 +30,13 @@ enum
 
 enum procstuff
 {
-  PROC_ADDCHILD		  = 1,	// add a new subprocess to list
-  PROC_REATTACH_CHILD	  = 2,	// reattach after exec
+  PROC_ADD_CHILD	  = 1,	// set up a new child
+  PROC_ATTACH_CHILD	  = 2,	// attach child or reattach after exec
   PROC_EXEC_CLEANUP	  = 3,	// cleanup waiting children after exec
-  PROC_DETACHED_CHILD	  = 4,	// set up a detached child
-  PROC_CLEARWAIT	  = 5,	// clear all waits - signal arrived
-  PROC_WAIT		  = 6,	// setup for wait() for subproc
-  PROC_EXECING		  = 7,	// used to get a lock when execing
-  PROC_NOTHING		  = 8	// nothing, really
+  PROC_CLEARWAIT	  = 4,	// clear all waits - signal arrived
+  PROC_WAIT		  = 5,	// setup for wait() for subproc
+  PROC_EXECING		  = 6,	// used to get a lock when execing
+  PROC_NOTHING		  = 7	// nothing, really
 };
 
 struct sigpacket
@@ -68,13 +67,13 @@ int __stdcall handle_sigsuspend (sigset_t);
 int __reg2 proc_subproc (DWORD, uintptr_t);
 
 class _pinfo;
-void __stdcall proc_terminate ();
-void __stdcall sigproc_init ();
+void proc_terminate ();
+void sigproc_init ();
 bool __reg1 pid_exists (pid_t);
 sigset_t __reg3 sig_send (_pinfo *, siginfo_t&, class _cygtls * = NULL);
 sigset_t __reg3 sig_send (_pinfo *, int, class _cygtls * = NULL);
-void __stdcall signal_fixup_after_exec ();
-void __stdcall sigalloc ();
+void signal_fixup_after_exec ();
+void sigalloc ();
 
 int kill_pgrp (pid_t, siginfo_t&);
 void __reg1 exit_thread (DWORD) __attribute__ ((noreturn));

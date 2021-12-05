@@ -95,7 +95,7 @@ close_all_files (bool norelease)
       if (cfd >= 0)
 	{
 	  debug_only_printf ("closing fd %d", i);
-	  if (i == 2)
+	  if (i == 2 && cfd->get_dev () != FH_PIPEW)
 	    DuplicateHandle (GetCurrentProcess (), cfd->get_output_handle (),
 			     GetCurrentProcess (), &h,
 			     0, false, DUPLICATE_SAME_ACCESS);
@@ -108,7 +108,6 @@ close_all_files (bool norelease)
   if (!have_execed && cygheap->ctty)
     cygheap->close_ctty ();
 
-  fhandler_base_overlapped::flush_all_async_io ();
   if (h)
     SetStdHandle (STD_ERROR_HANDLE, h);
   cygheap->fdtab.unlock ();
@@ -143,7 +142,7 @@ extern "C" int
 dup2 (int oldfd, int newfd)
 {
   int res;
-  if (newfd >= OPEN_MAX_MAX || newfd < 0)
+  if (newfd >= OPEN_MAX || newfd < 0)
     {
       set_errno (EBADF);
       res = -1;
@@ -164,7 +163,7 @@ extern "C" int
 dup3 (int oldfd, int newfd, int flags)
 {
   int res;
-  if (newfd >= OPEN_MAX_MAX)
+  if (newfd >= OPEN_MAX)
     {
       set_errno (EBADF);
       res = -1;
@@ -561,7 +560,7 @@ try_to_bin (path_conv &pc, HANDLE &fh, ACCESS_MASK access, ULONG flags)
     {
       /* In the remote case we need the full path, but recycler is only
 	 a relative path.  Convert to absolute path. */
-      RtlInitEmptyUnicodeString (&fname, (PCWSTR) tp.w_get (),
+      RtlInitEmptyUnicodeString (&fname, tp.w_get (),
 				 (NT_MAX_PATH - 1) * sizeof (WCHAR));
       RtlCopyUnicodeString (&fname, pc.get_nt_native_path ());
       RtlSplitUnicodePath (&fname, &fname, NULL);
@@ -670,6 +669,30 @@ check_dir_not_empty (HANDLE dir, path_conv &pc)
   return STATUS_SUCCESS;
 }
 
+static inline NTSTATUS
+_unlink_nt_post_dir_check (NTSTATUS status, POBJECT_ATTRIBUTES attr, const path_conv &pc)
+{
+  /* Check for existence of remote dirs after trying to delete them.
+     Two reasons:
+     - Sometimes SMB indicates failure when it really succeeds.
+     - Removing a directory on a Samba drive using an old Samba version
+       sometimes doesn't return an error, if the directory can't be removed
+       because it's not empty. */
+  if (pc.isremote ())
+    {
+      FILE_BASIC_INFORMATION fbi;
+      NTSTATUS q_status;
+
+      q_status = NtQueryAttributesFile (attr, &fbi);
+      if (!NT_SUCCESS (status) && q_status == STATUS_OBJECT_NAME_NOT_FOUND)
+          status = STATUS_SUCCESS;
+      else if (pc.fs_is_samba ()
+               && NT_SUCCESS (status) && NT_SUCCESS (q_status))
+          status = STATUS_DIRECTORY_NOT_EMPTY;
+    }
+  return status;
+}
+
 static NTSTATUS
 _unlink_nt (path_conv &pc, bool shareable)
 {
@@ -695,7 +718,7 @@ _unlink_nt (path_conv &pc, bool shareable)
 
   pc.get_object_attr (attr, sec_none_nih);
 
-  /* First check if we can use POSIX unlink semantics: W10 1709++, local NTFS.
+  /* First check if we can use POSIX unlink semantics: W10 1709+, local NTFS.
      With POSIX unlink semantics the entire job gets MUCH easier and faster.
      Just try to do it and if it fails, it fails. */
   if (wincap.has_posix_unlink_semantics ()
@@ -703,20 +726,18 @@ _unlink_nt (path_conv &pc, bool shareable)
     {
       FILE_DISPOSITION_INFORMATION_EX fdie;
 
-      if (pc.file_attributes () & FILE_ATTRIBUTE_READONLY)
+      /* POSIX unlink semantics are nice, but they still fail if the file has
+	 the R/O attribute set. If so, ignoring might be an option: W10 1809+
+	 Removing the file is very much a safe bet afterwards, so, no
+	 transaction. */
+      if ((pc.file_attributes () & FILE_ATTRIBUTE_READONLY)
+          && !wincap.has_posix_unlink_semantics_with_ignore_readonly ())
 	access |= FILE_WRITE_ATTRIBUTES;
       status = NtOpenFile (&fh, access, &attr, &io, FILE_SHARE_VALID_FLAGS,
 			   flags);
       if (!NT_SUCCESS (status))
 	goto out;
-      /* Why didn't the devs add a FILE_DELETE_IGNORE_READONLY_ATTRIBUTE
-	 flag just like they did with FILE_LINK_IGNORE_READONLY_ATTRIBUTE
-	 and FILE_LINK_IGNORE_READONLY_ATTRIBUTE???
-
-         POSIX unlink semantics are nice, but they still fail if the file
-	 has the R/O attribute set.  Removing the file is very much a safe
-	 bet afterwards, so, no transaction. */
-      if (pc.file_attributes () & FILE_ATTRIBUTE_READONLY)
+      if (access & FILE_WRITE_ATTRIBUTES)
 	{
 	  status = NtSetAttributesFile (fh, pc.file_attributes ()
 					    & ~FILE_ATTRIBUTE_READONLY);
@@ -727,10 +748,12 @@ _unlink_nt (path_conv &pc, bool shareable)
 	    }
 	}
       fdie.Flags = FILE_DISPOSITION_DELETE | FILE_DISPOSITION_POSIX_SEMANTICS;
+      if (wincap.has_posix_unlink_semantics_with_ignore_readonly ())
+        fdie.Flags |= FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE;
       status = NtSetInformationFile (fh, &io, &fdie, sizeof fdie,
 				     FileDispositionInformationEx);
       /* Restore R/O attribute in case we have multiple hardlinks. */
-      if (pc.file_attributes () & FILE_ATTRIBUTE_READONLY)
+      if (access & FILE_WRITE_ATTRIBUTES)
 	NtSetAttributesFile (fh, pc.file_attributes ());
       NtClose (fh);
       /* Trying to delete in-use executables and DLLs using
@@ -755,8 +778,9 @@ _unlink_nt (path_conv &pc, bool shareable)
       if ((pc.fs_flags () & FILE_SUPPORTS_TRANSACTIONS))
 	start_transaction (old_trans, trans);
 retry_open:
-      status = NtOpenFile (&fh_ro, FILE_WRITE_ATTRIBUTES, &attr, &io,
-			   FILE_SHARE_VALID_FLAGS, flags);
+      status = NtOpenFile (&fh_ro,
+                           FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+                           &attr, &io, FILE_SHARE_VALID_FLAGS, flags);
       if (NT_SUCCESS (status))
 	{
 	  debug_printf ("Opening %S for removing R/O succeeded",
@@ -1058,6 +1082,10 @@ out:
   /* Stop transaction if we started one. */
   if (trans)
     stop_transaction (status, old_trans, trans);
+
+  if (pc.isdir ())
+    status = _unlink_nt_post_dir_check (status, &attr, pc);
+
   syscall_printf ("%S, return status = %y", pc.get_nt_native_path (), status);
   return status;
 }
@@ -1105,7 +1133,7 @@ unlink (const char *ourname)
   else if (win32_name.isdir ())
     {
       debug_printf ("unlinking a directory");
-      set_errno (EPERM);
+      set_errno (EISDIR);
       goto done;
     }
 
@@ -1132,24 +1160,15 @@ _remove_r (struct _reent *, const char *ourname)
       return -1;
     }
 
-  return win32_name.isdir () ? rmdir (ourname) : unlink (ourname);
+  int res = win32_name.isdir () ? rmdir (ourname) : unlink (ourname);
+  syscall_printf ("%R = remove(%s)", res, ourname);
+  return res;
 }
 
 extern "C" int
 remove (const char *ourname)
 {
-  path_conv win32_name (ourname, PC_SYM_NOFOLLOW);
-
-  if (win32_name.error)
-    {
-      set_errno (win32_name.error);
-      syscall_printf ("-1 = remove (%s)", ourname);
-      return -1;
-    }
-
-  int res = win32_name.isdir () ? rmdir (ourname) : unlink (ourname);
-  syscall_printf ("%R = remove(%s)", res, ourname);
-  return res;
+  return _remove_r (_REENT, ourname);
 }
 
 extern "C" pid_t
@@ -1467,8 +1486,15 @@ open (const char *unix_path, int flags, ...)
 	  opt |= PC_CTTY;
 	}
 
+      /* If we're opening a FIFO, we will call device_access_denied
+	 below.  This leads to a call to fstat, which can use the
+	 path_conv handle. */
+      opt |= PC_KEEP_HANDLE;
       if (!(fh = build_fh_name (unix_path, opt, stat_suffixes)))
 	__leave;		/* errno already set */
+      opt &= ~PC_KEEP_HANDLE;
+      if (!fh->isfifo ())
+	fh->pc.close_conv_handle ();
       if ((flags & O_NOFOLLOW) && fh->issymlink () && !(flags & O_PATH))
 	{
 	  set_errno (ELOOP);
@@ -1535,9 +1561,18 @@ open (const char *unix_path, int flags, ...)
 	  delete fh;
 	  fh = fh_file;
 	}
-      else if ((fh->is_fs_special () && fh->device_access_denied (flags))
-	       || !fh->open_with_arch (flags, mode & 07777))
-	__leave;		/* errno already set */
+      else
+	{
+	  if (fh->is_fs_special ())
+	    {
+	      if (fh->device_access_denied (flags))
+		__leave;	/* errno already set */
+	      else if (fh->isfifo ())
+		fh->pc.close_conv_handle ();
+	    }
+	  if (!fh->open_with_arch (flags, mode & 07777))
+	    __leave;		/* errno already set */
+	}
       /* Move O_TMPFILEs to the bin to avoid blocking the parent dir. */
       if ((flags & O_TMPFILE) && !fh->pc.isremote ())
 	try_to_bin (fh->pc, fh->get_handle (), DELETE,
@@ -1929,6 +1964,9 @@ _fstat64_r (struct _reent *ptr, int fd, struct stat *buf)
 }
 
 #ifdef __i386__
+/* This entry point is retained only to serve old 32 bit applications
+built under Cygwin 1.3.x or earlier.  Newer 32 bit apps are redirected
+to fstat64; see NEW_FUNCTIONS in Makefile.in. */
 extern "C" int
 fstat (int fd, struct stat *buf)
 {
@@ -2011,19 +2049,35 @@ sync ()
       return;
     }
   /* Traverse \Device directory ... */
-  PDIRECTORY_BASIC_INFORMATION dbi = (PDIRECTORY_BASIC_INFORMATION)
-				     alloca (640);
+  tmp_pathbuf tp;
+  PDIRECTORY_BASIC_INFORMATION dbi_buf = (PDIRECTORY_BASIC_INFORMATION)
+					 tp.w_get ();
   BOOLEAN restart = TRUE;
+  bool last_run = false;
   ULONG context = 0;
-  while (NT_SUCCESS (NtQueryDirectoryObject (devhdl, dbi, 640, TRUE, restart,
-					     &context, NULL)))
+  while (!last_run)
     {
+      status = NtQueryDirectoryObject (devhdl, dbi_buf, 65536, FALSE, restart,
+				       &context, NULL);
+      if (!NT_SUCCESS (status))
+	{
+	  debug_printf ("NtQueryDirectoryObject, status %y", status);
+	  break;
+	}
+      if (status != STATUS_MORE_ENTRIES)
+	last_run = true;
       restart = FALSE;
-      /* ... and call sync_worker for each HarddiskVolumeX entry. */
-      if (dbi->ObjectName.Length >= 15 * sizeof (WCHAR)
-	  && !wcsncasecmp (dbi->ObjectName.Buffer, L"HarddiskVolume", 14)
-	  && iswdigit (dbi->ObjectName.Buffer[14]))
-	sync_worker (devhdl, dbi->ObjectName.Length, dbi->ObjectName.Buffer);
+      for (PDIRECTORY_BASIC_INFORMATION dbi = dbi_buf;
+	   dbi->ObjectName.Length > 0;
+	   dbi++)
+	{
+	  /* ... and call sync_worker for each HarddiskVolumeX entry. */
+	  if (dbi->ObjectName.Length >= 15 * sizeof (WCHAR)
+	      && !wcsncasecmp (dbi->ObjectName.Buffer, L"HarddiskVolume", 14)
+	      && iswdigit (dbi->ObjectName.Buffer[14]))
+	    sync_worker (devhdl, dbi->ObjectName.Length,
+			 dbi->ObjectName.Buffer);
+	}
     }
   NtClose (devhdl);
 }
@@ -2855,7 +2909,7 @@ setdtablesize (int size)
     }
 
   if (size <= (int) cygheap->fdtab.size
-      || cygheap->fdtab.extend (size - cygheap->fdtab.size, OPEN_MAX_MAX))
+      || cygheap->fdtab.extend (size - cygheap->fdtab.size, OPEN_MAX))
     return 0;
 
   return -1;
@@ -2864,7 +2918,7 @@ setdtablesize (int size)
 extern "C" int
 getdtablesize ()
 {
-  return cygheap->fdtab.size;
+  return OPEN_MAX;
 }
 
 extern "C" int
@@ -3360,7 +3414,7 @@ ptsname_r (int fd, char *buf, size_t buflen)
 
   cygheap_fdget cfd (fd);
   if (cfd < 0)
-    return 0;
+    return EBADF;
   return cfd->ptsname_r (buf, buflen);
 }
 
@@ -4660,7 +4714,7 @@ gen_full_path_at (char *path_ret, int dirfd, const char *pathname,
 	  return -1;
 	}
     }
-  if (pathname && isabspath (pathname))
+  if (pathname && isabspath_strict (pathname))
     stpcpy (path_ret, pathname);
   else
     {
@@ -4764,17 +4818,27 @@ fchmodat (int dirfd, const char *pathname, mode_t mode, int flags)
   tmp_pathbuf tp;
   __try
     {
-      if (flags)
+      if (flags & ~AT_SYMLINK_NOFOLLOW)
 	{
-	  /* BSD has lchmod, but Linux does not.  POSIX says
-	     AT_SYMLINK_NOFOLLOW is allowed to fail on symlinks; but Linux
-	     blindly fails even for non-symlinks.  */
-	  set_errno ((flags & ~AT_SYMLINK_NOFOLLOW) ? EINVAL : EOPNOTSUPP);
+	  set_errno (EINVAL);
 	  __leave;
 	}
       char *path = tp.c_get ();
       if (gen_full_path_at (path, dirfd, pathname))
 	__leave;
+      if (flags & AT_SYMLINK_NOFOLLOW)
+	{
+          /* BSD has lchmod, but Linux does not.  POSIX says
+	     AT_SYMLINK_NOFOLLOW is allowed to fail on symlinks.
+	     Linux blindly fails even for non-symlinks, but we allow
+	     it to succeed. */
+	  path_conv pc (path, PC_SYM_NOFOLLOW, stat_suffixes);
+	  if (pc.issymlink ())
+	    {
+	      set_errno (EOPNOTSUPP);
+	      __leave;
+	    }
+	}
       return chmod (path, mode);
     }
   __except (EFAULT) {}
@@ -4852,7 +4916,7 @@ fstatat (int dirfd, const char *__restrict pathname, struct stat *__restrict st,
 	      cwdstuff::cwd_lock.release ();
 	    }
 	  else
-	    return fstat (dirfd, st);
+	    return fstat64 (dirfd, st);
 	}
       path_conv pc (path, ((flags & AT_SYMLINK_NOFOLLOW)
 			   ? PC_SYM_NOFOLLOW : PC_SYM_FOLLOW)
@@ -4892,7 +4956,7 @@ utimensat (int dirfd, const char *pathname, const struct timespec *times,
 }
 
 extern "C" int
-futimesat (int dirfd, const char *pathname, const struct timeval *times)
+futimesat (int dirfd, const char *pathname, const struct timeval times[2])
 {
   tmp_pathbuf tp;
   __try
@@ -4913,6 +4977,8 @@ linkat (int olddirfd, const char *oldpathname,
 	int flags)
 {
   tmp_pathbuf tp;
+  fhandler_base *fh = NULL;
+
   __try
     {
       if (flags & ~(AT_SYMLINK_FOLLOW | AT_EMPTY_PATH))
@@ -4921,21 +4987,25 @@ linkat (int olddirfd, const char *oldpathname,
 	  __leave;
 	}
       char *oldpath = tp.c_get ();
-      /* AT_EMPTY_PATH with an empty oldpathname is equivalent to
-
-	   linkat(AT_FDCWD, "/proc/self/fd/<olddirfd>", newdirfd,
-		  newname, AT_SYMLINK_FOLLOW);
-
-	 Convert the request accordingly. */
       if ((flags & AT_EMPTY_PATH) && oldpathname && oldpathname[0] == '\0')
 	{
+	  /* Operate directly on olddirfd, which can be anything
+	     except a directory. */
 	  if (olddirfd == AT_FDCWD)
 	    {
 	      set_errno (EPERM);
 	      __leave;
 	    }
-	  __small_sprintf (oldpath, "/proc/%d/fd/%d", myself->pid, olddirfd);
-	  flags = AT_SYMLINK_FOLLOW;
+	  cygheap_fdget cfd (olddirfd);
+	  if (cfd < 0)
+	    __leave;
+	  if (cfd->pc.isdir ())
+	    {
+	      set_errno (EPERM);
+	      __leave;
+	    }
+	  fh = cfd;
+	  flags = 0;		/* In case AT_SYMLINK_FOLLOW was set. */
 	}
       else if (gen_full_path_at (oldpath, olddirfd, oldpathname))
 	__leave;
@@ -4954,6 +5024,8 @@ linkat (int olddirfd, const char *oldpathname,
 	    }
 	  strcpy (oldpath, old_name.get_posix ());
 	}
+      if (fh)
+	return fh->link (newpath);
       return link (oldpath, newpath);
     }
   __except (EFAULT) {}
@@ -5145,6 +5217,7 @@ pipe_worker (int filedes[2], unsigned int psize, int mode)
   return res;
 }
 
+/* MS compatible version of pipe.  Hopefully nobody is using it... */
 extern "C" int
 _pipe (int filedes[2], unsigned int psize, int mode)
 {
@@ -5192,3 +5265,24 @@ pipe2 (int filedes[2], int mode)
   syscall_printf ("%R = pipe2([%d, %d], %y)", res, read, write, mode);
   return res;
 }
+
+extern "C" FILE *
+tmpfile (void)
+{
+  char *dir = getenv ("TMPDIR");
+  if (!dir)
+    dir = P_tmpdir;
+  int fd = open (dir, O_RDWR | O_BINARY | O_TMPFILE, S_IRUSR | S_IWUSR);
+  if (fd < 0)
+    return NULL;
+  FILE *fp = fdopen (fd, "wb+");
+  int e = errno;
+  if (!fp)
+    close (fd); // ..will remove tmp file
+  set_errno (e);
+  return fp;
+}
+
+#ifdef __i386__
+EXPORT_ALIAS (tmpfile, tmpfile64)
+#endif
