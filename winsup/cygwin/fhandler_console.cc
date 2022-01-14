@@ -476,6 +476,11 @@ fhandler_console::set_input_mode (tty::cons_mode m, const termios *t,
   DWORD flags = 0, oflags;
   WaitForSingleObject (p->input_mutex, INFINITE);
   GetConsoleMode (p->input_handle, &oflags);
+  if (disable_pcon && m == tty::cygwin)
+    /* If we disabled pseudo console support explicitly, it would be wrong to
+       mess with the flags. In fact, we _still_ mess with the flags, but at
+       least with tty::restore we do little damage. */
+    m = tty::restore;
   switch (m)
     {
     case tty::restore:
