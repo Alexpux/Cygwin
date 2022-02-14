@@ -69,15 +69,14 @@ static unsigned char * write_record(unsigned char * ptr, PDNS_RECORD rr,
 
   switch(rr->wType) {
   case DNS_TYPE_A:
+  case DNS_TYPE_AAAA:
   {
-    u_int8_t * aptr = (u_int8_t *) & rr->Data.A.IpAddress;
-    if (ptr + 4 <= EndPtr) {
-      ptr[0] = aptr[0];
-      ptr[1] = aptr[1];
-      ptr[2] = aptr[2];
-      ptr[3] = aptr[3];
-    }
-    ptr += 4;
+    u_int8_t * aptr = rr->wType == DNS_TYPE_A
+      ? (u_int8_t *) & rr->Data.A.IpAddress : (u_int8_t *) & rr->Data.AAAA.Ip6Address;
+    int sz = rr->wType == DNS_TYPE_A ? NS_INADDRSZ/*4*/ : NS_IN6ADDRSZ/*16*/;
+    if (ptr + sz <= EndPtr)
+      memcpy(ptr, aptr, sz);
+    ptr += sz;
     break;
   }
   case DNS_TYPE_NS:
@@ -160,6 +159,7 @@ static unsigned char * write_record(unsigned char * ptr, PDNS_RECORD rr,
       PUTSHORT(rr->Data.SRV.wWeight, ptr);
       PUTSHORT(rr->Data.SRV.wPort, ptr);
     }
+    dnptrs = 0;  /* compression not allowed */
     PUTDOMAIN(rr->Data.SRV.pNameTarget, ptr);
     break;
   default:
@@ -190,9 +190,15 @@ static int cygwin_query(res_state statp, const char * DomName, int Class, int Ty
   DWORD section;
   int len, counts[4] = {0, 0, 0, 0}, debug = statp->options & RES_DEBUG;
   unsigned char * dnptrs[256], * ptr;
+  unsigned short Id = 0;
 
   dnptrs[0] = AnsPtr;
   dnptrs[1] = NULL;
+
+  if (AnsLength >= 2)
+    memcpy(&Id, AnsPtr, 2);
+
+  memset(AnsPtr, 0, AnsLength);
 
   if (Class != ns_c_in) {
     errno = ENOSYS;
@@ -215,7 +221,7 @@ static int cygwin_query(res_state statp, const char * DomName, int Class, int Ty
     switch (res) {
     case ERROR_INVALID_NAME:
       errno = EINVAL;
-      statp->res_h_errno = NETDB_INTERNAL;;
+      statp->res_h_errno = NETDB_INTERNAL;
       break;
     case ERROR_TIMEOUT:
       statp->res_h_errno = TRY_AGAIN;
@@ -240,8 +246,7 @@ static int cygwin_query(res_state statp, const char * DomName, int Class, int Ty
       statp->res_h_errno = NO_RECOVERY;
       break;
     }
-    len = -1;
-    goto done;
+    return -1;
   }
 
   ptr = AnsPtr + HFIXEDSZ; /* Skip header */
@@ -260,8 +265,10 @@ static int cygwin_query(res_state statp, const char * DomName, int Class, int Ty
       /* No question. Adopt the first name as the name in the question */
       if ((len = dn_comp(rr->pName, ptr, AnsLength - 4,
 			 dnptrs, &dnptrs[DIM(dnptrs) - 1])) < 0) {
-	ptr = NULL;
-	break;
+	statp->res_h_errno = NETDB_INTERNAL;  /* dn_comp sets errno */
+	AnsLength = 0;
+	len = -1;
+	goto done;
       }
       ptr += len;
       PUTSHORT(Type, ptr);
@@ -277,7 +284,7 @@ static int cygwin_query(res_state statp, const char * DomName, int Class, int Ty
       DPRINTF(debug, "Unexpected section order %s %d\n", DomName, Type);
       continue;
     }
-    section =  rr->Flags.DW & 0x3;
+    section = rr->Flags.DW & 0x3;
 
     ptr = write_record(ptr, rr, AnsPtr + AnsLength, dnptrs,
 		       &dnptrs[DIM(dnptrs) - 1], debug);
@@ -286,15 +293,19 @@ static int cygwin_query(res_state statp, const char * DomName, int Class, int Ty
     rr = rr->pNext;
   }
 
+  len = ptr - AnsPtr;
+
+done:
+
   DnsFree(pQueryResultsSet, DnsFreeRecordList);
 
-  len = ptr - AnsPtr;
-done:
-  ptr = AnsPtr;
-  PUTSHORT(0, ptr); /* Id */
-  PUTSHORT((QR << 8) + RA + RD, ptr);
-  for (section = 0; section < DIM(counts); section++) {
-    PUTSHORT(counts[section], ptr);
+  if (HFIXEDSZ <= AnsLength) {
+    ptr = AnsPtr;
+    PUTSHORT(Id, ptr);
+    PUTSHORT((QR << 8) + RA + RD, ptr);
+    for (section = 0; section < DIM(counts); section++) {
+      PUTSHORT(counts[section], ptr);
+    }
   }
   return len;
 }

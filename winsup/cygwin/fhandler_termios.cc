@@ -21,6 +21,12 @@ details. */
 #include "child_info.h"
 #include "ntdll.h"
 
+/* Wait time for some treminal mutexes. This is set to 0 when the
+   process calls CreateProcess() with DEBUG_PROCESS flag, because
+   the debuggie may be suspended while it grabs the mutex. Without
+   this, GDB may cause deadlock in console or pty I/O. */
+DWORD NO_COPY mutex_timeout = INFINITE;
+
 /* Common functions shared by tty/console */
 
 void
@@ -140,6 +146,8 @@ tty_min::kill_pgrp (int sig)
     {
       _pinfo *p = pids[i];
       if (!p || !p->exists () || p->ctty != ntty || p->pgid != pgid)
+	continue;
+      if (p->process_state & PID_NOTCYGWIN)
 	continue;
       if (p == myself)
 	killself = sig != __SIGSETPGRP && !exit_state;
@@ -320,7 +328,48 @@ fhandler_termios::line_edit (const char *rptr, size_t nread, termios& ti,
 
       if (ti.c_iflag & ISTRIP)
 	c &= 0x7f;
-      if (ti.c_lflag & ISIG)
+      winpids pids ((DWORD) 0);
+      bool need_check_sigs = get_ttyp ()->pcon_input_state_eq (tty::to_cyg);
+      if (get_ttyp ()->pcon_input_state_eq (tty::to_nat))
+	{
+	  bool need_discard_input = false;
+	  for (unsigned i = 0; i < pids.npids; i++)
+	    {
+	      _pinfo *p = pids[i];
+	      if (c == '\003' && p && p->ctty == tc ()->ntty
+		  && p->pgid == tc ()->getpgid ()
+		  && (p->process_state & PID_NOTCYGWIN))
+		{
+		  /* CTRL_C_EVENT does not work for the process started with
+		     CREATE_NEW_PROCESS_GROUP flag, so send CTRL_BREAK_EVENT
+		     instead. */
+		  if (p->process_state & PID_NEW_PG)
+		    GenerateConsoleCtrlEvent (CTRL_BREAK_EVENT,
+					      p->dwProcessId);
+		  else
+		    GenerateConsoleCtrlEvent (CTRL_C_EVENT, 0);
+		  need_discard_input = true;
+		}
+	      if (p->ctty == get_ttyp ()->ntty
+		  && p->pgid == get_ttyp ()->getpgid () && !p->cygstarted)
+		need_check_sigs = true;
+	    }
+	  if (!CCEQ (ti.c_cc[VINTR], c)
+	      && !CCEQ (ti.c_cc[VQUIT], c)
+	      && !CCEQ (ti.c_cc[VSUSP], c))
+	    need_check_sigs = false;
+	  if (need_discard_input && !need_check_sigs)
+	    {
+	      if (!(ti.c_lflag & NOFLSH))
+		{
+		  eat_readahead (-1);
+		  discard_input ();
+		}
+	      ti.c_lflag &= ~FLUSHO;
+	      continue;
+	    }
+	}
+      if ((ti.c_lflag & ISIG) && need_check_sigs)
 	{
 	  int sig;
 	  if (CCEQ (ti.c_cc[VINTR], c))
@@ -340,7 +389,7 @@ fhandler_termios::line_edit (const char *rptr, size_t nread, termios& ti,
 	    }
 	  release_input_mutex_if_necessary ();
 	  tc ()->kill_pgrp (sig);
-	  acquire_input_mutex_if_necessary (INFINITE);
+	  acquire_input_mutex_if_necessary (mutex_timeout);
 	  ti.c_lflag &= ~FLUSHO;
 	  sawsig = true;
 	  goto restart_output;
@@ -425,7 +474,7 @@ fhandler_termios::line_edit (const char *rptr, size_t nread, termios& ti,
 	    }
 	  continue;
 	}
-      else if (CCEQ (ti.c_cc[VEOF], c))
+      else if (CCEQ (ti.c_cc[VEOF], c) && need_check_sigs)
 	{
 	  termios_printf ("EOF");
 	  accept_input ();

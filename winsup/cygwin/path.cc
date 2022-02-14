@@ -3537,6 +3537,7 @@ restart:
 	 hasn't been found. */
       if (ext_tacked_on && !had_ext && (fileattr & FILE_ATTRIBUTE_DIRECTORY))
 	{
+	  fileattr = INVALID_FILE_ATTRIBUTES;
 	  set_error (ENOENT);
 	  continue;
 	}
@@ -3694,10 +3695,59 @@ restart:
 	    {
 	      UNICODE_STRING fpath;
 
-	      RtlInitCountedUnicodeString (&fpath, fpbuf, ret * sizeof (WCHAR));
+	      /* If incoming path has no trailing backslash, but final path
+		 has one, drop trailing backslash from final path so the
+		 below string comparison has a chance to succeed. */
+	      if (upath.Buffer[(upath.Length - 1) / sizeof (WCHAR)] != L'\\'
+                  && fpbuf[ret - 1] == L'\\')
+                fpbuf[--ret] = L'\0';
 	      fpbuf[1] = L'?';	/* \\?\ --> \??\ */
+	      RtlInitCountedUnicodeString (&fpath, fpbuf, ret * sizeof (WCHAR));
 	      if (!RtlEqualUnicodeString (&upath, &fpath, !!ci_flag))
 	        {
+		  /* Check if the final path is an UNC path and the incoming
+		     path isn't.  If so... */
+		  if (RtlEqualUnicodePathPrefix (&fpath, &ro_u_uncp, TRUE)
+		      && !RtlEqualUnicodePathPrefix (&upath, &ro_u_uncp, TRUE))
+		    {
+		      /* ...get the remote path, replace remote path
+			 with drive letter, check again. */
+		      WCHAR drive[3] =
+			{(WCHAR) towupper (upath.Buffer[4]), L':', L'\0'};
+		      WCHAR remote[MAX_PATH];
+
+
+		      int remlen = QueryDosDeviceW (drive, remote, MAX_PATH);
+		      if (remlen < 3)
+			goto file_not_symlink; /* fallback */
+		      remlen -= 2;
+
+		      if (remote[remlen - 1] == L'\\')
+			remlen--;
+		      WCHAR *p;
+		      UNICODE_STRING rpath;
+		      RtlInitCountedUnicodeString (&rpath, remote,
+						   remlen * sizeof (WCHAR));
+		      if (RtlEqualUnicodePathPrefix (&rpath, &ro_u_uncp, TRUE))
+			remlen -= 6;
+		      else if ((p = wcschr (remote, L';'))
+			       && p + 3 < remote + remlen
+			       && wcsncmp (p + 1, drive, 2) == 0
+			       && (p = wcschr (p + 3, L'\\')))
+			remlen -= p - remote - 1;
+		      else
+			goto file_not_symlink; /* fallback */
+		      /* Hackfest */
+		      fpath.Buffer[4] = drive[0]; /* Drive letter */
+		      fpath.Buffer[5] = L':';
+		      WCHAR *to = fpath.Buffer + 6;
+		      WCHAR *from = to + remlen;
+		      memmove (to, from,
+			       (wcslen (from) + 1) * sizeof (WCHAR));
+		      fpath.Length -= (from - to) * sizeof (WCHAR);
+		      if (RtlEqualUnicodeString (&upath, &fpath, !!ci_flag))
+			goto file_not_symlink;
+		    }
 		  issymlink = true;
 		  /* upath.Buffer is big enough and unused from this point on.
 		     Reuse it here, avoiding yet another buffer allocation. */

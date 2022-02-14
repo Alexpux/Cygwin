@@ -272,6 +272,8 @@ child_info_spawn NO_COPY ch_spawn;
 
 extern "C" void __posix_spawn_sem_release (void *sem, int error);
 
+extern DWORD mutex_timeout; /* defined in fhandler_termios.cc */
+
 int
 child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 			  const char *const envp[], int mode,
@@ -605,6 +607,9 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	c_flags |= CREATE_NEW_PROCESS_GROUP;
       refresh_cygheap ();
 
+      if (c_flags & CREATE_NEW_PROCESS_GROUP)
+	myself->process_state |= PID_NEW_PG;
+
       if (mode == _P_DETACH)
 	/* all set */;
       else if (mode != _P_OVERLAY || !my_wr_proc_pipe)
@@ -652,20 +657,18 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	    }
 	  else if (fh && fh->get_major () == DEV_CONS_MAJOR)
 	    {
-	      fhandler_console *cons = (fhandler_console *) fh;
-	      if (!iscygwin ())
+	      if (!iscygwin () && cons_native == NULL)
 		{
-		  if (cons_native == NULL)
-		    {
-		      cons_native = cons;
-		      cons_ti = &((tty *)cons->tc ())->ti;
-		      cons_owner = cons->get_owner ();
-		    }
-		  if (fd == 0)
-		    fhandler_console::set_input_mode (tty::native,
+		  fhandler_console *cons = (fhandler_console *) fh;
+		  cons_native = cons;
+		  cons_ti = &((tty *)cons->tc ())->ti;
+		  cons_owner = cons->get_owner ();
+		  tty::cons_mode conmode =
+		    (ctty_pgid && ctty_pgid == myself->pgid) ?
+		    tty::native : tty::restore;
+		  fhandler_console::set_input_mode (conmode,
 					   cons_ti, cons->get_handle_set ());
-		  else if (fd == 1 || fd == 2)
-		    fhandler_console::set_output_mode (tty::native,
+		  fhandler_console::set_output_mode (conmode,
 					   cons_ti, cons->get_handle_set ());
 		}
 	    }
@@ -742,7 +745,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	      && stdin_is_ptys
 	      && ptys_ttyp->pcon_input_state_eq (tty::to_cyg))
 	    {
-	      WaitForSingleObject (ptys_input_mutex, INFINITE);
+	      WaitForSingleObject (ptys_input_mutex, mutex_timeout);
 	      fhandler_pty_slave::transfer_input (tty::to_nat,
 				    ptys_primary->get_handle (),
 				    ptys_ttyp, ptys_input_available_event);
@@ -1035,7 +1038,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	      if (ptys_ttyp->getpgid () == myself->pgid && stdin_is_ptys
 		  && ptys_ttyp->pcon_input_state_eq (tty::to_nat))
 		{
-		  WaitForSingleObject (ptys_input_mutex, INFINITE);
+		  WaitForSingleObject (ptys_input_mutex, mutex_timeout);
 		  fhandler_pty_slave::transfer_input (tty::to_cyg,
 					    ptys_from_master_nat, ptys_ttyp,
 					    ptys_input_available_event);
@@ -1072,7 +1075,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	      if (ptys_ttyp->getpgid () == myself->pgid && stdin_is_ptys
 		  && ptys_ttyp->pcon_input_state_eq (tty::to_nat))
 		{
-		  WaitForSingleObject (ptys_input_mutex, INFINITE);
+		  WaitForSingleObject (ptys_input_mutex, mutex_timeout);
 		  fhandler_pty_slave::transfer_input (tty::to_cyg,
 					    ptys_from_master_nat, ptys_ttyp,
 					    ptys_input_available_event);

@@ -240,6 +240,7 @@ tty::init ()
   pcon_pid = 0;
   term_code_page = 0;
   pcon_last_time = 0;
+  pcon_fwd_not_empty = false;
   pcon_start = false;
   pcon_start_pid = 0;
   pcon_cap_checked = false;
@@ -254,6 +255,7 @@ tty::init ()
   last_sig = 0;
   mask_flusho = false;
   discard_input = false;
+  stop_fwd_thread = false;
 }
 
 HANDLE
@@ -299,13 +301,16 @@ tty_min::ttyname ()
   return d.name ();
 }
 
+extern DWORD mutex_timeout; /* defined in fhandler_termios.cc */
+
 void
 tty_min::setpgid (int pid)
 {
   fhandler_pty_slave *ptys = NULL;
   cygheap_fdenum cfd (false);
   while (cfd.next () >= 0 && ptys == NULL)
-    if (cfd->get_device () == getntty ())
+    if (cfd->get_device () == getntty ()
+	&& cfd->get_major () == DEV_PTYS_MAJOR)
       ptys = (fhandler_pty_slave *) (fhandler_base *) cfd;
 
   if (ptys)
@@ -317,7 +322,7 @@ tty_min::setpgid (int pid)
       if (!was_pcon_fg && pcon_fg && ttyp->switch_to_pcon_in
 	  && ttyp->pcon_input_state_eq (tty::to_cyg))
 	{
-	WaitForSingleObject (ptys->input_mutex, INFINITE);
+	WaitForSingleObject (ptys->input_mutex, mutex_timeout);
 	fhandler_pty_slave::transfer_input (tty::to_nat,
 					    ptys->get_handle (), ttyp,
 					    ptys->get_input_available_event ());
@@ -341,7 +346,7 @@ tty_min::setpgid (int pid)
 	      AttachConsole (ttyp->pcon_pid);
 	      attach_restore = true;
 	    }
-	  WaitForSingleObject (ptys->input_mutex, INFINITE);
+	  WaitForSingleObject (ptys->input_mutex, mutex_timeout);
 	  fhandler_pty_slave::transfer_input (tty::to_cyg, from, ttyp,
 				  ptys->get_input_available_event ());
 	  ReleaseMutex (ptys->input_mutex);
@@ -364,7 +369,7 @@ tty_min::setpgid (int pid)
 }
 
 void
-tty::wait_pcon_fwd (bool init)
+tty::wait_pcon_fwd ()
 {
   /* The forwarding in pseudo console sometimes stops for
      16-32 msec even if it already has data to transfer.
@@ -374,11 +379,11 @@ tty::wait_pcon_fwd (bool init)
      thread when the last data is transfered. */
   const int sleep_in_pcon = 16;
   const int time_to_wait = sleep_in_pcon * 2 + 1/* margine */;
-  if (init)
-    pcon_last_time = GetTickCount ();
-  while (GetTickCount () - pcon_last_time < time_to_wait)
+  int elapsed;
+  while (pcon_fwd_not_empty
+	 || (elapsed = GetTickCount () - pcon_last_time) < time_to_wait)
     {
-      int tw = time_to_wait - (GetTickCount () - pcon_last_time);
+      int tw = pcon_fwd_not_empty ? 10 : (time_to_wait - elapsed);
       cygwait (tw);
     }
 }
@@ -392,7 +397,8 @@ tty::pcon_fg (pid_t pgid)
   for (unsigned i = 0; i < pids.npids; i++)
     {
       _pinfo *p = pids[i];
-      if (p->ctty == ntty && p->pgid == pgid && p->exec_dwProcessId)
+      if (p->ctty == ntty && p->pgid == pgid
+	  && (p->process_state & (PID_NOTCYGWIN | PID_NEW_PG)))
 	return true;
     }
   if (pgid > MAX_PID)

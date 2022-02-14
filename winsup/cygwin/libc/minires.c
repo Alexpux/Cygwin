@@ -86,12 +86,12 @@ Read options
 
 
 ***********************************************************************/
-static void get_options(res_state statp, int i, char **words)
+static void get_options(res_state statp, int n, char **words)
 {
   char *ptr;
-  int value;
+  int i, value;
 
-  while (i-- > 0) {
+  for (i = 0;  i < n;  ++i) {
     if (!strcasecmp("debug", words[i])) {
       statp->options |= RES_DEBUG;
       DPRINTF(statp->options & RES_DEBUG, "%s: 1\n", words[i]);
@@ -208,8 +208,10 @@ static void get_resolv(res_state statp)
 	}
       }
       /* Options line */
-      else if (!strncasecmp("options", words[0], sizes[0]))
+      else if (!strncasecmp("options", words[0], sizes[0])) {
 	get_options(statp, i - 1, &words[1]);
+	debug = statp->options & RES_DEBUG;
+      }
     }
   }
   fclose(fd);
@@ -446,6 +448,8 @@ int res_nsend( res_state statp, const unsigned char * MsgPtr,
       ptr += len;
       GETSHORT(Type, ptr);
       GETSHORT(Class, ptr);
+      if (AnsLength >= 2)
+          memcpy(AnsPtr, MsgPtr, 2);
       return ((os_query_t *) statp->os_query)(statp, DomName, Class, Type, AnsPtr, AnsLength);
     }
     else {
@@ -699,8 +703,11 @@ int res_nquery( res_state statp, const char * DomName, int Class, int Type,
   statp->res_h_errno = NETDB_SUCCESS;
 
   /* If a hook exists to a native implementation, use it */
-  if (statp->os_query)
+  if (statp->os_query) {
+    if (AnsLength >= 2)
+        memset(AnsPtr, 0/*Id*/, 2);
     return ((os_query_t *) statp->os_query)(statp, DomName, Class, Type, AnsPtr, AnsLength);
+  }
 
   if ((len = res_nmkquery (statp, QUERY, DomName, Class, Type,
 			   0, 0, 0, packet, PACKETSZ)) < 0)

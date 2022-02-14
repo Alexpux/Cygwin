@@ -1881,6 +1881,9 @@ class fhandler_serial: public fhandler_base
 #define release_output_mutex() \
   __release_output_mutex (__PRETTY_FUNCTION__, __LINE__)
 
+DWORD acquire_attach_mutex (DWORD t);
+void release_attach_mutex (void);
+
 class tty;
 class tty_min;
 class fhandler_termios: public fhandler_base
@@ -1938,6 +1941,8 @@ class fhandler_termios: public fhandler_base
     fh->copy_from (this);
     return fh;
   }
+  static bool path_iscygexec_a (LPCSTR n, LPSTR c);
+  static bool path_iscygexec_w (LPCWSTR n, LPWSTR c);
 };
 
 enum ansi_intensity
@@ -2206,9 +2211,11 @@ private:
   void acquire_input_mutex_if_necessary (DWORD ms)
   {
     acquire_input_mutex (ms);
+    acquire_attach_mutex (ms);
   }
   void release_input_mutex_if_necessary (void)
   {
+    release_attach_mutex ();
     release_input_mutex ();
   }
 
@@ -2280,6 +2287,7 @@ class fhandler_pty_common: public fhandler_termios
   static DWORD get_console_process_id (DWORD pid, bool match,
 				       bool cygwin = false,
 				       bool stub_only = false);
+  bool to_be_read_from_pcon (void);
 
  protected:
   static BOOL process_opost_output (HANDLE h, const void *ptr, ssize_t& len,
@@ -2446,7 +2454,6 @@ public:
     fh->copy_from (this);
     return fh;
   }
-  bool to_be_read_from_pcon (void);
   void get_master_thread_param (master_thread_param_t *p);
   void get_master_fwd_thread_param (master_fwd_thread_param_t *p);
   void set_mask_flusho (bool m) { get_ttyp ()->mask_flusho = m; }
