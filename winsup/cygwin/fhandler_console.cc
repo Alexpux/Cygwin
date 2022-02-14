@@ -32,6 +32,7 @@ details. */
 #include "sync.h"
 #include "child_info.h"
 #include "cygwait.h"
+#include "winf.h"
 
 /* Don't make this bigger than NT_MAX_PATH as long as the temporary buffer
    is allocated using tmp_pathbuf!!! */
@@ -238,6 +239,33 @@ fhandler_console::cons_master_thread (handle_set_t *p, tty *ttyp)
 	  char c = (char) wc;
 	  bool processed = false;
 	  termios &ti = ttyp->ti;
+	  pinfo pi (ttyp->getpgid ());
+	  if (pi && pi->ctty == ttyp->ntty
+	      && (pi->process_state & PID_NOTCYGWIN)
+	      && input_rec[i].EventType == KEY_EVENT && c == '\003')
+	    {
+	      bool not_a_sig = false;
+	      if (!CCEQ (ti.c_cc[VINTR], c)
+		  && !CCEQ (ti.c_cc[VQUIT], c)
+		  && !CCEQ (ti.c_cc[VSUSP], c))
+		not_a_sig = true;
+	      if (input_rec[i].Event.KeyEvent.bKeyDown)
+		{
+		  /* CTRL_C_EVENT does not work for the process started with
+		     CREATE_NEW_PROCESS_GROUP flag, so send CTRL_BREAK_EVENT
+		     instead. */
+		  if (pi->process_state & PID_NEW_PG)
+		    GenerateConsoleCtrlEvent (CTRL_BREAK_EVENT,
+					      pi->dwProcessId);
+		  else
+		    GenerateConsoleCtrlEvent (CTRL_C_EVENT, 0);
+		  if (not_a_sig)
+		    goto skip_writeback;
+		}
+	      processed = true;
+	      if (not_a_sig)
+		goto remove_record;
+	    }
 	  switch (input_rec[i].EventType)
 	    {
 	    case KEY_EVENT:
@@ -310,6 +338,7 @@ fhandler_console::cons_master_thread (handle_set_t *p, tty *ttyp)
 	      processed = true;
 	      break;
 	    }
+remove_record:
 	  if (processed)
 	    { /* Remove corresponding record. */
 	      memmove (input_rec + i, input_rec + i + 1,
@@ -458,16 +487,18 @@ void
 fhandler_console::set_input_mode (tty::cons_mode m, const termios *t,
 				  const handle_set_t *p)
 {
-  DWORD flags = 0, oflags;
+  DWORD oflags;
   WaitForSingleObject (p->input_mutex, mutex_timeout);
   GetConsoleMode (p->input_handle, &oflags);
+  DWORD flags = oflags
+    & (ENABLE_EXTENDED_FLAGS | ENABLE_INSERT_MODE | ENABLE_QUICK_EDIT_MODE);
   switch (m)
     {
     case tty::restore:
-      flags = ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT;
+      flags |= ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT;
       break;
     case tty::cygwin:
-      flags = ENABLE_WINDOW_INPUT;
+      flags |= ENABLE_WINDOW_INPUT;
       if (wincap.has_con_24bit_colors () && !con_is_legacy)
 	flags |= ENABLE_VIRTUAL_TERMINAL_INPUT;
       else
@@ -3555,10 +3586,32 @@ set_console_title (char *title)
   debug_printf ("title '%W'", buf);
 }
 
+static bool NO_COPY gdb_inferior_noncygwin = false;
+static void
+set_console_mode_to_native ()
+{
+  cygheap_fdenum cfd (false);
+  while (cfd.next () >= 0)
+    if (cfd->get_major () == DEV_CONS_MAJOR)
+      {
+	fhandler_console *cons = (fhandler_console *) (fhandler_base *) cfd;
+	if (cons->get_device () == cons->tc ()->getntty ())
+	  {
+	    termios *cons_ti = &((tty *) cons->tc ())->ti;
+	    fhandler_console::set_input_mode (tty::native, cons_ti,
+					      cons->get_handle_set ());
+	    fhandler_console::set_output_mode (tty::native, cons_ti,
+					       cons->get_handle_set ());
+	    break;
+	  }
+      }
+}
+
 #define DEF_HOOK(name) static __typeof__ (name) *name##_Orig
 /* CreateProcess() is hooked for GDB etc. */
 DEF_HOOK (CreateProcessA);
 DEF_HOOK (CreateProcessW);
+DEF_HOOK (ContinueDebugEvent);
 
 static BOOL WINAPI
 CreateProcessA_Hooked
@@ -3568,6 +3621,9 @@ CreateProcessA_Hooked
 {
   if (f & (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS))
     mutex_timeout = 0; /* to avoid deadlock in GDB */
+  gdb_inferior_noncygwin = !fhandler_termios::path_iscygexec_a (n, c);
+  if (gdb_inferior_noncygwin)
+    set_console_mode_to_native ();
   return CreateProcessA_Orig (n, c, pa, ta, inh, f, e, d, si, pi);
 }
 
@@ -3579,7 +3635,19 @@ CreateProcessW_Hooked
 {
   if (f & (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS))
     mutex_timeout = 0; /* to avoid deadlock in GDB */
+  gdb_inferior_noncygwin = !fhandler_termios::path_iscygexec_w (n, c);
+  if (gdb_inferior_noncygwin)
+    set_console_mode_to_native ();
   return CreateProcessW_Orig (n, c, pa, ta, inh, f, e, d, si, pi);
+}
+
+static BOOL WINAPI
+ContinueDebugEvent_Hooked
+     (DWORD p, DWORD t, DWORD s)
+{
+  if (gdb_inferior_noncygwin)
+    set_console_mode_to_native ();
+  return ContinueDebugEvent_Orig (p, t, s);
 }
 
 void
@@ -3601,6 +3669,7 @@ fhandler_console::fixup_after_fork_exec (bool execing)
   /* CreateProcess() is hooked for GDB etc. */
   DO_HOOK (NULL, CreateProcessA);
   DO_HOOK (NULL, CreateProcessW);
+  DO_HOOK (NULL, ContinueDebugEvent);
 }
 
 // #define WINSTA_ACCESS (WINSTA_READATTRIBUTES | STANDARD_RIGHTS_READ | STANDARD_RIGHTS_WRITE | WINSTA_CREATEDESKTOP | WINSTA_EXITWINDOWS)

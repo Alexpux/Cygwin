@@ -157,6 +157,66 @@ set_switch_to_pcon (HANDLE *in, HANDLE *out, HANDLE *err, bool iscygwin)
     *err = replace_err->get_output_handle_nat ();
 }
 
+static bool
+path_iscygexec_a_w (LPCSTR na, LPSTR ca, LPCWSTR nw, LPWSTR cw)
+{
+  path_conv path;
+  tmp_pathbuf tp;
+  char *prog =tp.c_get ();
+  if (na)
+    {
+      __small_sprintf (prog, "%s", na);
+      find_exec (prog, path);
+    }
+  else if (nw)
+    {
+      __small_sprintf (prog, "%W", nw);
+      find_exec (prog, path);
+    }
+  else
+    {
+      if (ca)
+	__small_sprintf (prog, "%s", ca);
+      else if (cw)
+	__small_sprintf (prog, "%W", cw);
+      else
+	return true;
+      char *p = prog;
+      char *p1;
+      do
+	if ((p1 = strchr (p, ' ')) || (p1 = p + strlen (p)))
+	  {
+	    p = p1;
+	    if (*p == ' ')
+	      {
+		*p = '\0';
+		find_exec (prog, path);
+		*p = ' ';
+		p ++;
+	      }
+	    else if (*p == '\0')
+	      find_exec (prog, path);
+	  }
+      while (!path.exists() && *p);
+    }
+  const char *argv[] = {"", NULL}; /* Dummy */
+  av av1;
+  av1.setup ("", path, "", 1, argv, false);
+  return path.iscygexec ();
+}
+
+bool
+fhandler_termios::path_iscygexec_a (LPCSTR n, LPSTR c)
+{
+  return path_iscygexec_a_w (n, c, NULL, NULL);
+}
+
+bool
+fhandler_termios::path_iscygexec_w (LPCWSTR n, LPWSTR c)
+{
+  return path_iscygexec_a_w (NULL, NULL, n, c);
+}
+
 static bool atexit_func_registered = false;
 static bool debug_process = false;
 
@@ -220,37 +280,9 @@ CreateProcessA_Hooked
       siov->hStdOutput = GetStdHandle (STD_OUTPUT_HANDLE);
       siov->hStdError = GetStdHandle (STD_ERROR_HANDLE);
     }
-  path_conv path;
-  tmp_pathbuf tp;
-  char *prog =tp.c_get ();
-  if (n)
-    __small_sprintf (prog, "%s", n);
-  else
-    {
-      __small_sprintf (prog, "%s", c);
-      char *p = prog;
-      char *p1;
-      do
-	if ((p1 = strchr (p, ' ')) || (p1 = p + strlen (p)))
-	  {
-	    p = p1;
-	    if (*p == ' ')
-	      {
-		*p = '\0';
-		find_exec (prog, path);
-		*p = ' ';
-		p ++;
-	      }
-	    else if (*p == '\0')
-	      find_exec (prog, path);
-	  }
-      while (!path.exists() && *p);
-    }
-  const char *argv[] = {"", NULL}; /* Dummy */
-  av av1;
-  av1.setup ("", path, "", 1, argv, false);
+  bool path_iscygexec = fhandler_termios::path_iscygexec_a (n, c);
   set_switch_to_pcon (&siov->hStdInput, &siov->hStdOutput, &siov->hStdError,
-		      path.iscygexec ());
+		      path_iscygexec);
   BOOL ret = CreateProcessA_Orig (n, c, pa, ta, inh, f, e, d, siov, pi);
   h_gdb_process = pi->hProcess;
   DuplicateHandle (GetCurrentProcess (), h_gdb_process,
@@ -259,7 +291,7 @@ CreateProcessA_Hooked
   debug_process = !!(f & (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS));
   if (debug_process)
     mutex_timeout = 0; /* to avoid deadlock in GDB */
-  if (!atexit_func_registered && !path.iscygexec ())
+  if (!atexit_func_registered && !path_iscygexec)
     {
       atexit (atexit_func);
       atexit_func_registered = true;
@@ -286,37 +318,9 @@ CreateProcessW_Hooked
       siov->hStdOutput = GetStdHandle (STD_OUTPUT_HANDLE);
       siov->hStdError = GetStdHandle (STD_ERROR_HANDLE);
     }
-  path_conv path;
-  tmp_pathbuf tp;
-  char *prog =tp.c_get ();
-  if (n)
-    __small_sprintf (prog, "%W", n);
-  else
-    {
-      __small_sprintf (prog, "%W", c);
-      char *p = prog;
-      char *p1;
-      do
-	if ((p1 = strchr (p, ' ')) || (p1 = p + strlen (p)))
-	  {
-	    p = p1;
-	    if (*p == ' ')
-	      {
-		*p = '\0';
-		find_exec (prog, path);
-		*p = ' ';
-		p ++;
-	      }
-	    else if (*p == '\0')
-	      find_exec (prog, path);
-	  }
-      while (!path.exists() && *p);
-    }
-  const char *argv[] = {"", NULL}; /* Dummy */
-  av av1;
-  av1.setup ("", path, "", 1, argv, false);
+  bool path_iscygexec = fhandler_termios::path_iscygexec_w (n, c);
   set_switch_to_pcon (&siov->hStdInput, &siov->hStdOutput, &siov->hStdError,
-		      path.iscygexec ());
+		      path_iscygexec);
   BOOL ret = CreateProcessW_Orig (n, c, pa, ta, inh, f, e, d, siov, pi);
   h_gdb_process = pi->hProcess;
   DuplicateHandle (GetCurrentProcess (), h_gdb_process,
@@ -325,7 +329,7 @@ CreateProcessW_Hooked
   debug_process = !!(f & (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS));
   if (debug_process)
     mutex_timeout = 0; /* to avoid deadlock in GDB */
-  if (!atexit_func_registered && !path.iscygexec ())
+  if (!atexit_func_registered && !path_iscygexec)
     {
       atexit (atexit_func);
       atexit_func_registered = true;
@@ -438,6 +442,9 @@ fhandler_pty_master::discard_input ()
   while (::bytes_available (bytes_in_pipe, from_master) && bytes_in_pipe)
     ReadFile (from_master, buf, sizeof(buf), &n, NULL);
   ResetEvent (input_available_event);
+  if (!get_ttyp ()->pcon_activated)
+    while (::bytes_available (bytes_in_pipe, from_master_nat) && bytes_in_pipe)
+      ReadFile (from_master_nat, buf, sizeof(buf), &n, NULL);
   get_ttyp ()->discard_input = true;
   ReleaseMutex (input_mutex);
 }
@@ -496,11 +503,9 @@ void
 fhandler_pty_master::doecho (const void *str, DWORD len)
 {
   ssize_t towrite = len;
-  acquire_output_mutex (mutex_timeout);
   if (!process_opost_output (echo_w, str, towrite, true,
 			     get_ttyp (), is_nonblocking ()))
     termios_printf ("Write to echo pipe failed, %E");
-  release_output_mutex ();
 }
 
 int
@@ -1124,7 +1129,7 @@ fhandler_pty_slave::reset_switch_to_pcon (void)
       if (WaitForSingleObject (h_gdb_process, 0) == WAIT_TIMEOUT)
 	{
 	  if (isHybrid)
-	    get_ttyp ()->wait_pcon_fwd (false);
+	    get_ttyp ()->wait_pcon_fwd ();
 	}
       else
 	{
@@ -2719,6 +2724,9 @@ fhandler_pty_master::pty_master_fwd_thread (const master_fwd_thread_param_t *p)
   for (;;)
     {
       p->ttyp->pcon_last_time = GetTickCount ();
+      DWORD n;
+      p->ttyp->pcon_fwd_not_empty =
+	::bytes_available (n, p->from_slave_nat) && n;
       if (!ReadFile (p->from_slave_nat, outbuf, NT_MAX_PATH, &rlen, NULL))
 	{
 	  termios_printf ("ReadFile for forwarding failed, %E");

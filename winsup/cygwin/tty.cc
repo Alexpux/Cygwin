@@ -240,6 +240,7 @@ tty::init ()
   pcon_pid = 0;
   term_code_page = 0;
   pcon_last_time = 0;
+  pcon_fwd_not_empty = false;
   pcon_start = false;
   pcon_start_pid = 0;
   pcon_cap_checked = false;
@@ -308,7 +309,8 @@ tty_min::setpgid (int pid)
   fhandler_pty_slave *ptys = NULL;
   cygheap_fdenum cfd (false);
   while (cfd.next () >= 0 && ptys == NULL)
-    if (cfd->get_device () == getntty ())
+    if (cfd->get_device () == getntty ()
+	&& cfd->get_major () == DEV_PTYS_MAJOR)
       ptys = (fhandler_pty_slave *) (fhandler_base *) cfd;
 
   if (ptys)
@@ -367,7 +369,7 @@ tty_min::setpgid (int pid)
 }
 
 void
-tty::wait_pcon_fwd (bool init)
+tty::wait_pcon_fwd ()
 {
   /* The forwarding in pseudo console sometimes stops for
      16-32 msec even if it already has data to transfer.
@@ -377,11 +379,11 @@ tty::wait_pcon_fwd (bool init)
      thread when the last data is transfered. */
   const int sleep_in_pcon = 16;
   const int time_to_wait = sleep_in_pcon * 2 + 1/* margine */;
-  if (init)
-    pcon_last_time = GetTickCount ();
-  while (GetTickCount () - pcon_last_time < time_to_wait)
+  int elapsed;
+  while (pcon_fwd_not_empty
+	 || (elapsed = GetTickCount () - pcon_last_time) < time_to_wait)
     {
-      int tw = time_to_wait - (GetTickCount () - pcon_last_time);
+      int tw = pcon_fwd_not_empty ? 10 : (time_to_wait - elapsed);
       cygwait (tw);
     }
 }
