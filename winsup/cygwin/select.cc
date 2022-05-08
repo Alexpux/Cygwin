@@ -1095,8 +1095,6 @@ fhandler_fifo::select_except (select_stuff *ss)
   return s;
 }
 
-extern DWORD mutex_timeout; /* defined in fhandler_termios.cc */
-
 static int
 peek_console (select_record *me, bool)
 {
@@ -1123,28 +1121,30 @@ peek_console (select_record *me, bool)
   set_handle_or_return_if_not_open (h, me);
 
   fh->acquire_input_mutex (mutex_timeout);
-  acquire_attach_mutex (mutex_timeout);
   while (!fh->input_ready && !fh->get_cons_readahead_valid ())
     {
       if (fh->bg_check (SIGTTIN, true) <= bg_eof)
 	{
-	  release_attach_mutex ();
 	  fh->release_input_mutex ();
 	  return me->read_ready = true;
 	}
-      else if (!PeekConsoleInputW (h, &irec, 1, &events_read) || !events_read)
-	break;
+      else
+	{
+	  acquire_attach_mutex (mutex_timeout);
+	  BOOL r = PeekConsoleInputW (h, &irec, 1, &events_read);
+	  release_attach_mutex ();
+	  if (!r || !events_read)
+	    break;
+	}
       if (fhandler_console::input_winch == fh->process_input_message ()
 	  && global_sigs[SIGWINCH].sa_handler != SIG_IGN
 	  && global_sigs[SIGWINCH].sa_handler != SIG_DFL)
 	{
 	  set_sig_errno (EINTR);
-	  release_attach_mutex ();
 	  fh->release_input_mutex ();
 	  return -1;
 	}
     }
-  release_attach_mutex ();
   fh->release_input_mutex ();
   if (fh->input_ready || fh->get_cons_readahead_valid ())
     return me->read_ready = true;
@@ -1196,10 +1196,6 @@ thread_console (void *arg)
 static int
 console_startup (select_record *me, select_stuff *stuff)
 {
-  fhandler_console *fh = (fhandler_console *) me->fh;
-  fhandler_console::set_input_mode (tty::cygwin, &((tty *)fh->tc ())->ti,
-				    fh->get_handle_set ());
-
   select_console_info *ci = stuff->device_specific_console;
   if (ci->start)
     me->h = *(stuff->device_specific_console)->thread;

@@ -106,6 +106,8 @@ pinfo_init (char **envp, int envc)
 
   myself->process_state |= PID_ACTIVE;
   myself->process_state &= ~(PID_INITIALIZING | PID_EXITED | PID_REAPED);
+  if (being_debugged ())
+    myself->process_state |= PID_DEBUGGED;
   myself.preserve ();
   debug_printf ("pid %d, pgid %d, process_state %y",
 		myself->pid, myself->pgid, myself->process_state);
@@ -155,6 +157,9 @@ pinfo::status_exit (DWORD x)
 	 FIXME: For now, just return with SIGBUS set.  Maybe it's better to add
 	 a lengthy small_printf instead. */
       x = SIGBUS;
+      break;
+    case STATUS_CONTROL_C_EXIT:
+      x = SIGINT;
       break;
     default:
       debug_printf ("*** STATUS_%y\n", x);

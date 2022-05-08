@@ -240,6 +240,7 @@ tty::init ()
   pcon_pid = 0;
   term_code_page = 0;
   pcon_last_time = 0;
+  pcon_fwd_not_empty = false;
   pcon_start = false;
   pcon_start_pid = 0;
   pcon_cap_checked = false;
@@ -308,12 +309,13 @@ tty_min::setpgid (int pid)
   fhandler_pty_slave *ptys = NULL;
   cygheap_fdenum cfd (false);
   while (cfd.next () >= 0 && ptys == NULL)
-    if (cfd->get_device () == getntty ())
+    if (cfd->get_device () == getntty ()
+	&& cfd->get_major () == DEV_PTYS_MAJOR)
       ptys = (fhandler_pty_slave *) (fhandler_base *) cfd;
 
   if (ptys)
     {
-      tty *ttyp = ptys->get_ttyp ();
+      tty *ttyp = (tty *) ptys->tc ();
       WaitForSingleObject (ptys->pcon_mutex, INFINITE);
       bool was_pcon_fg = ttyp->pcon_fg (pgid);
       bool pcon_fg = ttyp->pcon_fg (pid);
@@ -321,9 +323,11 @@ tty_min::setpgid (int pid)
 	  && ttyp->pcon_input_state_eq (tty::to_cyg))
 	{
 	WaitForSingleObject (ptys->input_mutex, mutex_timeout);
+	acquire_attach_mutex (mutex_timeout);
 	fhandler_pty_slave::transfer_input (tty::to_nat,
 					    ptys->get_handle (), ttyp,
 					    ptys->get_input_available_event ());
+	release_attach_mutex ();
 	ReleaseMutex (ptys->input_mutex);
 	}
       else if (was_pcon_fg && !pcon_fg && ttyp->switch_to_pcon_in
@@ -331,6 +335,8 @@ tty_min::setpgid (int pid)
 	{
 	  bool attach_restore = false;
 	  HANDLE from = ptys->get_handle_nat ();
+	  WaitForSingleObject (ptys->input_mutex, mutex_timeout);
+	  acquire_attach_mutex (mutex_timeout);
 	  if (ttyp->pcon_activated && ttyp->pcon_pid
 	      && !ptys->get_console_process_id (ttyp->pcon_pid, true))
 	    {
@@ -342,24 +348,21 @@ tty_min::setpgid (int pid)
 	      CloseHandle (pcon_owner);
 	      FreeConsole ();
 	      AttachConsole (ttyp->pcon_pid);
+	      init_console_handler (false);
 	      attach_restore = true;
 	    }
-	  WaitForSingleObject (ptys->input_mutex, mutex_timeout);
 	  fhandler_pty_slave::transfer_input (tty::to_cyg, from, ttyp,
 				  ptys->get_input_available_event ());
-	  ReleaseMutex (ptys->input_mutex);
 	  if (attach_restore)
 	    {
 	      FreeConsole ();
 	      pinfo p (myself->ppid);
-	      if (p)
-		{
-		  if (!AttachConsole (p->dwProcessId))
-		    AttachConsole (ATTACH_PARENT_PROCESS);
-		}
-	      else
+	      if (!p || !AttachConsole (p->dwProcessId))
 		AttachConsole (ATTACH_PARENT_PROCESS);
+	      init_console_handler (false);
 	    }
+	  release_attach_mutex ();
+	  ReleaseMutex (ptys->input_mutex);
 	}
       ReleaseMutex (ptys->pcon_mutex);
     }
@@ -367,7 +370,7 @@ tty_min::setpgid (int pid)
 }
 
 void
-tty::wait_pcon_fwd (bool init)
+tty::wait_pcon_fwd ()
 {
   /* The forwarding in pseudo console sometimes stops for
      16-32 msec even if it already has data to transfer.
@@ -377,11 +380,11 @@ tty::wait_pcon_fwd (bool init)
      thread when the last data is transfered. */
   const int sleep_in_pcon = 16;
   const int time_to_wait = sleep_in_pcon * 2 + 1/* margine */;
-  if (init)
-    pcon_last_time = GetTickCount ();
-  while (GetTickCount () - pcon_last_time < time_to_wait)
+  int elapsed;
+  while (pcon_fwd_not_empty
+	 || (elapsed = GetTickCount () - pcon_last_time) < time_to_wait)
     {
-      int tw = time_to_wait - (GetTickCount () - pcon_last_time);
+      int tw = pcon_fwd_not_empty ? 10 : (time_to_wait - elapsed);
       cygwait (tw);
     }
 }

@@ -3495,10 +3495,19 @@ restart:
 
 	      /* If incoming path has no trailing backslash, but final path
 		 has one, drop trailing backslash from final path so the
-		 below string comparison has a chance to succeed. */
+		 below string comparison has a chance to succeed.
+		 On the contrary, if incoming path has trailing backslash,
+		 but final path does not have one, add trailing backslash
+		 to the final path. */
 	      if (upath.Buffer[(upath.Length - 1) / sizeof (WCHAR)] != L'\\'
-                  && fpbuf[ret - 1] == L'\\')
+		  && fpbuf[ret - 1] == L'\\')
                 fpbuf[--ret] = L'\0';
+	      if (upath.Buffer[(upath.Length - 1) / sizeof (WCHAR)] == L'\\'
+		  && fpbuf[ret - 1] != L'\\' && ret < NT_MAX_PATH - 1)
+		{
+		  fpbuf[ret++] = L'\\';
+		  fpbuf[ret] = L'\0';
+		}
 	      fpbuf[1] = L'?';	/* \\?\ --> \??\ */
 	      RtlInitCountedUnicodeString (&fpath, fpbuf, ret * sizeof (WCHAR));
 	      if (!RtlEqualUnicodeString (&upath, &fpath, !!ci_flag))
@@ -3518,7 +3527,7 @@ restart:
 		      int remlen = QueryDosDeviceW (drive, remote, MAX_PATH);
 		      if (remlen < 3)
 			goto file_not_symlink; /* fallback */
-		      remlen -= 2;
+		      remlen -= 2; /* Two L'\0' */
 
 		      if (remote[remlen - 1] == L'\\')
 			remlen--;
@@ -3526,20 +3535,27 @@ restart:
 		      UNICODE_STRING rpath;
 		      RtlInitCountedUnicodeString (&rpath, remote,
 						   remlen * sizeof (WCHAR));
+		      const USHORT uncp_len =
+			ro_u_uncp.Length / sizeof (WCHAR) - 1;
 		      if (RtlEqualUnicodePathPrefix (&rpath, &ro_u_uncp, TRUE))
-			remlen -= 6;
+			{
+			  remlen -= uncp_len;
+			  p = remote + uncp_len;
+			}
 		      else if ((p = wcschr (remote, L';'))
 			       && p + 3 < remote + remlen
 			       && wcsncmp (p + 1, drive, 2) == 0
 			       && (p = wcschr (p + 3, L'\\')))
-			remlen -= p - remote - 1;
+			remlen -= p - remote;
 		      else
 			goto file_not_symlink; /* fallback */
+		      if (wcsncasecmp (fpath.Buffer + uncp_len, p, remlen))
+			goto file_not_symlink; /* fallback (not expected) */
 		      /* Hackfest */
 		      fpath.Buffer[4] = drive[0]; /* Drive letter */
 		      fpath.Buffer[5] = L':';
-		      WCHAR *to = fpath.Buffer + 6;
-		      WCHAR *from = to + remlen;
+		      WCHAR *to = fpath.Buffer + 6; /* Next to L':' */
+		      WCHAR *from = fpath.Buffer + uncp_len + remlen;
 		      memmove (to, from,
 			       (wcslen (from) + 1) * sizeof (WCHAR));
 		      fpath.Length -= (from - to) * sizeof (WCHAR);

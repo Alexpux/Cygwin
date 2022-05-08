@@ -33,8 +33,6 @@ details. */
 #define PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE 0x00020016
 #endif /* PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE */
 
-extern DWORD mutex_timeout; /* defined in fhandler_termios.cc */
-
 extern "C" int sscanf (const char *, const char *, ...);
 
 #define close_maybe(h) \
@@ -157,6 +155,66 @@ set_switch_to_pcon (HANDLE *in, HANDLE *out, HANDLE *err, bool iscygwin)
     *err = replace_err->get_output_handle_nat ();
 }
 
+static bool
+path_iscygexec_a_w (LPCSTR na, LPSTR ca, LPCWSTR nw, LPWSTR cw)
+{
+  path_conv path;
+  tmp_pathbuf tp;
+  char *prog =tp.c_get ();
+  if (na)
+    {
+      __small_sprintf (prog, "%s", na);
+      find_exec (prog, path);
+    }
+  else if (nw)
+    {
+      __small_sprintf (prog, "%W", nw);
+      find_exec (prog, path);
+    }
+  else
+    {
+      if (ca)
+	__small_sprintf (prog, "%s", ca);
+      else if (cw)
+	__small_sprintf (prog, "%W", cw);
+      else
+	return true;
+      char *p = prog;
+      char *p1;
+      do
+	if ((p1 = strchr (p, ' ')) || (p1 = p + strlen (p)))
+	  {
+	    p = p1;
+	    if (*p == ' ')
+	      {
+		*p = '\0';
+		find_exec (prog, path);
+		*p = ' ';
+		p ++;
+	      }
+	    else if (*p == '\0')
+	      find_exec (prog, path);
+	  }
+      while (!path.exists() && *p);
+    }
+  const char *argv[] = {"", NULL}; /* Dummy */
+  av av1;
+  av1.setup ("", path, "", 1, argv, false);
+  return path.iscygexec ();
+}
+
+bool
+fhandler_termios::path_iscygexec_a (LPCSTR n, LPSTR c)
+{
+  return path_iscygexec_a_w (n, c, NULL, NULL);
+}
+
+bool
+fhandler_termios::path_iscygexec_w (LPCWSTR n, LPWSTR c)
+{
+  return path_iscygexec_a_w (NULL, NULL, n, c);
+}
+
 static bool atexit_func_registered = false;
 static bool debug_process = false;
 
@@ -175,7 +233,7 @@ atexit_func (void)
 	      force_switch_to = GetProcessId (h_gdb_process);
 	    fhandler_base *fh = cfd;
 	    fhandler_pty_slave *ptys = (fhandler_pty_slave *) fh;
-	    tty *ttyp = ptys->get_ttyp ();
+	    tty *ttyp = (tty *) ptys->tc ();
 	    HANDLE from = ptys->get_handle_nat ();
 	    HANDLE input_available_event = ptys->get_input_available_event ();
 	    if (ttyp->getpgid () == myself->pgid
@@ -183,8 +241,10 @@ atexit_func (void)
 		&& ttyp->pcon_input_state_eq (tty::to_nat) && !force_switch_to)
 	      {
 		WaitForSingleObject (ptys->input_mutex, mutex_timeout);
+		acquire_attach_mutex (mutex_timeout);
 		fhandler_pty_slave::transfer_input (tty::to_cyg, from, ttyp,
 						    input_available_event);
+		release_attach_mutex ();
 		ReleaseMutex (ptys->input_mutex);
 	      }
 	    WaitForSingleObject (ptys->pcon_mutex, INFINITE);
@@ -220,37 +280,9 @@ CreateProcessA_Hooked
       siov->hStdOutput = GetStdHandle (STD_OUTPUT_HANDLE);
       siov->hStdError = GetStdHandle (STD_ERROR_HANDLE);
     }
-  path_conv path;
-  tmp_pathbuf tp;
-  char *prog =tp.c_get ();
-  if (n)
-    __small_sprintf (prog, "%s", n);
-  else
-    {
-      __small_sprintf (prog, "%s", c);
-      char *p = prog;
-      char *p1;
-      do
-	if ((p1 = strchr (p, ' ')) || (p1 = p + strlen (p)))
-	  {
-	    p = p1;
-	    if (*p == ' ')
-	      {
-		*p = '\0';
-		find_exec (prog, path);
-		*p = ' ';
-		p ++;
-	      }
-	    else if (*p == '\0')
-	      find_exec (prog, path);
-	  }
-      while (!path.exists() && *p);
-    }
-  const char *argv[] = {"", NULL}; /* Dummy */
-  av av1;
-  av1.setup ("", path, "", 1, argv, false);
+  bool path_iscygexec = fhandler_termios::path_iscygexec_a (n, c);
   set_switch_to_pcon (&siov->hStdInput, &siov->hStdOutput, &siov->hStdError,
-		      path.iscygexec ());
+		      path_iscygexec);
   BOOL ret = CreateProcessA_Orig (n, c, pa, ta, inh, f, e, d, siov, pi);
   h_gdb_process = pi->hProcess;
   DuplicateHandle (GetCurrentProcess (), h_gdb_process,
@@ -259,7 +291,7 @@ CreateProcessA_Hooked
   debug_process = !!(f & (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS));
   if (debug_process)
     mutex_timeout = 0; /* to avoid deadlock in GDB */
-  if (!atexit_func_registered && !path.iscygexec ())
+  if (!atexit_func_registered && !path_iscygexec)
     {
       atexit (atexit_func);
       atexit_func_registered = true;
@@ -286,37 +318,9 @@ CreateProcessW_Hooked
       siov->hStdOutput = GetStdHandle (STD_OUTPUT_HANDLE);
       siov->hStdError = GetStdHandle (STD_ERROR_HANDLE);
     }
-  path_conv path;
-  tmp_pathbuf tp;
-  char *prog =tp.c_get ();
-  if (n)
-    __small_sprintf (prog, "%W", n);
-  else
-    {
-      __small_sprintf (prog, "%W", c);
-      char *p = prog;
-      char *p1;
-      do
-	if ((p1 = strchr (p, ' ')) || (p1 = p + strlen (p)))
-	  {
-	    p = p1;
-	    if (*p == ' ')
-	      {
-		*p = '\0';
-		find_exec (prog, path);
-		*p = ' ';
-		p ++;
-	      }
-	    else if (*p == '\0')
-	      find_exec (prog, path);
-	  }
-      while (!path.exists() && *p);
-    }
-  const char *argv[] = {"", NULL}; /* Dummy */
-  av av1;
-  av1.setup ("", path, "", 1, argv, false);
+  bool path_iscygexec = fhandler_termios::path_iscygexec_w (n, c);
   set_switch_to_pcon (&siov->hStdInput, &siov->hStdOutput, &siov->hStdError,
-		      path.iscygexec ());
+		      path_iscygexec);
   BOOL ret = CreateProcessW_Orig (n, c, pa, ta, inh, f, e, d, siov, pi);
   h_gdb_process = pi->hProcess;
   DuplicateHandle (GetCurrentProcess (), h_gdb_process,
@@ -325,7 +329,7 @@ CreateProcessW_Hooked
   debug_process = !!(f & (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS));
   if (debug_process)
     mutex_timeout = 0; /* to avoid deadlock in GDB */
-  if (!atexit_func_registered && !path.iscygexec ())
+  if (!atexit_func_registered && !path_iscygexec)
     {
       atexit (atexit_func);
       atexit_func_registered = true;
@@ -438,6 +442,9 @@ fhandler_pty_master::discard_input ()
   while (::bytes_available (bytes_in_pipe, from_master) && bytes_in_pipe)
     ReadFile (from_master, buf, sizeof(buf), &n, NULL);
   ResetEvent (input_available_event);
+  if (!get_ttyp ()->pcon_activated)
+    while (::bytes_available (bytes_in_pipe, from_master_nat) && bytes_in_pipe)
+      ReadFile (from_master_nat, buf, sizeof(buf), &n, NULL);
   get_ttyp ()->discard_input = true;
   ReleaseMutex (input_mutex);
 }
@@ -496,11 +503,9 @@ void
 fhandler_pty_master::doecho (const void *str, DWORD len)
 {
   ssize_t towrite = len;
-  acquire_output_mutex (mutex_timeout);
   if (!process_opost_output (echo_w, str, towrite, true,
 			     get_ttyp (), is_nonblocking ()))
     termios_printf ("Write to echo pipe failed, %E");
-  release_output_mutex ();
 }
 
 int
@@ -526,26 +531,29 @@ fhandler_pty_master::accept_input ()
       DWORD target_pid = 0;
       if (pinfo_target)
 	target_pid = pinfo_target->dwProcessId;
+      acquire_attach_mutex (mutex_timeout);
       pinfo pinfo_resume = pinfo (myself->ppid);
       DWORD resume_pid;
       if (pinfo_resume)
 	resume_pid = pinfo_resume->dwProcessId;
       else
 	resume_pid = get_console_process_id (myself->dwProcessId, false);
-      if (target_pid && resume_pid)
+      bool console_exists = fhandler_console::exists ();
+      if (target_pid && (resume_pid || !console_exists))
 	{
 	  /* Slave attaches to a different console than master.
 	     Therefore reattach here. */
-	  acquire_attach_mutex (mutex_timeout);
 	  FreeConsole ();
 	  AttachConsole (target_pid);
 	  cp_to = GetConsoleCP ();
 	  FreeConsole ();
-	  AttachConsole (resume_pid);
-	  release_attach_mutex ();
+	  if (resume_pid && console_exists)
+	    AttachConsole (resume_pid);
+	  init_console_handler (false);
 	}
       else
 	cp_to = GetConsoleCP ();
+      release_attach_mutex ();
 
       if (get_ttyp ()->term_code_page != cp_to)
 	{
@@ -572,16 +580,21 @@ fhandler_pty_master::accept_input ()
       paranoid_printf ("about to write %u chars to slave", bytes_left);
       /* Write line by line for transfer input. */
       char *p0 = p;
-      char *p1 = p;
+      char *p_cr = (char *) memchr (p0, '\r', bytes_left - (p0 - p));
+      char *p_nl = (char *) memchr (p0, '\n', bytes_left - (p0 - p));
       DWORD n;
-      while ((p1 = (char *) memchr (p0, '\n', bytes_left - (p0 - p)))
-	     || (p1 = (char *) memchr (p0, '\r', bytes_left - (p0 - p))))
+      while (p_cr || p_nl)
 	{
+	  char *p1 =
+	    p_cr ?  (p_nl ? ((p_cr + 1 == p_nl)
+			     ?  p_nl : min(p_cr, p_nl)) : p_cr) : p_nl;
 	  n = p1 - p0 + 1;
 	  rc = WriteFile (write_to, p0, n, &n, NULL);
 	  if (rc)
 	    written += n;
 	  p0 = p1 + 1;
+	  p_cr = (char *) memchr (p0, '\r', bytes_left - (p0 - p));
+	  p_nl = (char *) memchr (p0, '\n', bytes_left - (p0 - p));
 	}
       if (rc && (n = bytes_left - (p0 - p)))
 	{
@@ -962,8 +975,18 @@ fhandler_pty_slave::open (int flags, mode_t)
        this behaviour, protection based on attach_mutex does
        not take effect. */
     get_ttyp ()->need_invisible_console = true;
+  else if (_major (myself->ctty) != DEV_CONS_MAJOR
+	   && (!get_ttyp ()->invisible_console_pid
+	       || !pinfo (get_ttyp ()->invisible_console_pid)))
+    /* Create a new invisible console for each pty to isolate
+       CTRL_C_EVENTs between ptys. */
+    get_ttyp ()->need_invisible_console = true;
   else
-    fhandler_console::need_invisible ();
+    {
+      acquire_attach_mutex (mutex_timeout);
+      fhandler_console::need_invisible ();
+      release_attach_mutex ();
+    }
 
   set_open_status ();
   return 1;
@@ -1017,11 +1040,12 @@ fhandler_pty_slave::close ()
   if (!ForceCloseHandle (get_handle_nat ()))
     termios_printf ("CloseHandle (get_handle_nat ()<%p>), %E",
 	get_handle_nat ());
-  if ((unsigned) myself->ctty == FHDEV (DEV_PTYS_MAJOR, get_minor ()))
-    fhandler_console::free_console ();	/* assumes that we are the last pty closer */
   fhandler_pty_common::close ();
   if (!ForceCloseHandle (output_mutex))
     termios_printf ("CloseHandle (output_mutex<%p>), %E", output_mutex);
+  if (get_ttyp ()->invisible_console_pid
+      && !pinfo (get_ttyp ()->invisible_console_pid))
+    get_ttyp ()->invisible_console_pid = 0;
   return 0;
 }
 
@@ -1083,8 +1107,10 @@ fhandler_pty_slave::set_switch_to_pcon (void)
 	  && get_ttyp ()->pcon_input_state_eq (tty::to_cyg))
 	{
 	  WaitForSingleObject (input_mutex, mutex_timeout);
+	  acquire_attach_mutex (mutex_timeout);
 	  transfer_input (tty::to_nat, get_handle (), get_ttyp (),
 			  input_available_event);
+	  release_attach_mutex ();
 	  ReleaseMutex (input_mutex);
 	}
     }
@@ -1109,7 +1135,7 @@ pcon_pid_alive (DWORD pid)
 inline static bool
 pcon_pid_self (DWORD pid)
 {
-  return (pid == myself->exec_dwProcessId);
+  return (pid == (myself->exec_dwProcessId ?: myself->dwProcessId));
 }
 
 void
@@ -1120,7 +1146,7 @@ fhandler_pty_slave::reset_switch_to_pcon (void)
       if (WaitForSingleObject (h_gdb_process, 0) == WAIT_TIMEOUT)
 	{
 	  if (isHybrid)
-	    get_ttyp ()->wait_pcon_fwd (false);
+	    get_ttyp ()->wait_pcon_fwd ();
 	}
       else
 	{
@@ -1134,8 +1160,10 @@ fhandler_pty_slave::reset_switch_to_pcon (void)
 		  && get_ttyp ()->pcon_input_state_eq (tty::to_nat))
 		{
 		  WaitForSingleObject (input_mutex, mutex_timeout);
+		  acquire_attach_mutex (mutex_timeout);
 		  transfer_input (tty::to_cyg, get_handle_nat (), get_ttyp (),
 				  input_available_event);
+		  release_attach_mutex ();
 		  ReleaseMutex (input_mutex);
 		}
 	      if (get_ttyp ()->master_is_running_as_service
@@ -1212,6 +1240,7 @@ fhandler_pty_slave::reset_switch_to_pcon (void)
 		OpenProcess (PROCESS_DUP_HANDLE, FALSE, get_ttyp ()->pcon_pid);
 	      if (pcon_owner)
 		{
+		  acquire_attach_mutex (mutex_timeout);
 		  pinfo pinfo_resume = pinfo (myself->ppid);
 		  DWORD resume_pid;
 		  if (pinfo_resume)
@@ -1227,14 +1256,17 @@ fhandler_pty_slave::reset_switch_to_pcon (void)
 				       0, TRUE, DUPLICATE_SAME_ACCESS);
 		      FreeConsole ();
 		      AttachConsole (get_ttyp ()->pcon_pid);
+		      init_console_handler (false);
 		      WaitForSingleObject (input_mutex, mutex_timeout);
 		      transfer_input (tty::to_cyg, h_pcon_in, get_ttyp (),
 				      input_available_event);
 		      ReleaseMutex (input_mutex);
 		      FreeConsole ();
 		      AttachConsole (resume_pid);
+		      init_console_handler (false);
 		      CloseHandle (h_pcon_in);
 		    }
+		  release_attach_mutex ();
 		  CloseHandle (pcon_owner);
 		}
 	    }
@@ -1242,8 +1274,10 @@ fhandler_pty_slave::reset_switch_to_pcon (void)
 		   && get_ttyp ()->switch_to_pcon_in)
 	    {
 	      WaitForSingleObject (input_mutex, mutex_timeout);
+	      acquire_attach_mutex (mutex_timeout);
 	      transfer_input (tty::to_cyg, get_handle_nat (), get_ttyp (),
 			      input_available_event);
+	      release_attach_mutex ();
 	      ReleaseMutex (input_mutex);
 	    }
 	}
@@ -1255,8 +1289,12 @@ fhandler_pty_slave::reset_switch_to_pcon (void)
   WaitForSingleObject (input_mutex, mutex_timeout);
   if (get_ttyp ()->switch_to_pcon_in && !get_ttyp ()->pcon_activated
       && get_ttyp ()->pcon_input_state_eq (tty::to_nat))
-    transfer_input (tty::to_cyg, get_handle_nat (), get_ttyp (),
-		    input_available_event);
+    {
+      acquire_attach_mutex (mutex_timeout);
+      transfer_input (tty::to_cyg, get_handle_nat (), get_ttyp (),
+		      input_available_event);
+      release_attach_mutex ();
+    }
   ReleaseMutex (input_mutex);
   get_ttyp ()->pcon_input_state = tty::to_cyg;
   get_ttyp ()->pcon_pid = 0;
@@ -1331,11 +1369,19 @@ fhandler_pty_slave::mask_switch_to_pcon_in (bool mask, bool xfer)
   if (!!masked != mask && xfer && (need_gdb_xfer || need_xfer))
     {
       if (mask && get_ttyp ()->pcon_input_state_eq (tty::to_nat))
-	transfer_input (tty::to_cyg, get_handle_nat (), get_ttyp (),
-			input_available_event);
+	{
+	  acquire_attach_mutex (mutex_timeout);
+	  transfer_input (tty::to_cyg, get_handle_nat (), get_ttyp (),
+			  input_available_event);
+	  release_attach_mutex ();
+	}
       else if (!mask && get_ttyp ()->pcon_input_state_eq (tty::to_cyg))
-	transfer_input (tty::to_nat, get_handle (), get_ttyp (),
-			input_available_event);
+	{
+	  acquire_attach_mutex (mutex_timeout);
+	  transfer_input (tty::to_nat, get_handle (), get_ttyp (),
+			  input_available_event);
+	  release_attach_mutex ();
+	}
     }
   ReleaseMutex (input_mutex);
 }
@@ -2072,8 +2118,10 @@ fhandler_pty_common::resize_pseudo_console (struct winsize *ws)
     OpenProcess (PROCESS_DUP_HANDLE, FALSE, get_ttyp ()->pcon_pid);
   DuplicateHandle (pcon_owner, get_ttyp ()->h_pcon_write_pipe,
 		   GetCurrentProcess (), &hpcon_local.hWritePipe,
-		   0, TRUE, DUPLICATE_SAME_ACCESS);
+		   0, FALSE, DUPLICATE_SAME_ACCESS);
+  acquire_attach_mutex (mutex_timeout);
   ResizePseudoConsole ((HPCON) &hpcon_local, size);
+  release_attach_mutex ();
   CloseHandle (pcon_owner);
   CloseHandle (hpcon_local.hWritePipe);
 }
@@ -2120,7 +2168,7 @@ fhandler_pty_master::close ()
 	    }
 	  release_output_mutex ();
 	  get_ttyp ()->stop_fwd_thread = true;
-	  WriteFile (to_master_nat, "", 0, NULL, NULL);
+	  WriteFile (to_master_nat, "", 0, &len, NULL);
 	  master_fwd_thread->detach ();
 	}
     }
@@ -2256,9 +2304,11 @@ fhandler_pty_master::write (const void *ptr, size_t len)
 	      if (get_readahead_valid ())
 		accept_input ();
 	      WaitForSingleObject (input_mutex, mutex_timeout);
+	      acquire_attach_mutex (mutex_timeout);
 	      fhandler_pty_slave::transfer_input (tty::to_nat, from_master,
 						  get_ttyp (),
 						  input_available_event);
+	      release_attach_mutex ();
 	      ReleaseMutex (input_mutex);
 	    }
 	  get_ttyp ()->pcon_start_pid = 0;
@@ -2286,47 +2336,19 @@ fhandler_pty_master::write (const void *ptr, size_t len)
 			  &mbp);
 	}
 
-      if ((ti.c_lflag & ISIG) && memchr (buf, '\003', nlen))
+      for (size_t i = 0; i < nlen; i++)
 	{
-	  /* If the process is started with CREATE_NEW_PROCESS_GROUP
-	     flag, Ctrl-C will not be sent to that process. Therefore,
-	     send Ctrl-break event to that process here. */
-	  DWORD wpid = 0;
-	  winpids pids ((DWORD) 0);
-	  for (unsigned i = 0; i < pids.npids; i++)
+	  process_sig_state r = process_sigs (buf[i], get_ttyp (), this);
+	  if (r == done_with_debugger)
 	    {
-	      _pinfo *p = pids[i];
-	      if (p->ctty == get_ttyp ()->ntty
-		  && p->pgid == get_ttyp ()->getpgid ()
-		  && (p->process_state & PID_NOTCYGWIN)
-		  && (p->process_state & PID_NEW_PG))
-		{
-		  wpid = p->dwProcessId;
-		  break;
-		}
+	      for (size_t j = i; j < nlen - 1; j++)
+		buf[j] = buf[j + 1];
+	      nlen--;
+	      i--;
 	    }
-	  pinfo pinfo_resume = pinfo (myself->ppid);
-	  DWORD resume_pid;
-	  if (pinfo_resume)
-	    resume_pid = pinfo_resume->dwProcessId;
-	  else
-	    resume_pid = get_console_process_id (myself->dwProcessId, false);
-	  if (wpid && resume_pid)
-	    {
-	      WaitForSingleObject (pcon_mutex, INFINITE);
-	      FreeConsole ();
-	      AttachConsole (wpid);
-	      /* CTRL_C_EVENT does not work for the process started with
-		 CREATE_NEW_PROCESS_GROUP flag, so send CTRL_BREAK_EVENT
-		 instead. */
-	      GenerateConsoleCtrlEvent (CTRL_BREAK_EVENT, wpid);
-	      FreeConsole ();
-	      AttachConsole (resume_pid);
-	      ReleaseMutex (pcon_mutex);
-	    }
-	  if (!(ti.c_lflag & NOFLSH))
-	    get_ttyp ()->discard_input = true;
+	  process_stop_start (buf[i], get_ttyp ());
 	}
+
       DWORD n;
       WriteFile (to_slave_nat, buf, nlen, &n, NULL);
       ReleaseMutex (input_mutex);
@@ -2338,8 +2360,12 @@ fhandler_pty_master::write (const void *ptr, size_t len)
      non-cygwin app is terminated if pseudo console is disabled. */
   if (to_be_read_from_pcon () && !get_ttyp ()->pcon_activated
       && get_ttyp ()->pcon_input_state == tty::to_cyg)
-    fhandler_pty_slave::transfer_input (tty::to_nat, from_master,
-					get_ttyp (), input_available_event);
+    {
+      acquire_attach_mutex (mutex_timeout);
+      fhandler_pty_slave::transfer_input (tty::to_nat, from_master,
+					  get_ttyp (), input_available_event);
+      release_attach_mutex ();
+    }
   ReleaseMutex (input_mutex);
 
   line_edit_status status = line_edit (p, len, ti, &ret);
@@ -2478,14 +2504,18 @@ fhandler_pty_slave::setup_locale (void)
   if (!get_ttyp ()->term_code_page)
     {
       get_ttyp ()->term_code_page = __eval_codepage_from_internal_charset ();
+      acquire_attach_mutex (mutex_timeout);
       SetConsoleCP (get_ttyp ()->term_code_page);
       SetConsoleOutputCP (get_ttyp ()->term_code_page);
+      release_attach_mutex ();
     }
 }
 
 void
 fhandler_pty_slave::fixup_after_fork (HANDLE parent)
 {
+  create_invisible_console ();
+
   // fork_fixup (parent, inuse, "inuse");
   // fhandler_pty_common::fixup_after_fork (parent);
   report_tty_counts (this, "inherited", "");
@@ -2495,7 +2525,6 @@ void
 fhandler_pty_slave::fixup_after_exec ()
 {
   reset_switch_to_pcon ();
-  create_invisible_console ();
 
   if (!close_on_exec ())
     fixup_after_fork (NULL);	/* No parent handle required. */
@@ -2707,6 +2736,9 @@ fhandler_pty_master::pty_master_fwd_thread (const master_fwd_thread_param_t *p)
   for (;;)
     {
       p->ttyp->pcon_last_time = GetTickCount ();
+      DWORD n;
+      p->ttyp->pcon_fwd_not_empty =
+	::bytes_available (n, p->from_slave_nat) && n;
       if (!ReadFile (p->from_slave_nat, outbuf, NT_MAX_PATH, &rlen, NULL))
 	{
 	  termios_printf ("ReadFile for forwarding failed, %E");
@@ -2843,26 +2875,29 @@ fhandler_pty_master::pty_master_fwd_thread (const master_fwd_thread_param_t *p)
       DWORD target_pid = 0;
       if (pinfo_target)
 	target_pid = pinfo_target->dwProcessId;
+      acquire_attach_mutex (mutex_timeout);
       pinfo pinfo_resume = pinfo (myself->ppid);
       DWORD resume_pid;
       if (pinfo_resume)
 	resume_pid = pinfo_resume->dwProcessId;
       else
 	resume_pid = get_console_process_id (myself->dwProcessId, false);
-      if (target_pid && resume_pid)
+      bool console_exists = fhandler_console::exists ();
+      if (target_pid && (resume_pid || !console_exists))
 	{
 	  /* Slave attaches to a different console than master.
 	     Therefore reattach here. */
-	  acquire_attach_mutex (mutex_timeout);
 	  FreeConsole ();
 	  AttachConsole (target_pid);
 	  cp_from = GetConsoleOutputCP ();
 	  FreeConsole ();
-	  AttachConsole (resume_pid);
-	  release_attach_mutex ();
+	  if (resume_pid && console_exists)
+	    AttachConsole (resume_pid);
+	  init_console_handler (false);
 	}
       else
 	cp_from = GetConsoleOutputCP ();
+      release_attach_mutex ();
 
       if (p->ttyp->term_code_page != cp_from)
 	{
@@ -2877,7 +2912,8 @@ fhandler_pty_master::pty_master_fwd_thread (const master_fwd_thread_param_t *p)
       WaitForSingleObject (p->output_mutex, mutex_timeout);
       while (rlen>0)
 	{
-	  if (!process_opost_output (p->to_master, ptr, wlen, false,
+	  if (!process_opost_output (p->to_master, ptr, wlen,
+				     true /* disable output_stopped */,
 				     p->ttyp, false))
 	    {
 	      termios_printf ("WriteFile for forwarding failed, %E");
@@ -3263,7 +3299,8 @@ fhandler_pty_slave::setup_pseudoconsole (bool nopcon)
 	  get_ttyp ()->pcon_start_pid = myself->pid;
 	  WriteFile (get_output_handle (), "\033[6n", 4, &n, NULL);
 	  ReleaseMutex (input_mutex);
-	  while (get_ttyp ()->pcon_start)
+	  while (get_ttyp ()->pcon_start_pid)
+	    /* wait for completion of transfer_input() in master::write(). */
 	    Sleep (1);
 	}
       /* Attach to the pseudo console which already exits. */
@@ -3278,8 +3315,11 @@ fhandler_pty_slave::setup_pseudoconsole (bool nopcon)
 		       GetCurrentProcess (), &hpConOut,
 		       0, TRUE, DUPLICATE_SAME_ACCESS);
       CloseHandle (pcon_owner);
+      acquire_attach_mutex (mutex_timeout);
       FreeConsole ();
       AttachConsole (get_ttyp ()->pcon_pid);
+      init_console_handler (false);
+      release_attach_mutex ();
       goto skip_create;
     }
 
@@ -3401,8 +3441,11 @@ fhandler_pty_slave::setup_pseudoconsole (bool nopcon)
       HeapFree (GetProcessHeap (), 0, si.lpAttributeList);
 
       /* Attach to pseudo console */
+      acquire_attach_mutex (mutex_timeout);
       FreeConsole ();
       AttachConsole (pi.dwProcessId);
+      init_console_handler (false);
+      release_attach_mutex ();
 
       /* Terminate helper process */
       SetEvent (goodbye);
@@ -3454,6 +3497,7 @@ skip_create:
       HeapFree (GetProcessHeap (), 0, hp);
     }
 
+  acquire_attach_mutex (mutex_timeout);
   if (get_ttyp ()->previous_code_page)
     SetConsoleCP (get_ttyp ()->previous_code_page);
   if (get_ttyp ()->previous_output_code_page)
@@ -3484,6 +3528,7 @@ skip_create:
 	mode |= DISABLE_NEWLINE_AUTO_RETURN;
       SetConsoleMode (hpConOut, mode);
     }
+  release_attach_mutex ();
 
   return true;
 
@@ -3537,11 +3582,15 @@ fhandler_pty_slave::close_pseudoconsole (tty *ttyp, DWORD force_switch_to)
       /* Search another process which attaches to the pseudo console */
       DWORD current_pid = myself->exec_dwProcessId ?: myself->dwProcessId;
       switch_to = get_console_process_id (current_pid, false, true, true);
+      if (!switch_to)
+	switch_to = get_console_process_id (current_pid, false, true, false);
     }
   if (ttyp->pcon_activated)
     {
+      acquire_attach_mutex (mutex_timeout);
       ttyp->previous_code_page = GetConsoleCP ();
       ttyp->previous_output_code_page = GetConsoleOutputCP ();
+      release_attach_mutex ();
       if (pcon_pid_self (ttyp->pcon_pid))
 	{
 	  if (switch_to)
@@ -3556,15 +3605,15 @@ fhandler_pty_slave::close_pseudoconsole (tty *ttyp, DWORD force_switch_to)
 	      DuplicateHandle (GetCurrentProcess (),
 			       ttyp->h_pcon_write_pipe,
 			       new_owner, &new_write_pipe,
-			       0, TRUE, DUPLICATE_SAME_ACCESS);
+			       0, FALSE, DUPLICATE_SAME_ACCESS);
 	      DuplicateHandle (GetCurrentProcess (),
 			       ttyp->h_pcon_condrv_reference,
 			       new_owner, &new_condrv_reference,
-			       0, TRUE, DUPLICATE_SAME_ACCESS);
+			       0, FALSE, DUPLICATE_SAME_ACCESS);
 	      DuplicateHandle (GetCurrentProcess (),
 			       ttyp->h_pcon_conhost_process,
 			       new_owner, &new_conhost_process,
-			       0, TRUE, DUPLICATE_SAME_ACCESS);
+			       0, FALSE, DUPLICATE_SAME_ACCESS);
 	      DuplicateHandle (GetCurrentProcess (), ttyp->h_pcon_in,
 			       new_owner, &new_pcon_in,
 			       0, TRUE, DUPLICATE_SAME_ACCESS);
@@ -3583,27 +3632,23 @@ fhandler_pty_slave::close_pseudoconsole (tty *ttyp, DWORD force_switch_to)
 	      ttyp->h_pcon_conhost_process = new_conhost_process;
 	      ttyp->h_pcon_in = new_pcon_in;
 	      ttyp->h_pcon_out = new_pcon_out;
+	      acquire_attach_mutex (mutex_timeout);
 	      FreeConsole ();
 	      pinfo p (myself->ppid);
-	      if (p)
-		{
-		  if (!AttachConsole (p->dwProcessId))
-		    AttachConsole (ATTACH_PARENT_PROCESS);
-		}
-	      else
+	      if (!p || !AttachConsole (p->dwProcessId))
 		AttachConsole (ATTACH_PARENT_PROCESS);
+	      init_console_handler (false);
+	      release_attach_mutex ();
 	    }
 	  else
 	    { /* Close pseudo console */
+	      acquire_attach_mutex (mutex_timeout);
 	      FreeConsole ();
 	      pinfo p (myself->ppid);
-	      if (p)
-		{
-		  if (!AttachConsole (p->dwProcessId))
-		    AttachConsole (ATTACH_PARENT_PROCESS);
-		}
-	      else
+	      if (!p || !AttachConsole (p->dwProcessId))
 		AttachConsole (ATTACH_PARENT_PROCESS);
+	      init_console_handler (false);
+	      release_attach_mutex ();
 	      /* Reconstruct pseudo console handler container here for close */
 	      HPCON_INTERNAL *hp =
 		(HPCON_INTERNAL *) HeapAlloc (GetProcessHeap (), 0,
@@ -3623,15 +3668,13 @@ fhandler_pty_slave::close_pseudoconsole (tty *ttyp, DWORD force_switch_to)
 	}
       else
 	{
+	  acquire_attach_mutex (mutex_timeout);
 	  FreeConsole ();
 	  pinfo p (myself->ppid);
-	  if (p)
-	    {
-	      if (!AttachConsole (p->dwProcessId))
-		AttachConsole (ATTACH_PARENT_PROCESS);
-	    }
-	  else
+	  if (!p || !AttachConsole (p->dwProcessId))
 	    AttachConsole (ATTACH_PARENT_PROCESS);
+	  init_console_handler (false);
+	  release_attach_mutex ();
 	}
     }
   else if (pcon_pid_self (ttyp->pcon_pid))
@@ -3796,8 +3839,11 @@ fhandler_pty_slave::create_invisible_console ()
   if (get_ttyp ()->need_invisible_console)
     {
       /* Detach from console device and create new invisible console. */
+      acquire_attach_mutex (mutex_timeout);
       FreeConsole();
       fhandler_console::need_invisible (true);
+      init_console_handler (false);
+      release_attach_mutex ();
       get_ttyp ()->need_invisible_console = false;
       get_ttyp ()->invisible_console_pid = myself->pid;
     }
@@ -3943,14 +3989,20 @@ fhandler_pty_slave::transfer_input (tty::xfer_dir dir, HANDLE from, tty *ttyp,
 	    }
 	  /* Call WriteFile() line by line */
 	  char *p0 = ptr;
-	  char *p1 = ptr;
-	  while ((p1 = (char *) memchr (p0, '\r', len - (p0 - ptr))))
+	  char *p_cr = (char *) memchr (p0, '\r', len - (p0 - ptr));
+	  char *p_nl = (char *) memchr (p0, '\n', len - (p0 - ptr));
+	  while (p_cr || p_nl)
 	    {
+	      char *p1 =
+		p_cr ?  (p_nl ? ((p_cr + 1 == p_nl)
+				 ?  p_nl : min(p_cr, p_nl)) : p_cr) : p_nl;
 	      *p1 = '\n';
 	      n = p1 - p0 + 1;
 	      if (n && WriteFile (to, p0, n, &n, NULL) && n)
 		transfered = true;
 	      p0 = p1 + 1;
+	      p_cr = (char *) memchr (p0, '\r', len - (p0 - ptr));
+	      p_nl = (char *) memchr (p0, '\n', len - (p0 - ptr));
 	    }
 	  n = len - (p0 - ptr);
 	  if (n && WriteFile (to, p0, n, &n, NULL) && n)
@@ -3997,4 +4049,112 @@ fhandler_pty_slave::transfer_input (tty::xfer_dir dir, HANDLE from, tty *ttyp,
     SetEvent (input_available_event);
   ttyp->pcon_input_state = dir;
   ttyp->discard_input = false;
+}
+
+void
+fhandler_pty_slave::cleanup_before_exit ()
+{
+  if (myself->process_state & PID_NOTCYGWIN)
+    get_ttyp ()->wait_pcon_fwd ();
+}
+
+void
+fhandler_pty_slave::get_duplicated_handle_set (handle_set_t *p)
+{
+  DuplicateHandle (GetCurrentProcess (), get_handle_nat (),
+		   GetCurrentProcess (), &p->from_master_nat,
+		   0, 0, DUPLICATE_SAME_ACCESS);
+  DuplicateHandle (GetCurrentProcess (), input_available_event,
+		   GetCurrentProcess (), &p->input_available_event,
+		   0, 0, DUPLICATE_SAME_ACCESS);
+  DuplicateHandle (GetCurrentProcess (), input_mutex,
+		   GetCurrentProcess (), &p->input_mutex,
+		   0, 0, DUPLICATE_SAME_ACCESS);
+  DuplicateHandle (GetCurrentProcess (), pcon_mutex,
+		   GetCurrentProcess (), &p->pcon_mutex,
+		   0, 0, DUPLICATE_SAME_ACCESS);
+}
+
+void
+fhandler_pty_slave::close_handle_set (handle_set_t *p)
+{
+  CloseHandle (p->from_master_nat);
+  p->from_master_nat = NULL;
+  CloseHandle (p->input_available_event);
+  p->input_available_event = NULL;
+  CloseHandle (p->input_mutex);
+  p->input_mutex = NULL;
+  CloseHandle (p->pcon_mutex);
+  p->pcon_mutex = NULL;
+}
+
+void
+fhandler_pty_slave::setup_for_non_cygwin_app (bool nopcon, PWCHAR envblock,
+					      bool stdin_is_ptys)
+{
+  if (disable_pcon || !term_has_pcon_cap (envblock))
+    nopcon = true;
+  WaitForSingleObject (pcon_mutex, INFINITE);
+  bool enable_pcon = setup_pseudoconsole (nopcon);
+  ReleaseMutex (pcon_mutex);
+  /* For pcon enabled case, transfer_input() is called in master::write() */
+  if (!enable_pcon && get_ttyp ()->getpgid () == myself->pgid
+      && stdin_is_ptys && get_ttyp ()->pcon_input_state_eq (tty::to_cyg))
+    {
+      WaitForSingleObject (input_mutex, mutex_timeout);
+      acquire_attach_mutex (mutex_timeout);
+      transfer_input (tty::to_nat, get_handle (), get_ttyp (),
+		      input_available_event);
+      release_attach_mutex ();
+      ReleaseMutex (input_mutex);
+    }
+}
+
+void
+fhandler_pty_slave::cleanup_for_non_cygwin_app (handle_set_t *p, tty *ttyp,
+						bool stdin_is_ptys)
+{
+  ttyp->wait_pcon_fwd ();
+  if (ttyp->getpgid () == myself->pgid && stdin_is_ptys
+      && ttyp->pcon_input_state_eq (tty::to_nat))
+    {
+      WaitForSingleObject (p->input_mutex, mutex_timeout);
+      acquire_attach_mutex (mutex_timeout);
+      transfer_input (tty::to_cyg, p->from_master_nat, ttyp,
+		      p->input_available_event);
+      release_attach_mutex ();
+      ReleaseMutex (p->input_mutex);
+    }
+  WaitForSingleObject (p->pcon_mutex, INFINITE);
+  acquire_attach_mutex (mutex_timeout);
+  close_pseudoconsole (ttyp);
+  release_attach_mutex ();
+  ReleaseMutex (p->pcon_mutex);
+}
+
+bool
+fhandler_pty_master::need_send_ctrl_c_event ()
+{
+  /* If pseudo console is activated, sending CTRL_C_EVENT to non-cygwin
+     apps will be done in pseudo console, therefore, sending it in
+     fhandler_pty_master::write() duplicates that event for non-cygwin
+     apps. So return false if pseudo console is activated. */
+  return !(to_be_read_from_pcon () && get_ttyp ()->pcon_activated
+    && get_ttyp ()->pcon_input_state == tty::to_nat);
+}
+
+void
+fhandler_pty_slave::close_pseudoconsole_if_necessary (tty *ttyp,
+						      fhandler_termios *fh)
+{
+  if (fh->get_major () == DEV_PTYM_MAJOR && ttyp->pcon_activated
+      && pcon_pid_self (ttyp->pcon_pid))
+    {
+      fhandler_pty_master *ptym = (fhandler_pty_master *) fh;
+      WaitForSingleObject (ptym->pcon_mutex, INFINITE);
+      /* Do not acquire/release_attach_mutex() here because
+	 it has done in fhandler_termios::process_sigs(). */
+      close_pseudoconsole (ttyp);
+      ReleaseMutex (ptym->pcon_mutex);
+    }
 }

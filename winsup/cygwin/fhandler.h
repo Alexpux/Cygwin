@@ -356,6 +356,7 @@ class fhandler_base
   virtual int open (int, mode_t);
   virtual fhandler_base *fd_reopen (int, mode_t);
   virtual bool open_setup (int flags);
+  virtual void post_open_setup (int fd) {}
   void set_unique_id (int64_t u) { unique_id = u; }
   void set_unique_id () { NtAllocateLocallyUniqueId ((PLUID) &unique_id); }
 
@@ -1193,6 +1194,7 @@ private:
   HANDLE hdl_cnt_mtx;
   HANDLE query_hdl_proc;
   HANDLE query_hdl_value;
+  HANDLE query_hdl_close_req_evt;
   uint64_t pipename_key;
   DWORD pipename_pid;
   LONG pipename_id;
@@ -1254,9 +1256,28 @@ public:
 	CloseHandle (query_hdl);
 	query_hdl = NULL;
       }
+    if (query_hdl_close_req_evt)
+      {
+	CloseHandle (query_hdl_close_req_evt);
+	query_hdl_close_req_evt = NULL;
+      }
   }
   bool reader_closed ();
   HANDLE temporary_query_hdl ();
+  bool need_close_query_hdl ()
+    {
+      return query_hdl_close_req_evt ?
+	IsEventSignalled (query_hdl_close_req_evt) : false;
+    }
+  bool request_close_query_hdl ()
+    {
+      if (query_hdl_close_req_evt)
+	{
+	  SetEvent (query_hdl_close_req_evt);
+	  return true;
+	}
+      return false;
+    }
 };
 
 #define CYGWIN_FIFO_PIPE_NAME_LEN     47
@@ -1881,6 +1902,7 @@ class fhandler_serial: public fhandler_base
 #define release_output_mutex() \
   __release_output_mutex (__PRETTY_FUNCTION__, __LINE__)
 
+extern DWORD mutex_timeout;
 DWORD acquire_attach_mutex (DWORD t);
 void release_attach_mutex (void);
 
@@ -1901,7 +1923,19 @@ class fhandler_termios: public fhandler_base
   virtual void release_input_mutex_if_necessary (void) {};
   virtual void discard_input () {};
 
+  /* Result status of processing keys in process_sigs(). */
+  enum process_sig_state {
+    signalled, /* Signalled normally */
+    not_signalled, /* Not signalled at all */
+    not_signalled_but_done, /* Not signalled, but CTRL_C_EVENT was sent. */
+    not_signalled_with_nat_reader, /* Not signalled, but detected non-cygwin
+				      process may be reading the tty. */
+    done_with_debugger /* The key was processed (CTRL_C_EVENT was sent)
+			  for inferior of GDB. */
+  };
+
  public:
+  virtual pid_t tc_getpgid () { return 0; };
   tty_min*& tc () {return _tc;}
   fhandler_termios () :
   fhandler_base ()
@@ -1910,6 +1944,9 @@ class fhandler_termios: public fhandler_base
   }
   HANDLE& get_output_handle () { return output_handle; }
   HANDLE& get_output_handle_nat () { return output_handle; }
+  static process_sig_state process_sigs (char c, tty *ttyp,
+					 fhandler_termios *fh);
+  static bool process_stop_start (char c, tty *ttyp);
   line_edit_status line_edit (const char *rptr, size_t nread, termios&,
 			      ssize_t *bytes_read = NULL);
   void set_output_handle (HANDLE h) { output_handle = h; }
@@ -1941,6 +1978,11 @@ class fhandler_termios: public fhandler_base
     fh->copy_from (this);
     return fh;
   }
+  static bool path_iscygexec_a (LPCSTR n, LPSTR c);
+  static bool path_iscygexec_w (LPCWSTR n, LPWSTR c);
+  virtual void cleanup_before_exit () {}
+  virtual bool need_console_handler () { return false; }
+  virtual bool need_send_ctrl_c_event () { return true; }
 };
 
 enum ansi_intensity
@@ -2046,6 +2088,8 @@ class dev_console
   char *cons_rapoi;
   bool cursor_key_app_mode;
   bool disable_master_thread;
+  int num_processed; /* Number of input events in the current input buffer
+			already processed by cons_master_thread(). */
 
   inline UINT get_console_cp ();
   DWORD con_to_str (char *d, int dlen, WCHAR w);
@@ -2125,12 +2169,20 @@ private:
   static bool create_invisible_console (HWINSTA);
   static bool create_invisible_console_workaround (bool force);
   static console_state *open_shared_console (HWND, HANDLE&, bool&);
-  void fix_tab_position (void);
+  static void fix_tab_position (HANDLE h);
+
+/* console mode calls */
+  const handle_set_t *get_handle_set (void) {return &handle_set;}
+  static void set_input_mode (tty::cons_mode m, const termios *t,
+			      const handle_set_t *p);
+  static void set_output_mode (tty::cons_mode m, const termios *t,
+			       const handle_set_t *p);
 
  public:
-  static pid_t tc_getpgid ()
+  pid_t tc_getpgid ()
   {
-    return shared_console_info ? shared_console_info->tty_min_state.getpgid () : myself->pgid;
+    return shared_console_info ?
+      shared_console_info->tty_min_state.getpgid () : 0;
   }
   fhandler_console (fh_devices);
   static console_state *open_shared_console (HWND hw, HANDLE& h)
@@ -2145,13 +2197,20 @@ private:
 
   int open (int flags, mode_t mode);
   bool open_setup (int flags);
+  void post_open_setup (int fd);
   int dup (fhandler_base *, int);
 
   void __reg3 read (void *ptr, size_t& len);
   ssize_t __stdcall write (const void *ptr, size_t len);
   void doecho (const void *str, DWORD len);
   int close ();
-  static bool exists () {return !!GetConsoleCP ();}
+  static bool exists ()
+    {
+      acquire_attach_mutex (mutex_timeout);
+      UINT cp = GetConsoleCP ();
+      release_attach_mutex ();
+      return !!cp;
+    }
 
   int tcflush (int);
   int tcsetattr (int a, const struct termios *t);
@@ -2201,6 +2260,7 @@ private:
     return fh;
   }
   input_states process_input_message ();
+  bg_check_types bg_check (int sig, bool dontsignal = false);
   void setup_io_mutex (void);
   DWORD __acquire_input_mutex (const char *fn, int ln, DWORD ms);
   void __release_input_mutex (const char *fn, int ln);
@@ -2223,17 +2283,14 @@ private:
   size_t &raixput ();
   size_t &rabuflen ();
 
-  const handle_set_t *get_handle_set (void) {return &handle_set;}
   void get_duplicated_handle_set (handle_set_t *p);
   static void close_handle_set (handle_set_t *p);
 
-  static void set_input_mode (tty::cons_mode m, const termios *t,
-			      const handle_set_t *p);
-  static void set_output_mode (tty::cons_mode m, const termios *t,
-			       const handle_set_t *p);
-
   static void cons_master_thread (handle_set_t *p, tty *ttyp);
-  pid_t get_owner (void) { return shared_console_info->con.owner; }
+  void setup_for_non_cygwin_app ();
+  static void cleanup_for_non_cygwin_app (handle_set_t *p);
+  static void set_console_mode_to_native ();
+  bool need_console_handler ();
 
   friend tty_min * tty_list::get_cttyp ();
 };
@@ -2306,6 +2363,16 @@ class fhandler_pty_slave: public fhandler_pty_common
   void fch_close_handles ();
 
  public:
+  pid_t tc_getpgid () { return _tc ? _tc->pgid : 0; }
+
+  struct handle_set_t
+  {
+    HANDLE from_master_nat;
+    HANDLE input_available_event;
+    HANDLE input_mutex;
+    HANDLE pcon_mutex;
+  };
+
   /* Constructor */
   fhandler_pty_slave (int);
 
@@ -2362,12 +2429,20 @@ class fhandler_pty_slave: public fhandler_pty_common
   void reset_switch_to_pcon (void);
   void mask_switch_to_pcon_in (bool mask, bool xfer);
   void setup_locale (void);
-  tty *get_ttyp () { return (tty *) tc (); } /* Override as public */
   void create_invisible_console (void);
   static void transfer_input (tty::xfer_dir dir, HANDLE from, tty *ttyp,
 			      HANDLE input_available_event);
   HANDLE get_input_available_event (void) { return input_available_event; }
   bool pcon_activated (void) { return get_ttyp ()->pcon_activated; }
+  void cleanup_before_exit ();
+  void get_duplicated_handle_set (handle_set_t *p);
+  static void close_handle_set (handle_set_t *p);
+  void setup_for_non_cygwin_app (bool nopcon, PWCHAR envblock,
+				 bool stdin_is_ptys);
+  static void cleanup_for_non_cygwin_app (handle_set_t *p, tty *ttyp,
+					  bool stdin_is_ptys);
+  static void close_pseudoconsole_if_necessary (tty *ttyp,
+						fhandler_termios *fh);
 };
 
 #define __ptsname(buf, unit) __small_sprintf ((buf), "/dev/pty%d", (unit))
@@ -2455,6 +2530,7 @@ public:
   void get_master_thread_param (master_thread_param_t *p);
   void get_master_fwd_thread_param (master_fwd_thread_param_t *p);
   void set_mask_flusho (bool m) { get_ttyp ()->mask_flusho = m; }
+  bool need_send_ctrl_c_event ();
 };
 
 class fhandler_dev_null: public fhandler_base
