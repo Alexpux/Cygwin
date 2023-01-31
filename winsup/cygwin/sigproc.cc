@@ -817,7 +817,7 @@ int child_info::retry_count = 0;
    by fork/spawn/exec. */
 child_info::child_info (unsigned in_cb, child_info_types chtype,
 			bool need_subproc_ready):
-  cb (in_cb), intro (PROC_MAGIC_GENERIC), magic (CHILD_INFO_MAGIC),
+  cb (in_cb), intro (PROC_MAGIC_GENERIC), magic (CHILD_INFO_MAGIC ^ CYGWIN_VERSION_DLL_COMBINED),
   type (chtype), cygheap (::cygheap), cygheap_max (::cygheap_max),
   flag (0), retry (child_info::retry_count), rd_proc_pipe (NULL),
   wr_proc_pipe (NULL), sigmask (_my_tls.sigmask)
