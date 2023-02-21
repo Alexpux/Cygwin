@@ -17,7 +17,9 @@ if TARGET_X86_64
 COMMON_CFLAGS+=-mcmodel=small
 endif
 
-VERSION_CFLAGS = -DMSYS2_RUNTIME_COMMIT_HEX="@MSYS2_RUNTIME_COMMIT_HEX@"
+VERSION_CFLAGS = -DMSYS2_RUNTIME_COMMIT="\"@MSYS2_RUNTIME_COMMIT@\""
+VERSION_CFLAGS += -DMSYS2_RUNTIME_COMMIT_SHORT="\"@MSYS2_RUNTIME_COMMIT_SHORT@\""
+VERSION_CFLAGS += -DMSYS2_RUNTIME_COMMIT_HEX="@MSYS2_RUNTIME_COMMIT_HEX@"
 COMMON_CFLAGS += $(VERSION_CFLAGS)
 
 AM_CFLAGS=$(cflags_common) $(COMMON_CFLAGS)
@@ -408,7 +410,7 @@ src_files := $(foreach dir,$(dirs),$(find_src_files))
 version.cc: mkvers.sh include/cygwin/version.h winver.rc $(src_files)
 	@echo "Making version.cc and winver.o";\
 	export CC="$(CC)";\
-	/bin/sh $(word 1,$^) $(word 2,$^) $(word 3,$^) $(WINDRES) $(CFLAGS)
+	/bin/sh $(word 1,$^) $(word 2,$^) $(word 3,$^) $(WINDRES) $(CFLAGS) $(VERSION_CFLAGS)
 
 winver.o: version.cc
 
