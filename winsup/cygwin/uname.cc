@@ -84,10 +84,11 @@ uname_x (struct utsname *name)
 	snprintf (name->release, _UTSNAME_LENGTH, "%s.%s",
 		  uname_dev_version, name->machine);
       else
-	__small_sprintf (name->release, "%d.%d.%d-api-%d.%s",
+	__small_sprintf (name->release, "%d.%d.%d-%s-api-%d.%s",
 			 cygwin_version.dll_major / 1000,
 			 cygwin_version.dll_major % 1000,
 			 cygwin_version.dll_minor,
+			 MSYS2_RUNTIME_COMMIT_SHORT,
 			 cygwin_version.api_minor,
 			 name->machine);
 #endif
@@ -129,14 +130,15 @@ uname (struct utsname *in_name)
       cygwin_gethostname (name->nodename, sizeof (name->nodename) - 1);
 
       /* Cygwin dll release */
-      __small_sprintf (name->release, "%d.%d.%d(%d.%d/%d/%d)",
+      __small_sprintf (name->release, "%d.%d.%d(%d.%d/%d/%d/%s)",
 		       cygwin_version.dll_major / 1000,
 		       cygwin_version.dll_major % 1000,
 		       cygwin_version.dll_minor,
 		       cygwin_version.api_major,
 		       cygwin_version.api_minor,
 		       cygwin_version.shared_data,
-		       cygwin_version.mount_registry);
+		       cygwin_version.mount_registry,
+		       MSYS2_RUNTIME_COMMIT_SHORT);
 
       /* Cygwin "version" aka build date */
       strcpy (name->version, cygwin_version.dll_build_date);
