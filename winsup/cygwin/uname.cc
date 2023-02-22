@@ -64,10 +64,11 @@ uname_x (struct utsname *name)
       cygwin_gethostname (buf, sizeof buf - 1);
       strncat (name->nodename, buf, sizeof (name->nodename) - 1);
       /* release */
-      __small_sprintf (name->release, "%d.%d.%d-%d.",
+      __small_sprintf (name->release, "%d.%d.%d-%s-%d.",
 		       cygwin_version.dll_major / 1000,
 		       cygwin_version.dll_major % 1000,
 		       cygwin_version.dll_minor,
+		       MSYS2_RUNTIME_COMMIT_SHORT,
 		       cygwin_version.api_minor);
       /* version */
       stpcpy (name->version, cygwin_version.dll_build_date);
