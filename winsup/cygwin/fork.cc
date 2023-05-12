@@ -44,8 +44,8 @@ class frok
   int child_pid;
   int this_errno;
   HANDLE hchild;
-  int __stdcall parent (volatile char * volatile here);
-  int __stdcall child (volatile char * volatile here);
+  int parent (volatile char * volatile here);
+  int child (volatile char * volatile here);
   bool error (const char *fmt, ...);
   friend int dofork (void **proc, bool *with_forkables);
 };
@@ -59,7 +59,7 @@ resume_child (HANDLE forker_finished)
 }
 
 /* Notify parent that it is time for the next step. */
-static void __stdcall
+static void
 sync_with_parent (const char *s, bool hang_self)
 {
   debug_printf ("signalling parent: %s", s);
@@ -131,7 +131,7 @@ child_info::prefork (bool detached)
     }
 }
 
-int __stdcall
+int
 frok::child (volatile char * volatile here)
 {
   HANDLE& hParent = ch.parent;
@@ -202,7 +202,7 @@ frok::child (volatile char * volatile here)
   return 0;
 }
 
-int __stdcall
+int
 frok::parent (volatile char * volatile stack_here)
 {
   HANDLE forker_finished;
@@ -296,7 +296,10 @@ frok::parent (volatile char * volatile stack_here)
   si.lpReserved2 = (LPBYTE) &ch;
   si.cbReserved2 = sizeof (ch);
 
-  bool locked = __malloc_lock ();
+  /* NEVER, EVER, call a function which in turn calls malloc&friends while this
+     malloc lock is active! */
+  __malloc_lock ();
+  bool locked = true;
 
   /* Remove impersonation */
   cygheap->user.deimpersonate ();
@@ -308,8 +311,7 @@ frok::parent (volatile char * volatile stack_here)
 
   ch.silentfail (!*with_forkables); /* fail silently without forkables */
 
-  tmp_pathbuf tp;
-  PSECURITY_ATTRIBUTES sa = (PSECURITY_ATTRIBUTES) tp.w_get ();
+  PSECURITY_ATTRIBUTES sa = (PSECURITY_ATTRIBUTES) alloca (1024);
   if (!sec_user_nih (sa, cygheap->user.saved_sid (),
 		     well_known_authenticated_users_sid,
 		     PROCESS_QUERY_LIMITED_INFORMATION))
@@ -629,7 +631,7 @@ dofork (void **proc, bool *with_forkables)
 #ifdef __x86_64__
     __asm__ volatile ("movq %%rsp,%0": "=r" (stackp));
 #else
-    __asm__ volatile ("movl %%esp,%0": "=r" (stackp));
+#error unimplemented for this target
 #endif
 
     if (!ischild)

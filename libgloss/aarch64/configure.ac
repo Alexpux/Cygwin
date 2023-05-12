@@ -1,32 +1,20 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.59)
 AC_INIT(crt0.S)
 
-if test "$srcdir" = "." ; then
-  if test "${with_target_subdir}" != "." ; then
-    libgloss_topdir="${srcdir}/${with_multisrctop}../../.."
-  else
-    libgloss_topdir="${srcdir}/${with_multisrctop}../.."
-  fi
-else
-  libgloss_topdir="${srcdir}/../.."
-fi
-AC_CONFIG_AUX_DIR($libgloss_topdir)
+AC_CONFIG_AUX_DIR(../..)
 
 AC_CANONICAL_SYSTEM
 AC_ARG_PROGRAM
 
 AC_PROG_INSTALL
 
-LIB_AC_PROG_CC
-AS=${AS-as}
-AC_SUBST(AS)
-AR=${AR-ar}
-AC_SUBST(AR)
+AC_NO_EXECUTABLES
+AC_PROG_CC
+AM_PROG_AS
+AM_PROG_AR
 LD=${LD-ld}
 AC_SUBST(LD)
 AC_PROG_RANLIB
-LIB_AM_PROG_AS
 
 case "${target}" in
   *-*-elf)
@@ -36,7 +24,7 @@ esac
 
 AC_SUBST(objtype)
 
-host_makefile_frag=${srcdir}/../config/default.mh
+host_makefile_frag=`cd $srcdir/../config;pwd`/default.mh
 
 dnl We have to assign the same value to other variables because autoconf
 dnl doesn't provide a mechanism to substitute a replacement keyword with
@@ -49,17 +37,13 @@ AC_SUBST_FILE(host_makefile_frag)
 # Configure cpu init plug-ins
 if test -d "${srcdir}/cpu-init"; then
   subdirs="${subdirs} cpu-init"
-  AC_CONFIG_SUBDIRS(cpu-init)
+  AC_CONFIG_FILES([cpu-init/Makefile], [dnl
+    ac_file=cpu-init/Makefile . ${srcdir}/../../config-ml.in
+  ])
   AC_SUBST(subdirs)
 fi
 
-AC_CONFIG_FILES(Makefile,
-. ${libgloss_topdir}/config-ml.in,
-srcdir=${srcdir}
-target=${target}
-with_multisubdir=${with_multisubdir}
-ac_configure_args="${ac_configure_args} --enable-multilib"
-CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
-libgloss_topdir=${libgloss_topdir}
-)
+AM_ENABLE_MULTILIB(, ../..)
+
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

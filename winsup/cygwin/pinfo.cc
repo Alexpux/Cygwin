@@ -82,7 +82,7 @@ pinfo::thisproc (HANDLE h)
 
 /* Initialize the process table entry for the current task.
    This is not called for forked tasks, only execed ones.  */
-void __stdcall
+void
 pinfo_init (char **envp, int envc)
 {
   if (envp)
@@ -387,8 +387,10 @@ pinfo::init (pid_t n, DWORD flag, HANDLE h0)
 
   for (int i = 0; i < 20; i++)
     {
+      bool created;
+
       procinfo = (_pinfo *) open_shared (L"cygpid", n, h0, sizeof (_pinfo),
-					 &shloc, sec_attribs, access);
+					 shloc, created, sec_attribs, access);
       if (!h0)
 	{
 	  if (createit)
@@ -408,8 +410,6 @@ pinfo::init (pid_t n, DWORD flag, HANDLE h0)
 	  yield ();
 	  continue;
 	}
-
-      bool created = shloc != SH_JUSTOPEN;
 
       /* Just fetching info for ps or /proc, don't do anything rash. */
       if (!created && !(flag & PID_NEW) && !procinfo->ppid
@@ -581,7 +581,7 @@ _pinfo::set_ctty (fhandler_termios *fh, int flags)
 
 /* Test to determine if a process really exists and is processing signals.
  */
-bool __reg1
+bool
 _pinfo::exists ()
 {
   return process_state && !(process_state & (PID_EXITED | PID_REAPED));
@@ -597,7 +597,7 @@ _pinfo::alive ()
   return !!h;
 }
 
-DWORD WINAPI
+DWORD
 commune_process (void *arg)
 {
   siginfo_t& si = *((siginfo_t *) arg);
@@ -668,6 +668,20 @@ commune_process (void *arg)
 	  sigproc_printf ("WritePipeOverlapped sizeof root failed, %E");
 	else if (!WritePipeOverlapped (tothem, path, n, &nr, 1000L))
 	  sigproc_printf ("WritePipeOverlapped root failed, %E");
+	break;
+      }
+    case PICOM_SIGINFO:
+      {
+	sigproc_printf ("processing PICOM_SIGINFO");
+	commune_result cr;
+	sigpending (&cr.pnd);
+	cr.pnd = sig_send (myself, __SIGPENDINGALL, NULL);
+	cr.blk = cygheap->compute_sigblkmask ();
+	for (int sig = 1; sig < NSIG; ++sig)
+	  if (global_sigs[sig].sa_handler == SIG_IGN)
+	    cr.ign |= SIGTOMASK (sig);
+	if (!WritePipeOverlapped (tothem, &cr, sizeof cr, &nr, 1000L))
+	  sigproc_printf ("WritePipeOverlapped siginfo failed, %E");
 	break;
       }
     case PICOM_FDS:
@@ -755,7 +769,7 @@ commune_process (void *arg)
       {
 	sigproc_printf ("processing PICOM_ENVIRON");
 	unsigned n = 0;
-	char **env = cur_environ ();
+	char **env = environ;
 	if (env)
 	  for (char **e = env; *e; e++)
 	    n += strlen (*e) + 1;
@@ -790,15 +804,12 @@ commune_result
 _pinfo::commune_request (__uint32_t code, ...)
 {
   DWORD nr;
-  commune_result res;
+  commune_result res = { 0 };
   va_list args;
   siginfo_t si = {0};
   HANDLE& hp = si._si_commune._si_process_handle;
   HANDLE& fromthem = si._si_commune._si_read_handle;
   HANDLE request_sync = NULL;
-
-  res.s = NULL;
-  res.n = 0;
 
   if (!pid)
     {
@@ -877,6 +888,14 @@ _pinfo::commune_request (__uint32_t code, ...)
 	      goto err;
 	    }
 	  res.n = p - res.s;
+	}
+      break;
+    case PICOM_SIGINFO:
+      if (!ReadPipeOverlapped (fromthem, &res, sizeof res, &nr, 1000L)
+	  || nr != sizeof res)
+	{
+	  __seterrno ();
+	  goto err;
 	}
       break;
     }
@@ -996,6 +1015,30 @@ _pinfo::root (size_t& n)
       n = strlen (s) + 1;
     }
   return s;
+}
+
+int
+_pinfo::siginfo (sigset_t &pnd, sigset_t &blk, sigset_t &ign)
+{
+  if (!pid)
+    return -1;
+  if (pid != myself->pid && !ISSTATE (this, PID_NOTCYGWIN))
+    {
+      commune_result cr = commune_request (PICOM_SIGINFO);
+      pnd = cr.pnd;
+      blk = cr.blk;
+      ign = cr.ign;
+    }
+  else
+    {
+      pnd = sig_send (myself, __SIGPENDINGALL, NULL);
+      blk = cygheap->compute_sigblkmask ();
+      ign = 0;
+      for (int sig = 1; sig < NSIG; ++sig)
+	if (global_sigs[sig].sa_handler == SIG_IGN)
+	  ign |= SIGTOMASK (sig);
+    }
+  return -1;
 }
 
 static HANDLE
@@ -1167,7 +1210,7 @@ _pinfo::environ (size_t& n)
       return cr.s;
     }
   else
-    env = cur_environ ();
+    env = ::environ;
 
   if (env == NULL)
     return NULL;
@@ -1191,7 +1234,7 @@ _pinfo::environ (size_t& n)
    is received on the pipe, it is assumed that the cygwin pid has exited.
    Otherwise, various "signals" can be sent to the parent to inform the
    parent to perform a certain action. */
-static DWORD WINAPI
+static DWORD
 proc_waiter (void *arg)
 {
   pinfo vchild = *(pinfo *) arg;

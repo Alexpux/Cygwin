@@ -14,9 +14,9 @@ extern "C" {
 struct per_process;
 typedef int (*MainFunc) (int argc, char *argv[], char **env);
 #ifdef __MSYS__
-int __stdcall _msys_crt0_common (MainFunc, struct per_process *);
+int _msys_crt0_common (MainFunc, struct per_process *);
 #else
-int __stdcall _cygwin_crt0_common (MainFunc, struct per_process *);
+int _cygwin_crt0_common (MainFunc, struct per_process *);
 #endif
 PVOID dll_dllcrt0 (HMODULE, struct per_process *);
 

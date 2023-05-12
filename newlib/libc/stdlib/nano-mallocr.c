@@ -36,6 +36,7 @@
 #include <string.h>
 #include <errno.h>
 #include <malloc.h>
+#include <stdint.h>
 
 #if DEBUG
 #include <assert.h>
@@ -50,7 +51,7 @@
 
 #define _SBRK_R(X) _sbrk_r(X)
 
-#ifdef INTERNAL_NEWLIB
+#ifdef _LIBC
 
 #include <sys/config.h>
 #include <reent.h>
@@ -78,7 +79,7 @@
 #define nano_mallinfo		_mallinfo_r
 #define nano_mallopt		_mallopt_r
 
-#else /* ! INTERNAL_NEWLIB */
+#else /* ! _LIBC */
 
 #define RARG
 #define RONEARG
@@ -100,7 +101,7 @@
 #define nano_malloc_stats	malloc_stats
 #define nano_mallinfo		mallinfo
 #define nano_mallopt		mallopt
-#endif /* ! INTERNAL_NEWLIB */
+#endif /* ! _LIBC */
 
 /* Redefine names to avoid conflict with user names */
 #define free_list __malloc_free_list
@@ -322,19 +323,24 @@ void * nano_malloc(RARG malloc_size_t s)
                 r=r->next;
             }
 
-            if ((char *)p + p->size == (char *)_SBRK_R(RCALL 0))
+            if (p != NULL && (char *)p + p->size == (char *)_SBRK_R(RCALL 0))
             {
                /* The last free item has the heap end as neighbour.
                 * Let's ask for a smaller amount and merge */
                alloc_size -= p->size;
-               alloc_size = ALIGN_SIZE(alloc_size, CHUNK_ALIGN); /* size of aligned data load */
-               alloc_size += MALLOC_PADDING; /* padding */
-               alloc_size += CHUNK_OFFSET; /* size of chunk head */
-               alloc_size = MAX(alloc_size, MALLOC_MINCHUNK);
 
                if (sbrk_aligned(RCALL alloc_size) != (void *)-1)
                {
                    p->size += alloc_size;
+
+                   /* Remove chunk from free_list */
+                   r = free_list;
+                   while (r && p != r->next)
+                   {
+                     r = r->next;
+                   }
+                   r->next = NULL;
+
                    r = p;
                }
                else

@@ -39,11 +39,11 @@ SYNOPSIS
 	int posix_spawn(pid_t *<[pid]>, const char *<[path]>,
 			const posix_spawn_file_actions_t *<[file_actions]>,
 			const posix_spawnattr_t *<[attrp]>,
-			char *const <[argv]>, char *const <[envp]>);
+			char *const <[argv]>[], char *const <[envp]>[]);
 	int posix_spawnp(pid_t *<[pid]>, const char *<[file]>,
 			const posix_spawn_file_actions_t *<[file_actions]>,
 			const posix_spawnattr_t *<[attrp]>,
-			char *const <[argv]>, char *const <[envp]>);
+			char *const <[argv]>[], char *const <[envp]>[]);
 
 DESCRIPTION
 Use <<posix_spawn>> and <<posix_spawnp>> to create a new child process
@@ -145,17 +145,6 @@ typedef struct __posix_spawn_file_actions_entry {
 /*
  * Spawn routines
  */
-
-#if defined (__CYGWIN__) && defined (__i386__)
-extern int getgid32 (void);
-extern int getuid32 (void);
-extern int setegid32 (gid_t egid);
-extern int seteuid32 (uid_t euid);
-#define setegid setegid32
-#define seteuid seteuid32
-#define getgid getgid32
-#define getuid getuid32
-#endif
 
 static int
 process_spawnattr(const posix_spawnattr_t sa)

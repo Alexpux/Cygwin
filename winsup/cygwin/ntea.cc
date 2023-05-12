@@ -38,7 +38,7 @@ details. */
 #define NEXT_FEA(p) ((PFILE_FULL_EA_INFORMATION) (p->NextEntryOffset \
 		     ? (char *) p + p->NextEntryOffset : NULL))
 
-ssize_t __reg3
+ssize_t
 read_ea (HANDLE hdl, path_conv &pc, const char *name, char *value, size_t size)
 {
   OBJECT_ATTRIBUTES attr;
@@ -229,7 +229,7 @@ read_ea (HANDLE hdl, path_conv &pc, const char *name, char *value, size_t size)
   return ret;
 }
 
-int __reg3
+int
 write_ea (HANDLE hdl, path_conv &pc, const char *name, const char *value,
 	  size_t size, int flags)
 {
@@ -364,7 +364,7 @@ write_ea (HANDLE hdl, path_conv &pc, const char *name, const char *value,
   return ret;
 }
 
-static ssize_t __stdcall
+static ssize_t
 getxattr_worker (path_conv &pc, const char *name, void *value, size_t size)
 {
   int res = -1;
@@ -468,7 +468,7 @@ flistxattr (int fd, char *list, size_t size)
   return res;
 }
 
-static int __stdcall
+static int
 setxattr_worker (path_conv &pc, const char *name, const void *value,
 		 size_t size, int flags)
 {

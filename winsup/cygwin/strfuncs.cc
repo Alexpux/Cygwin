@@ -144,7 +144,7 @@ __db_wctomb (struct _reent *r, char *s, wchar_t wchar, UINT cp)
   if (ret > 0 && !def_used)
     return ret;
 
-  r->_errno = EILSEQ;
+  _REENT_ERRNO(r) = EILSEQ;
   return -1;
 }
 
@@ -194,7 +194,7 @@ __eucjp_wctomb (struct _reent *r, char *s, wchar_t wchar, mbstate_t *state)
       return ret;
     }
 
-  r->_errno = EILSEQ;
+  _REENT_ERRNO(r) = EILSEQ;
   return -1;
 }
 
@@ -255,7 +255,7 @@ __db_mbtowc (struct _reent *r, wchar_t *pwc, const char *s, size_t n, UINT cp,
 	 here is to check if the first byte returns a valid value... */
       else if (MultiByteToWideChar (cp, MB_ERR_INVALID_CHARS, s, 1, pwc, 1))
 	return 1;
-      r->_errno = EILSEQ;
+      _REENT_ERRNO(r) = EILSEQ;
       return -1;
     }
   state->__value.__wchb[state->__count] = *s;
@@ -263,7 +263,7 @@ __db_mbtowc (struct _reent *r, wchar_t *pwc, const char *s, size_t n, UINT cp,
 			     (const char *) state->__value.__wchb, 2, pwc, 1);
   if (!ret)
     {
-      r->_errno = EILSEQ;
+      _REENT_ERRNO(r) = EILSEQ;
       return -1;
     }
   state->__count = 0;
@@ -324,7 +324,7 @@ __eucjp_mbtowc (struct _reent *r, wchar_t *pwc, const char *s, size_t n,
 	}
       else if (MultiByteToWideChar (20932, MB_ERR_INVALID_CHARS, s, 1, pwc, 1))
 	return 1;
-      r->_errno = EILSEQ;
+      _REENT_ERRNO(r) = EILSEQ;
       return -1;
     }
   state->__value.__wchb[state->__count++] = *s;
@@ -347,7 +347,7 @@ jis_x_0212:
   if (!MultiByteToWideChar (20932, MB_ERR_INVALID_CHARS,
 			    (const char *) state->__value.__wchb, 2, pwc, 1))
     {
-      r->_errno = EILSEQ;
+      _REENT_ERRNO(r) = EILSEQ;
       return -1;
     }
   state->__count = 0;
@@ -675,7 +675,7 @@ sys_mbstowcs_alloc (wchar_t **dst_p, int type, const char *src, size_t nms)
 /* Copy string, until c or <nul> is encountered.
    NUL-terminate the destination string (s1).
    Return pointer to terminating byte in dst string.  */
-char * __stdcall
+char *
 strccpy (char *__restrict s1, const char **__restrict s2, char c)
 {
   while (**s2 && **s2 != c)
@@ -742,7 +742,7 @@ const char isalpha_array[] = {
    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
-extern "C" int __stdcall
+extern "C" int
 cygwin_wcscasecmp (const wchar_t *ws, const wchar_t *wt)
 {
   UNICODE_STRING us, ut;
@@ -752,7 +752,7 @@ cygwin_wcscasecmp (const wchar_t *ws, const wchar_t *wt)
   return RtlCompareUnicodeString (&us, &ut, TRUE);
 }
 
-extern "C" int __stdcall
+extern "C" int
 cygwin_wcsncasecmp (const wchar_t  *ws, const wchar_t *wt, size_t n)
 {
   UNICODE_STRING us, ut;
@@ -767,7 +767,7 @@ cygwin_wcsncasecmp (const wchar_t  *ws, const wchar_t *wt, size_t n)
   return RtlCompareUnicodeString (&us, &ut, TRUE);
 }
 
-extern "C" int __stdcall
+extern "C" int
 cygwin_strcasecmp (const char *cs, const char *ct)
 {
   UNICODE_STRING us, ut;
@@ -786,7 +786,7 @@ cygwin_strcasecmp (const char *cs, const char *ct)
   return RtlCompareUnicodeString (&us, &ut, TRUE);
 }
 
-extern "C" int __stdcall
+extern "C" int
 cygwin_strncasecmp (const char *cs, const char *ct, size_t n)
 {
   UNICODE_STRING us, ut;
@@ -886,7 +886,7 @@ slashify (const char *src, char *dst, bool trailing_slash_p)
 
 static WCHAR hex_wchars[] = L"0123456789abcdef";
 
-NTSTATUS NTAPI
+NTSTATUS
 RtlInt64ToHexUnicodeString (ULONGLONG value, PUNICODE_STRING dest,
 			    BOOLEAN append)
 {

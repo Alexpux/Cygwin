@@ -64,6 +64,9 @@ struct lc_ctype_T
 #endif
 };
 extern const struct lc_ctype_T _C_ctype_locale;
+#ifdef __CYGWIN__
+extern const struct lc_ctype_T _C_utf8_ctype_locale;
+#endif
 
 struct lc_monetary_T
 {
@@ -218,7 +221,7 @@ _ELIDABLE_INLINE struct __locale_t *
 __get_locale_r (struct _reent *r)
 {
 #ifdef __HAVE_LOCALE_INFO__
-  return r->_locale;
+  return _REENT_LOCALE(r);
 #else
   return __get_global_locale();
 #endif
@@ -232,7 +235,7 @@ _ELIDABLE_INLINE struct __locale_t *
 __get_current_locale (void)
 {
 #ifdef __HAVE_LOCALE_INFO__
-  return _REENT->_locale ?: __get_global_locale ();
+  return _REENT_LOCALE(_REENT) ?: __get_global_locale ();
 #else
   return __get_global_locale();
 #endif

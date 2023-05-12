@@ -58,7 +58,7 @@ dtable_init ()
     cygheap->fdtab.extend (NOFILE_INCR, 0);
 }
 
-void __stdcall
+void
 set_std_handle (int fd)
 {
   fhandler_base *fh = cygheap->fdtab[fd];
@@ -410,6 +410,9 @@ dtable::init_std_file_from_handle (int fd, HANDLE handle)
 	{
 	  fhandler_pipe *fhp = (fhandler_pipe *) fh;
 	  fhp->set_pipe_buf_size ();
+	  /* Set read pipe always to nonblocking */
+	  fhp->set_pipe_non_blocking (fhp->get_device () == FH_PIPER ?
+				      true : fhp->is_nonblocking ());
 	}
 
       if (!fh->open_setup (openflags))

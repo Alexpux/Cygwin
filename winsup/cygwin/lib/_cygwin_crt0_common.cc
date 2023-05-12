@@ -14,17 +14,10 @@ details. */
    unnecessarily.  */
 #define WEAK __attribute__ ((weak))
 
-#ifdef __x86_64__
 #define REAL_ZNWX		"__real__Znwm"
 #define REAL_ZNAX		"__real__Znam"
 #define REAL_ZNWX_NOTHROW_T	"__real__ZnwmRKSt9nothrow_t"
 #define REAL_ZNAX_NOTHROW_T	"__real__ZnamRKSt9nothrow_t"
-#else
-#define REAL_ZNWX		"___real__Znwj"
-#define REAL_ZNAX		"___real__Znaj"
-#define REAL_ZNWX_NOTHROW_T	"___real__ZnwjRKSt9nothrow_t"
-#define REAL_ZNAX_NOTHROW_T	"___real__ZnajRKSt9nothrow_t"
-#endif
 #define REAL_ZDLPV		_SYMSTR (__real__ZdlPv)
 #define REAL_ZDAPV		_SYMSTR (__real__ZdaPv)
 #define REAL_ZDLPV_NOTHROW_T	_SYMSTR (__real__ZdlPvRKSt9nothrow_t)
@@ -61,19 +54,12 @@ extern int __dynamically_loaded;
 
 extern "C"
 {
-#ifdef __i386__
-char **environ;
-#endif
 int _fmode;
 
 extern char __RUNTIME_PSEUDO_RELOC_LIST__;
 extern char __RUNTIME_PSEUDO_RELOC_LIST_END__;
-#ifdef __x86_64__
 extern char __image_base__;
 #define _image_base__ __image_base__
-#else
-extern char _image_base__;
-#endif
 
 struct per_process_cxx_malloc __cygwin_cxx_malloc =
 {
@@ -86,7 +72,7 @@ struct per_process_cxx_malloc __cygwin_cxx_malloc =
 /* Set up pointers to various pieces so the dll can then use them,
    and then jump to the dll.  */
 
-int __stdcall
+int
 #ifdef __MSYS__
 _msys_crt0_common (MainFunc f, per_process *u)
 #else
@@ -118,9 +104,6 @@ _cygwin_crt0_common (MainFunc f, per_process *u)
 
   u->ctors = &__CTOR_LIST__;
   u->dtors = &__DTOR_LIST__;
-#ifdef __i386__
-  u->envptr = &environ;
-#endif
   if (uwasnull)
     _impure_ptr = u->impure_ptr;	/* Use field initialized in newer DLLs. */
   else
@@ -172,22 +155,18 @@ _cygwin_crt0_common (MainFunc f, per_process *u)
   u->hmodule = GetModuleHandle (0);
 
   /* variables for fork */
-#ifdef __x86_64__
   u->data_start = &__data_start__;
   u->data_end = &__data_end__;
   u->bss_start = &__bss_start__;
   u->bss_end = &__bss_end__;
-#else
-  u->data_start = &_data_start__;
-  u->data_end = &_data_end__;
-  u->bss_start = &_bss_start__;
-  u->bss_end = &_bss_end__;
-#endif
   u->pseudo_reloc_start = &__RUNTIME_PSEUDO_RELOC_LIST__;
   u->pseudo_reloc_end = &__RUNTIME_PSEUDO_RELOC_LIST_END__;
   u->image_base = &_image_base__;
   /* This is actually a dummy call to force the linker to load this
-     symbol for older apps which need it.  */
+     symbol for older apps which need it. Unfortunately, ld for x86_64
+     still emits this symbol when linking against static libs which
+     require pseudo relocation, so we can't drop this call and the
+     dummy function just yet. */
   _pei386_runtime_relocator (NULL);
   return 1;
 }

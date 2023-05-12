@@ -140,7 +140,7 @@ create_winenv (const char * const *env)
 {
   int unused_envc;
   PWCHAR envblock = NULL;
-  char **envp = build_env (env ?: cur_environ (), envblock, unused_envc, false,
+  char **envp = build_env (env ?: environ, envblock, unused_envc, false,
 			   NULL, true);
   PWCHAR p = envblock;
 
@@ -246,13 +246,6 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	break;
 
       case CW_USER_DATA:
-#ifdef __i386__
-	/* This is a kludge to work around a version of _cygwin_common_crt0
-	   which overwrote the cxx_malloc field with the local DLL copy.
-	   Hilarity ensues if the DLL is not loaded like while the process
-	   is forking. */
-	__cygwin_user_data.cxx_malloc = &default_cygwin_cxx_malloc;
-#endif
 	res = (uintptr_t) &__cygwin_user_data;
 	break;
 
@@ -449,7 +442,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	res = 0;
 	break;
       case CW_CYGTLS_PADSIZE:
-	res = CYGTLS_PADSIZE;
+	res = __CYGTLS_PADSIZE__;
 	break;
       case CW_SET_DOS_FILE_WARNING:
 	res = 0;
@@ -611,7 +604,7 @@ cygwin_internal (cygwin_getinfo_types t, ...)
 	break;
 
       case CW_GETNSSSEP:
-	res = (uintptr_t) cygheap->pg.nss_separator ();
+	res = (uintptr_t) NSS_SEPARATOR_STRING;
 	break;
 
       case CW_GETNSS_PWD_SRC:

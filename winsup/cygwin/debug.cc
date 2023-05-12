@@ -22,32 +22,18 @@ details. */
 
 class lock_debug
 {
-  static muto locker;
+  static NO_COPY SRWLOCK lock;
  public:
-  lock_debug ()
-  {
-    locker.acquire (INFINITE);
-  }
-  void unlock ()
-  {
-    locker.release ();
-  }
-  ~lock_debug () {unlock ();}
-  friend void debug_init ();
+  lock_debug () { AcquireSRWLockExclusive (&lock); }
+  ~lock_debug () { ReleaseSRWLockExclusive (&lock); }
 };
 
-muto NO_COPY lock_debug::locker;
+SRWLOCK NO_COPY lock_debug::lock = SRWLOCK_INIT;
 
-static bool __stdcall mark_closed (const char *, int, HANDLE, const char *, bool);
-
-void
-debug_init ()
-{
-  lock_debug::locker.init ("debug_lock");
-}
+static bool mark_closed (const char *, int, HANDLE, const char *, bool);
 
 /* Find a registered handle in the linked list of handles. */
-static handle_list * __stdcall
+static handle_list *
 find_handle (HANDLE h)
 {
   handle_list *hl;
@@ -87,7 +73,7 @@ setclexec (HANDLE oh, HANDLE nh, bool not_inheriting)
 }
 
 /* Create a new handle record */
-static handle_list * __stdcall
+static handle_list *
 newh ()
 {
   handle_list *hl;
@@ -99,7 +85,7 @@ newh ()
   return NULL;
 }
 
-void __reg3
+void
 modify_handle (const char *func, int ln, HANDLE h, const char *name, bool inh)
 {
   lock_debug here;
@@ -115,7 +101,7 @@ modify_handle (const char *func, int ln, HANDLE h, const char *name, bool inh)
 }
 
 /* Add a handle to the linked list of known handles. */
-void __reg3
+void
 add_handle (const char *func, int ln, HANDLE h, const char *name, bool inh)
 {
   handle_list *hl;
@@ -138,7 +124,6 @@ add_handle (const char *func, int ln, HANDLE h, const char *name, bool inh)
 
   if ((hl = newh ()) == NULL)
     {
-      here.unlock ();
       debug_printf ("couldn't allocate memory for %s(%d): %s(%p)",
 		    func, ln, name, h);
       return;
@@ -155,7 +140,7 @@ add_handle (const char *func, int ln, HANDLE h, const char *name, bool inh)
   debug_printf ("protecting handle '%s'(%p), inherited flag %d", hl->name, hl->h, hl->inherited);
 }
 
-static void __stdcall
+static void
 delete_handle (handle_list *hl)
 {
   handle_list *hnuke = hl->next;
@@ -176,7 +161,7 @@ debug_fixup_after_fork_exec ()
       delete_handle (hl);	// removes hl->next
 }
 
-static bool __stdcall
+static bool
 mark_closed (const char *func, int ln, HANDLE h, const char *name, bool force)
 {
   handle_list *hl;
@@ -209,7 +194,7 @@ mark_closed (const char *func, int ln, HANDLE h, const char *name, bool force)
 
 /* Close a known handle.  Complain if !force and closing a known handle or
    if the name of the handle being closed does not match the registered name. */
-bool __reg3
+bool
 close_handle (const char *func, int ln, HANDLE h, const char *name, bool force)
 {
   bool ret;

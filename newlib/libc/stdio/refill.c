@@ -23,10 +23,10 @@
 #include "local.h"
 
 static int
-lflush (FILE *fp)
+lflush (struct _reent * ptr __unused, FILE *fp)
 {
   if ((fp->_flags & (__SLBF | __SWR)) == (__SLBF | __SWR))
-    return fflush (fp);
+    return _fflush_r (_REENT, fp);
   return 0;
 }
 
@@ -47,18 +47,16 @@ __srefill_r (struct _reent * ptr,
 
   fp->_r = 0;			/* largely a convenience for callers */
 
-#ifndef __CYGWIN__
   /* SysV does not make this test; take it out for compatibility */
   if (fp->_flags & __SEOF)
     return EOF;
-#endif
 
   /* if not already reading, have to be reading and writing */
   if ((fp->_flags & __SRD) == 0)
     {
       if ((fp->_flags & __SRW) == 0)
 	{
-	  ptr->_errno = EBADF;
+	  _REENT_ERRNO(ptr) = EBADF;
 	  fp->_flags |= __SERR;
 	  return EOF;
 	}
@@ -102,10 +100,10 @@ __srefill_r (struct _reent * ptr,
    */
   if (fp->_flags & (__SLBF | __SNBF))
     {
-      /* Ignore this file in _fwalk to avoid potential deadlock. */
+      /* Ignore this file in _fwalk_sglue to avoid potential deadlock. */
       short orig_flags = fp->_flags;
       fp->_flags = 1;
-      (void) _fwalk (_GLOBAL_REENT, lflush);
+      (void) _fwalk_sglue (_GLOBAL_REENT, lflush, &__sglue);
       fp->_flags = orig_flags;
 
       /* Now flush this file without locking it. */
@@ -115,13 +113,7 @@ __srefill_r (struct _reent * ptr,
 
   fp->_p = fp->_bf._base;
   fp->_r = fp->_read (ptr, fp->_cookie, (char *) fp->_p, fp->_bf._size);
-#ifndef __CYGWIN__
   if (fp->_r <= 0)
-#else
-  if (fp->_r > 0)
-    fp->_flags &= ~__SEOF;
-  else
-#endif
     {
       if (fp->_r == 0)
 	fp->_flags |= __SEOF;

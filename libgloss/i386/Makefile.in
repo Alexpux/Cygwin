@@ -41,6 +41,8 @@ INSTALL_DATA = @INSTALL_DATA@
 
 SHELL =	/bin/sh
 
+mkinstalldirs = $(SHELL) $(srcroot)/mkinstalldirs
+
 CC = @CC@
 
 #AS = @AS@
@@ -88,10 +90,10 @@ libcygmon.a: $(CYGMON_OBJS)
 	${RANLIB} $@
 
 cygmon-salib.o: ${srcdir}/cygmon-salib.c
-	$(CC) -c $(CFLAGS) @NEED_UNDERSCORE@ @IS_COFF@ @IS_AOUT@ $(<) -o $@
+	$(CC) -c $(CFLAGS) $(I386_CPPFLAGS) $(<) -o $@
 
 cygmon-crt0.o: ${srcdir}/cygmon-crt0.S
-	$(CC) -c $(CFLAGS) @NEED_UNDERSCORE@ @IS_COFF@ @IS_AOUT@ $(<) -o $@
+	$(CC) -c $(CFLAGS) $(I386_CPPFLAGS) $(<) -o $@
 
 doc:	
 
@@ -99,10 +101,11 @@ clean mostlyclean:
 	rm -f a.out core *.i *~ *.o *-test *.srec *.dis *.map *.x
 
 distclean maintainer-clean realclean: clean
-	rm -f Makefile config.status a.out
+	rm -f Makefile a.out
 
 .PHONY: install info install-info clean-info
 install:
+	${mkinstalldirs} ${DESTDIR}${tooldir}/lib${MULTISUBDIR}
 	$(INSTALL_PROGRAM) $(CRT0) $(DESTDIR)$(tooldir)/lib${MULTISUBDIR}/$(CRT0)
 	@for bsp in ${BSP}; do\
 	 $(INSTALL_PROGRAM) $${bsp} $(DESTDIR)$(tooldir)/lib${MULTISUBDIR}; \
@@ -120,8 +123,5 @@ test.o:	${srcdir}/test.c
 # these are for the BSPs
 ${CRT0}: cygmon-crt0.S
 
-Makefile: Makefile.in config.status @host_makefile_frag_path@
-	$(SHELL) config.status
-
-config.status: configure
-	$(SHELL) config.status --recheck
+Makefile: Makefile.in ../config.status
+	cd .. && $(SHELL) config.status

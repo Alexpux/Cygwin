@@ -44,6 +44,8 @@ INSTALL_DATA = @INSTALL_DATA@
 
 SHELL =	/bin/sh
 
+mkinstalldirs = $(SHELL) $(srcroot)/mkinstalldirs
+
 CC = @CC@
 
 AS = @AS@
@@ -58,8 +60,6 @@ OBJDUMP = `if [ -f ${objroot}/../binutils/objdump ] ; \
 OBJCOPY = `if [ -f ${objroot}/../binutils/objcopy ] ; \
 	then echo ${objroot}/../binutils/objcopy ; \
 	else t='$(program_transform_name)'; echo objcopy | sed -e $$t ; fi`
-
-DO = @DO@
 
 CRT0=crt0.S
 
@@ -99,13 +99,13 @@ crt0.o: $(CRT0)
 	$(CC) $(CFLAGS_FOR_TARGET) $(CFLAGS) -c $< -o $@
 
 .PHONY: install info dvi doc install-info clean-info
-install:: $(DO:%=install_%) crt0.o
+install:: install_hosted crt0.o
+	${mkinstalldirs} ${DESTDIR}${tooldir}/lib${MULTISUBDIR}
 	$(INSTALL_PROGRAM) crt0.o $(DESTDIR)$(tooldir)/lib${MULTISUBDIR}/$(crt0.o)
-
-$(DO:%=install_%): install_hosted
 
 .PHONY:install_hosted
 install_hosted::
+	${mkinstalldirs} ${DESTDIR}${tooldir}/lib${MULTISUBDIR}
 	$(INSTALL_PROGRAM) $(HOSTED_BSP) $(DESTDIR)$(tooldir)/lib${MULTISUBDIR}/$(HOSTED_BSP)
 
 # target specific makefile fragment comes in here.
@@ -115,14 +115,11 @@ clean mostlyclean:
 	rm -f a.out core *.i *~ *.a *.o *-test *.srec *.dis *.x *.map
 
 distclean maintainer-clean realclean: clean
-	rm -f Makefile config.cache config.log config.status
+	rm -f Makefile
 
 info dvi doc:
 install-info:
 clean-info:
 
-Makefile: Makefile.in config.status @host_makefile_frag_path@ @target_makefile_frag_path@
-	$(SHELL) config.status
-
-config.status: configure
-	$(SHELL) config.status --recheck
+Makefile: Makefile.in ../config.status
+	cd .. && $(SHELL) config.status

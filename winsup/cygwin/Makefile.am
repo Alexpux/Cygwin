@@ -45,10 +45,8 @@ toolincludedir=$(tooldir)/include
 # Parameters used in building the msys-2.0.dll.
 
 DLL_NAME=msys-2.0.dll
-TEST_DLL_NAME=msys0.dll
-DIN_FILE=@DIN_FILE@
+NEW_DLL_NAME=new-msys-2.0.dll
 DEF_FILE=msys.def
-TLSOFFSETS_H=@TLSOFFSETS_H@
 LIB_NAME=libmsys-2.0.a
 TEST_LIB_NAME=libmsys0.a
 
@@ -57,6 +55,12 @@ TEST_LIB_NAME=libmsys0.a
 #
 
 # These objects are included directly into the import library
+if TARGET_X86_64
+TARGET_FILES= \
+	x86_64/memcpy.s \
+	x86_64/memset.s
+endif
+
 LIB_FILES= \
 	lib/_cygwin_crt0_common.cc \
 	lib/atexit.c \
@@ -71,6 +75,45 @@ LIB_FILES= \
 	lib/premain2.c \
 	lib/premain3.c \
 	lib/pseudo-reloc-dummy.c
+
+FHANDLER_FILES= \
+	fhandler/base.cc \
+	fhandler/clipboard.cc \
+	fhandler/console.cc \
+	fhandler/cygdrive.cc \
+	fhandler/dev.cc \
+	fhandler/dev_fd.cc \
+	fhandler/disk_file.cc \
+	fhandler/dsp.cc \
+	fhandler/fifo.cc \
+	fhandler/floppy.cc \
+	fhandler/mqueue.cc \
+	fhandler/netdrive.cc \
+	fhandler/nodevice.cc \
+	fhandler/null.cc \
+	fhandler/pipe.cc \
+	fhandler/proc.cc \
+	fhandler/process.cc \
+	fhandler/process_fd.cc \
+	fhandler/procnet.cc \
+	fhandler/procsys.cc \
+	fhandler/procsysvipc.cc \
+	fhandler/random.cc \
+	fhandler/raw.cc \
+	fhandler/registry.cc \
+	fhandler/serial.cc \
+	fhandler/signalfd.cc \
+	fhandler/socket.cc \
+	fhandler/socket_inet.cc \
+	fhandler/socket_local.cc \
+	fhandler/socket_unix.cc \
+	fhandler/tape.cc \
+	fhandler/termios.cc \
+	fhandler/timerfd.cc \
+	fhandler/pty.cc \
+	fhandler/virtual.cc \
+	fhandler/windows.cc \
+	fhandler/zero.cc
 
 LIBC_FILES= \
 	libc/arc4random_stir.c \
@@ -194,11 +237,27 @@ MATH_FILES= \
 	math/tgammal.c \
 	math/truncl.c
 
+MM_FILES = \
+	mm/cygheap.cc \
+	mm/heap.cc \
+	mm/malloc.cc \
+	mm/malloc_wrapper.cc \
+	mm/mmap.cc \
+	mm/mmap_alloc.cc \
+	mm/shared.cc
+
 REGEX_FILES = \
 	regex/regcomp.c \
 	regex/regerror.c \
 	regex/regexec.c \
 	regex/regfree.c
+
+SEC_FILES= \
+	sec/acl.cc \
+	sec/auth.cc \
+	sec/base.cc \
+	sec/helper.cc \
+	sec/posixacl.cc
 
 TZCODE_FILES= \
 	tzcode/localtime_wrapper.c
@@ -209,9 +268,9 @@ DLL_FILES= \
 	assert.cc \
 	autoload.cc \
 	clock.cc \
+	create_posix_thread.cc \
 	ctype.cc \
 	cxx.cc \
-	cygheap.cc \
 	cygthread.cc \
 	cygtls.cc \
 	cygwait.cc \
@@ -230,42 +289,6 @@ DLL_FILES= \
 	external.cc \
 	fcntl.cc \
 	fenv.c \
-	fhandler.cc \
-	fhandler_clipboard.cc \
-	fhandler_console.cc \
-	fhandler_cygdrive.cc \
-	fhandler_dev.cc \
-	fhandler_dev_fd.cc \
-	fhandler_disk_file.cc \
-	fhandler_dsp.cc \
-	fhandler_fifo.cc \
-	fhandler_floppy.cc \
-	fhandler_mqueue.cc \
-	fhandler_netdrive.cc \
-	fhandler_nodevice.cc \
-	fhandler_pipe.cc \
-	fhandler_proc.cc \
-	fhandler_process.cc \
-	fhandler_process_fd.cc \
-	fhandler_procnet.cc \
-	fhandler_procsys.cc \
-	fhandler_procsysvipc.cc \
-	fhandler_random.cc \
-	fhandler_raw.cc \
-	fhandler_registry.cc \
-	fhandler_serial.cc \
-	fhandler_signalfd.cc \
-	fhandler_socket.cc \
-	fhandler_socket_inet.cc \
-	fhandler_socket_local.cc \
-	fhandler_socket_unix.cc \
-	fhandler_tape.cc \
-	fhandler_termios.cc \
-	fhandler_timerfd.cc \
-	fhandler_tty.cc \
-	fhandler_virtual.cc \
-	fhandler_windows.cc \
-	fhandler_zero.cc \
 	flock.cc \
 	fork.cc \
 	forkable.cc \
@@ -273,7 +296,6 @@ DLL_FILES= \
 	glob_pattern_p.cc \
 	globals.cc \
 	grp.cc \
-	heap.cc \
 	hookapi.cc \
 	init.cc \
 	ioctl.cc \
@@ -283,11 +305,8 @@ DLL_FILES= \
 	libstdcxx_wrapper.cc \
 	loadavg.cc \
 	lsearch.cc \
-	malloc_wrapper.cc \
 	miscfuncs.cc \
 	mktemp.cc \
-	mmap.cc \
-	mmap_alloc.cc \
 	msg.cc \
 	msys2_path_conv.cc \
 	mount.cc \
@@ -303,22 +322,16 @@ DLL_FILES= \
 	posix_ipc.cc \
 	posix_timer.cc \
 	pseudo-reloc.cc \
-	pthread.cc \
+	thread.cc \
 	quotactl.cc \
 	random.cc \
 	registry.cc \
 	resource.cc \
 	scandir.cc \
 	sched.cc \
-	sec_acl.cc \
-	sec_auth.cc \
-	sec_helper.cc \
-	sec_posixacl.cc \
-	security.cc \
 	select.cc \
 	sem.cc \
 	setlsapwd.cc \
-	shared.cc \
 	shm.cc \
 	signal.cc \
 	sigproc.cc \
@@ -333,7 +346,6 @@ DLL_FILES= \
 	sysconf.cc \
 	syslog.cc \
 	termios.cc \
-	thread.cc \
 	timerfd.cc \
 	times.cc \
 	tls_pbuf.cc \
@@ -345,27 +357,33 @@ DLL_FILES= \
 	window.cc \
 	winf.cc
 
-MALLOC_FILES= \
-	malloc.cc
+if TARGET_X86_64
+GMON_TARGET_FILES = \
+	x86_64/mcountFunc.S
+endif
 
 GMON_FILES= \
+	$(GMON_TARGET_FILES) \
 	gmon.c \
 	mcount.c \
-	profil.c \
-	mcountFunc.S
+	profil.c
 
 GENERATED_FILES= \
-	sigfe.s
+	sigfe.s \
+	uname_version.c
 
 liblib_a_SOURCES= \
 	$(LIB_FILES)
 
 libdll_a_SOURCES= \
+	$(TARGET_FILES) \
 	$(DLL_FILES) \
 	$(REGEX_FILES) \
-	$(MALLOC_FILES) \
+	$(FHANDLER_FILES) \
 	$(LIBC_FILES) \
 	$(MATH_FILES) \
+	$(MM_FILES) \
+	$(SEC_FILES) \
 	$(TZCODE_FILES) \
 	$(GENERATED_FILES)
 
@@ -373,25 +391,25 @@ libdll_a_SOURCES= \
 # generated sources
 #
 
-shared_info_magic.h: cygmagic shared_info.h
-	$(srcdir)/cygmagic $@ "$(CC) $(INCLUDES) $(CPPFLAGS) -E -x c++" $(word 2,$^) SHARED_MAGIC 'class shared_info' USER_MAGIC 'class user_info'
+shared_info_magic.h: scripts/cygmagic local_includes/shared_info.h
+	$(AM_V_GEN)$(srcdir)/scripts/cygmagic $@ "$(CC) $(INCLUDES) $(CPPFLAGS) -E -x c++" $(word 2,$^) SHARED_MAGIC 'class shared_info' USER_MAGIC 'class user_info'
 
-child_info_magic.h: cygmagic child_info.h
-	$(srcdir)/cygmagic $@ "$(CC) $(INCLUDES) $(CPPFLAGS) -E -x c++" $(word 2,$^) CHILD_INFO_MAGIC 'class child_info'
+child_info_magic.h: scripts/cygmagic local_includes/child_info.h
+	$(AM_V_GEN)$(srcdir)/scripts/cygmagic $@ "$(CC) $(INCLUDES) $(CPPFLAGS) -E -x c++" $(word 2,$^) CHILD_INFO_MAGIC 'class child_info'
 
-globals.h: mkglobals_h globals.cc
-	$^ > $@
+globals.h: scripts/mkglobals_h globals.cc
+	$(AM_V_GEN)$^ > $@
 
 localtime.patched.c: tzcode/localtime.c tzcode/localtime.c.patch
-	patch -u -o localtime.patched.c \
+	$(AM_V_GEN)patch -u -o localtime.patched.c \
 		    $(srcdir)/tzcode/localtime.c \
 		    $(srcdir)/tzcode/localtime.c.patch
 
-$(srcdir)/devices.cc: gendevices devices.in devices.h
+$(srcdir)/devices.cc: scripts/gendevices devices.in local_includes/devices.h
 	$(wordlist 1,2,$^) $@
 
-$(srcdir)/$(TLSOFFSETS_H): gentls_offsets cygtls.h
-	$^ $@ $(target_cpu) $(CC) $(AM_CFLAGS) -c || rm $@
+tlsoffsets: scripts/gentls_offsets local_includes/cygtls.h
+	$(AM_V_GEN)CXXCOMPILE="$(CXXCOMPILE)" $^ $@
 
 BUILT_SOURCES = \
 	child_info_magic.h \
@@ -401,13 +419,29 @@ BUILT_SOURCES = \
 
 # Every time we touch a source file, the version info has to be rebuilt
 # to maintain a correct build date, especially in uname release output
-dirs = $(srcdir) $(srcdir)/regex $(srcdir)/lib $(srcdir)/libc $(srcdir)/math $(srcdir)/tzcode
+dirs = $(srcdir) $(srcdir)/fhandler $(srcdir)/lib $(srcdir)/libc $(srcdir)/math $(srcdir)/mm $(srcdir)/regex $(srcdir)/sec $(srcdir)/tzcode
 find_src_files = $(wildcard $(dir)/*.[chS]) $(wildcard $(dir)/*.cc)
 src_files := $(foreach dir,$(dirs),$(find_src_files))
 
+# Regenerate uname_version.c only if it doesn't exist or if it differs
+# from the former uname_version.c
+uname_version.c: .FORCE
+	$(AM_V_GEN)cd $(srcdir) && \
+	echo "const char *uname_dev_version = \
+	\"$$(git rev-parse --git-dir >/dev/null 2>&1 && \
+	     git describe --dirty | sed -e 's/cygwin-//')\";" \
+	     > $(abs_builddir)/uname_version-pre.c && \
+	if [ -f $(abs_builddir)/uname_version.c ] && \
+	   cmp $(abs_builddir)/uname_version.c \
+	       $(abs_builddir)/uname_version-pre.c >/dev/null 2>&1 ; \
+	then :; else \
+	       mv $(abs_builddir)/uname_version-pre.c \
+		  $(abs_builddir)/uname_version.c; fi
+.FORCE:
+
 # mkvers.sh creates version.cc in the first place, winver.o always
 # second, so version.cc is always older than winver.o
-version.cc: mkvers.sh include/cygwin/version.h winver.rc $(src_files)
+version.cc: scripts/mkvers.sh include/cygwin/version.h winver.rc $(src_files)
 	@echo "Making version.cc and winver.o";\
 	export CC="$(CC)";\
 	/bin/sh $(word 1,$^) $(word 2,$^) $(word 3,$^) $(WINDRES) $(CFLAGS) $(VERSION_CFLAGS)
@@ -475,60 +509,6 @@ NEW_FUNCTIONS=$(addprefix --replace=,\
 	xdrstdio_create= \
 )
 
-if !TARGET_X86_64
-NEW_FUNCTIONS+=$(addprefix --replace=,\
-	acl=_acl32 \
-	aclcheck=_aclcheck32 \
-	aclfrommode=_aclfrommode32 \
-	aclfrompbits=_aclfrompbits32 \
-	aclfromtext=_aclfromtext32 \
-	aclsort=_aclsort32 \
-	acltomode=_acltomode32 \
-	acltopbits=_acltopbits32 \
-	acltotext=_acltotext32 \
-	chown=_chown32 \
-	facl=_facl32 \
-	fchown=_fchown32 \
-	fcntl=_fcntl64 \
-	fdopen=_fdopen64 \
-	fgetpos=_fgetpos64 \
-	fopen=_fopen64 \
-	freopen=_freopen64 \
-	fseeko=_fseeko64 \
-	fsetpos=_fsetpos64 \
-	fstat=_fstat64 \
-	ftello=_ftello64 \
-	ftruncate=_ftruncate64 \
-	getegid=_getegid32 \
-	geteuid=_geteuid32 \
-	getgid=_getgid32 \
-	getgrent=_getgrent32 \
-	getgrgid=_getgrgid32 \
-	getgrnam=_getgrnam32 \
-	getgroups=_getgroups32 \
-	getpwuid=_getpwuid32 \
-	getpwuid_r=_getpwuid_r32 \
-	getuid=_getuid32 \
-	initgroups=_initgroups32 \
-	lchown=_lchown32 \
-	lseek=_lseek64 \
-	lstat=_lstat64 \
-	mknod=_mknod32 \
-	mmap=_mmap64 \
-	open=_open64 \
-	setegid=_setegid32 \
-	seteuid=_seteuid32 \
-	setgid=_setgid32 \
-	setgroups=_setgroups32 \
-	setregid=_setregid32 \
-	setreuid=_setreuid32 \
-	setuid=_setuid32 \
-	stat=_stat64 \
-	tmpfile=_tmpfile64 \
-	truncate=_truncate64 \
-)
-endif
-
 #
 # per-file compilation flags
 #
@@ -545,13 +525,8 @@ localtime_wrapper_CFLAGS=-I$(srcdir)/tzcode -fwrapv
 # required since gcc 9.x
 exec_CFLAGS=-fno-builtin-execve
 
-fhandler_proc_CFLAGS=-DUSERNAME="\"$(USER)\"" -DHOSTNAME="\"$(HOSTNAME)\"" \
+proc_CFLAGS=-DUSERNAME="\"$(USER)\"" -DHOSTNAME="\"$(HOSTNAME)\"" \
 		     -DGCC_VERSION="\"`$(CC) -v 2>&1 | tail -n 1`\""
-
-if !TARGET_X86_64
-# on x86, exceptions.cc must be compiled with a frame-pointer as it uses RtlCaptureContext()
-exceptions_CFLAGS=-fno-omit-frame-pointer
-endif
 
 dtable_CFLAGS=-fcheck-new
 
@@ -573,19 +548,12 @@ SUBLIBS = \
 	libacl.a \
 	libssp.a
 
-EXTRALIBS = \
-	libautomode.a \
-	libbinmode.a \
-	libtextmode.a \
-	libtextreadmode.a
-
 noinst_LIBRARIES = \
 	libdll.a \
 	liblib.a
 
 toollib_LIBRARIES = \
-	libgmon.a \
-	$(EXTRALIBS)
+	libgmon.a
 
 CYGWIN_START=crt0.o
 GMON_START=gcrt0.o
@@ -601,18 +569,6 @@ toollib_DATA = \
 libgmon_a_SOURCES = $(GMON_FILES)
 libgmon_a_LIBADD =
 
-libautomode_a_SOURCES =
-libautomode_a_LIBADD = automode.o
-
-libbinmode_a_SOURCES =
-libbinmode_a_LIBADD = binmode.o
-
-libtextmode_a_SOURCES =
-libtextmode_a_LIBADD = textmode.o
-
-libtextreadmode_a_SOURCES =
-libtextreadmode_a_LIBADD = textreadmode.o
-
 # cygserver library
 cygserver_blddir = ${target_builddir}/winsup/cygserver
 LIBSERVER = $(cygserver_blddir)/libcygserver.a
@@ -627,12 +583,12 @@ $(LIBSERVER):
 # linker script
 LDSCRIPT=cygwin.sc
 $(LDSCRIPT): $(LDSCRIPT).in
-	$(CC) -E - -P < $^ -o $@
+	$(AM_V_GEN)$(CC) -E - -P < $^ -o $@
 
 # msys-2.0 dll
-$(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg libdll.a $(VERSION_OFILES) $(LIBSERVER)\
-		  $(newlib_build)/libm/libm.a $(newlib_build)/libc/libc.a
-	$(CXX) $(CXXFLAGS) \
+$(NEW_DLL_NAME): $(LDSCRIPT) libdll.a $(VERSION_OFILES) $(LIBSERVER)\
+		  $(newlib_build)/libm.a $(newlib_build)/libc.a
+	$(AM_V_CXXLD)$(CXX) $(CXXFLAGS) \
 	-mno-use-libstdc-wrappers \
 	-Wl,--gc-sections -nostdlib -Wl,-T$(LDSCRIPT) -static \
 	-Wl,--heap=0 -Wl,--out-implib,msysdll.a -shared -o $@ \
@@ -640,35 +596,33 @@ $(TEST_DLL_NAME): $(LDSCRIPT) dllfixdbg libdll.a $(VERSION_OFILES) $(LIBSERVER)\
 	-Wl,-whole-archive libdll.a -Wl,-no-whole-archive \
 	$(VERSION_OFILES) \
 	$(LIBSERVER) \
-	$(newlib_build)/libm/libm.a \
-	$(newlib_build)/libc/libc.a \
+	$(newlib_build)/libm.a \
+	$(newlib_build)/libc.a \
 	-lgcc -lkernel32 -lntdll -Wl,-Map,msys.map
-	$(srcdir)/dllfixdbg $(OBJDUMP) $(OBJCOPY) $@ msys-2.0.dbg
-	@ln -f $@ new-msys-2.0.dll
 
 # msys-2.0 import library
 toolopts=--cpu=@target_cpu@ --ar=@AR@ --as=@AS@ --nm=@NM@ --objcopy=@OBJCOPY@
 
-$(DEF_FILE): gendef $(srcdir)/$(TLSOFFSETS_H) $(DIN_FILE) common.din
-	$(srcdir)/gendef --cpu=@target_cpu@ --output-def=$(DEF_FILE) --tlsoffsets=$(srcdir)/$(TLSOFFSETS_H) $(srcdir)/$(DIN_FILE) $(srcdir)/common.din
+$(DEF_FILE): scripts/gendef cygwin.din
+	$(AM_V_GEN)$(srcdir)/scripts/gendef --cpu=@target_cpu@ --output-def=$(DEF_FILE) $(srcdir)/cygwin.din
 
-sigfe.s: $(DEF_FILE)
+sigfe.s: $(DEF_FILE) tlsoffsets
 	@[ -s $@ ] || \
 	{ rm -f $(DEF_FILE); $(MAKE) -s -j1 $(DEF_FILE); }; \
 	[ -s $@ ] && touch $@
 
 LIBCOS=$(addsuffix .o,$(basename $(LIB_FILES)))
-$(LIB_NAME): $(DEF_FILE) $(LIBCOS) | $(TEST_DLL_NAME)
-	$(srcdir)/mkimport $(toolopts) $(NEW_FUNCTIONS) $@ msysdll.a $(wordlist 2,99,$^)
+$(LIB_NAME): $(DEF_FILE) $(LIBCOS) | $(NEW_DLL_NAME)
+	$(AM_V_GEN)$(srcdir)/scripts/mkimport $(toolopts) $(NEW_FUNCTIONS) $@ msysdll.a $(wordlist 2,99,$^)
 
 # msys-2.0 import library used by testsuite
 $(TEST_LIB_NAME): $(LIB_NAME)
-	perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msys0/g' < $? > $@
+	$(AM_V_GEN)perl -p -e 'BEGIN{binmode(STDIN); binmode(STDOUT);}; s/msys-2.0/msys0/g' < $? > $@
 
 # sublibs
 # import libraries for some subset of symbols indicated by given objects
 speclib=\
-	$(srcdir)/speclib $(toolopts) \
+	$(srcdir)/scripts/speclib $(toolopts) \
 	--exclude='cygwin' \
 	--exclude='msys' \
 	--exclude='(?i:dll)' \
@@ -677,32 +631,32 @@ speclib=\
 	--exclude='^_main$$'
 
 libc.a: $(LIB_NAME) libm.a libpthread.a libutil.a
-	$(speclib) $^ -v $(@F)
+	$(AM_V_GEN)$(speclib) $^ -v $(@F)
 
-libm.a: $(LIB_NAME) $(newlib_build)/libm/libm.a $(addsuffix .o,$(basename $(MATH_FILES)))
-	$(speclib) $^ $(@F)
+libm.a: $(LIB_NAME) $(newlib_build)/libm.a $(addsuffix .o,$(basename $(MATH_FILES)))
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
-libpthread.a: $(LIB_NAME) pthread.o thread.o libc/call_once.o libc/cnd.o \
+libpthread.a: $(LIB_NAME) thread.o libc/call_once.o libc/cnd.o \
 	      libc/mtx.o libc/thrd.o libc/tss.o
-	$(speclib) $^ $(@F)
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
 libutil.a: $(LIB_NAME) libc/bsdlib.o
-	$(speclib) $^ $(@F)
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
 libdl.a: $(LIB_NAME) dlfcn.o
-	$(speclib) $^ $(@F)
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
 libresolv.a: $(LIB_NAME) libc/minires.o
-	$(speclib) $^ $(@F)
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
 librt.a: $(LIB_NAME) posix_ipc.o
-	$(speclib) $^ $(@F)
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
-libacl.a: $(LIB_NAME) sec_posixacl.o
-	$(speclib) $^ $(@F)
+libacl.a: $(LIB_NAME) sec/posixacl.o
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
-libssp.a: $(LIB_NAME) $(newlib_build)/libc/ssp/lib.a
-	$(speclib) $^ $(@F)
+libssp.a: $(LIB_NAME) $(wildcard $(newlib_build)/libc/ssp/*.o)
+	$(AM_V_GEN)$(speclib) $^ $(@F)
 
 #
 # all
@@ -717,12 +671,14 @@ all-local: $(LIB_NAME) $(TEST_LIB_NAME) $(SUBLIBS)
 clean-local:
 	-rm -f $(BUILT_SOURCES)
 	-rm -f $(DEF_FILE) sigfe.s
-	-rm -f cygwin.sc msysdll.a msys.map $(TEST_DLL_NAME) msys-2.0.dbg new-msys-2.0.dll
+	-rm -f cygwin.sc msysdll.a msys.map
+	-rm -f $(NEW_DLL_NAME)
 	-rm -f $(LIB_NAME) $(TEST_LIB_NAME) $(SUBLIBS)
 	-rm -f version.cc
+	-rm -f tlsoffsets
 
 maintainer-clean-local:
-	-rm -f $(srcdir)/$(TLSOFFSETS_H) $(srcdir)/devices.cc
+	-rm -f $(srcdir)/devices.cc
 
 #
 # install
@@ -735,9 +691,8 @@ install-data-local: install-headers install-ldif
 
 install-libs: install-toollibDATA
 	@$(MKDIR_P) $(DESTDIR)$(bindir)
-	$(INSTALL_PROGRAM) $(TEST_DLL_NAME) $(DESTDIR)$(bindir)/$(DLL_NAME)
+	$(INSTALL_PROGRAM) $(NEW_DLL_NAME) $(DESTDIR)$(bindir)/$(DLL_NAME)
 	@$(MKDIR_P) $(DESTDIR)$(toollibdir)
-	$(INSTALL_DATA) msys-2.0.dbg $(DESTDIR)$(bindir)/msys-2.0.dbg
 	(cd $(DESTDIR)$(toollibdir) && ln -sf $(LIB_NAME) libg.a)
 
 install-headers:

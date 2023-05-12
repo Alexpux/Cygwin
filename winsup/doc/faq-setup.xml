@@ -12,9 +12,8 @@
 
 <para>
 There is only one recommended way to install Cygwin, which is to use the
-Cygwin Setup program, a GUI installer named
-<command>setup-x86_64.exe</command> for 64 bit Windows, or
-<command>setup-x86.exe</command> for 32 bit Windows. It is flexible and easy to use.
+Cygwin Setup program, a GUI installer.
+It is flexible and easy to use.
 You can pick and choose the packages you wish to install, and update
 them individually.  Full source code is available for all packages and
 tools.
@@ -22,10 +21,10 @@ tools.
 is available on using the Cygwin Setup program.
 </para>
 <para>If you do it any other way, you're on your own!
-If something doesn't work right for you, and
-it's not covered here or in the latest development snapshot at
-<ulink url="https://cygwin.com/snapshots/"/>, then by all means report it to the
-mailing list.
+If something doesn't work right for you, and it's not covered here or in
+the latest Cygwin test package (see
+<xref linkend="faq.setup.testrels"></xref>),
+then by all means report it to the mailing list.
 </para>
 <para>For a searchable list of packages that can be installed with Cygwin,
 see <ulink url="https://cygwin.com/packages/"/>.
@@ -64,11 +63,13 @@ For other options, search the mailing lists with terms such as
 <screen>
     --allow-unsupported-windows    Allow old, unsupported Windows versions
  -a --arch                         Architecture to install (x86_64 or x86)
- -C --categories                   Specify entire categories to install
+ -C --categories                   Specify categories to install
+    --compact-os                   Compress installed files with Compact OS
+                                   (xpress4k, xpress8k, xpress16k, lzx)
  -o --delete-orphans               Remove orphaned packages
  -A --disable-buggy-antivirus      Disable known or suspected buggy anti virus
-                                   software packages during execution.
- -D --download                     Download packages from internet only
+                                   software packages during execution
+ -D --download                     Download packages from internet
  -f --force-current                Select the current version for all packages
  -h --help                         Print help
  -I --include-source               Automatically install source for every
@@ -76,7 +77,8 @@ For other options, search the mailing lists with terms such as
  -i --ini-basename                 Use a different basename, e.g. "foo",
                                    instead of "setup"
  -U --keep-untrusted-keys          Use untrusted keys and retain all
- -L --local-install                Install packages from local directory only
+    --lang                         Specify GUI language langid
+ -L --local-install                Install packages from local directory
  -l --local-package-dir            Local package directory
  -m --mirror-mode                  Skip package availability check when
                                    installing from local directory (requires
@@ -84,15 +86,15 @@ For other options, search the mailing lists with terms such as
  -B --no-admin                     Do not check for and enforce running as
                                    Administrator
  -d --no-desktop                   Disable creation of desktop shortcut
- -r --no-replaceonreboot           Disable replacing in-use files on next
-                                   reboot.
+ -r --no-replaceonreboot           Disable replacing in-use files on next reboot
  -n --no-shortcuts                 Disable creation of desktop and start menu
                                    shortcuts
  -N --no-startmenu                 Disable creation of start menu shortcut
  -X --no-verify                    Don't verify setup.ini signatures
     --no-version-check             Suppress checking if a newer version of
                                    setup is available
-    --old-keys                     Enable old cygwin.com keys
+ -w --no-warn-deprecated-windows   Don't warn about deprecated Windows versions
+    --enable-old-keys              Enable old cygwin.com keys
  -O --only-site                    Do not download mirror list.  Only use sites
                                    specified with -s.
  -M --package-manager              Semi-attended chooser-only mode
@@ -108,6 +110,7 @@ For other options, search the mailing lists with terms such as
  -R --root                         Root installation directory
  -S --sexpr-pubkey                 Extra DSA public key in s-expr format
  -s --site                         Download site URL
+    --symlink-type                 Symlink type (lnk, native, sys, wsl)
  -u --untrusted-keys               Use untrusted saved extra keys
  -g --upgrade-also                 Also upgrade installed packages
     --user-agent                   User agent string for HTTP requests
@@ -180,7 +183,7 @@ and that installing the older version will not help improve Cygwin.
 </para>
 </answer></qandaentry>
 
-<qandaentry id="faq.setup.install-security">
+<qandaentry id="faq.setup.install-security" xreflable="Secure Installation">
 <question><para>How does Cygwin secure the installation and update process?</para></question>
 <answer>
 
@@ -191,7 +194,6 @@ Here is how Cygwin secures the installation and update process to counter
 
 <orderedlist>
 <listitem><para>The Cygwin website provides the Cygwin Setup program
-(<literal>setup-x86.exe</literal> or <literal>setup-x86_64.exe</literal>)
 using HTTPS (SSL/TLS).
 This authenticates that the Cygwin Setup program
 came from the Cygwin website
@@ -261,8 +263,7 @@ widely-used SHA-2 suite of cryptographic hashes).
 
 <para>
 To best secure your installation and update process, download
-the Cygwin Setup program <filename>setup-x86_64.exe</filename> (64-bit) or
-<filename>setup-x86.exe</filename> (32-bit), and then
+the Cygwin Setup program, and then
 check its signature (using a signature-checking tool you trust)
 using the Cygwin public key
 (<ulink url="https://cygwin.com/key/pubring.asc"/>).
@@ -291,7 +292,7 @@ We also provide automatic mechanisms
 do not want to perform the signature checking on the Cygwin Setup program itself.
 Once the correct Setup program is running, it will counter other attacks
 as described in
-<ulink url="https://cygwin.com/faq/faq.html#faq.setup.install-security"/>.
+<xref linkend="faq.setup.install-security"></xref>.
 </para>
 </answer></qandaentry>
 
@@ -318,8 +319,7 @@ archives.  If this happens to you, consider disabling your anti-virus
 software when running the Cygwin Setup program.  The following procedure should be
 a fairly safe way to do that:
 </para>
-<orderedlist><listitem><para>Download <filename>setup-x86_64.exe</filename> or
-<filename>setup-x86.exe</filename> and scan it explicitly.
+<orderedlist><listitem><para>Download the Cygwin Setup program and scan it explicitly.
 </para>
 </listitem>
 <listitem><para>Turn off the anti-virus software.
@@ -339,12 +339,12 @@ disk if you are paranoid.
 <para>This should be safe, but only if the Cygwin Setup program is not substituted by
 something malicious.
 See also
-<ulink url="https://cygwin.com/faq/faq.html#faq.setup.install-security"/>
+<xref linkend="faq.setup.install-security"></xref>
 for a description of how the
 Cygwin project counters man-in-the-middle (MITM) attacks.
 </para>
 
-<para>See also <ulink url="https://cygwin.com/faq/faq.html#faq.using.bloda"/>
+<para>See also <xref linkend="faq.using.bloda"></xref>
 for a list of applications that have been known, at one time or another, to
 interfere with the normal functioning of Cygwin.
 </para>
@@ -383,9 +383,6 @@ are strongly advised not to attempt to
 at once, unless you have a lot of free disk space, a very high speed network
 connection, and the system will not be required for any other purpose for
 many hours (or days) until installation completes.
-For a 32-bit Cygwin installation, you can not install everything, as the
-installation will fail because the 4GB memory available is insufficient to allow
-all the DLLs required to run along with the programs using them.
 </para>
 </answer></qandaentry>
 
@@ -521,10 +518,11 @@ getpwnam(3), disregarding <literal>HOME</literal>.
 <question><para>How do I uninstall individual packages?</para></question>
 <answer>
 
-<para>Run the Cygwin Setup program as you would to install packages.  In the list of
-packages to install, browse the relevant category or click on the
-``View'' button to get a full listing.  Click on the cycle glyph until
-the action reads ``Uninstall''.  Proceed by clicking ``Next''.
+<para>Run the Cygwin Setup program as you would to install packages.  In the
+``Select packages to install'' dialog, choose ``Up To Date'' in the
+<literal>View</literal> drop-down menu, and locate the package.  Choose the
+``Uninstall'' action from the drop-down menu in the ``New'' column. Proceed by
+clicking ``Next''.
 </para>
 </answer></qandaentry>
 
@@ -629,56 +627,35 @@ directory has been stored in the registry at all.
 
 </answer></qandaentry>
 
-<qandaentry id="faq.setup.snapshots">
-<question><para>How do I install snapshots?</para></question>
+<qandaentry id="faq.setup.testrels" xreflabel="Install Test Releases">
+<question><para>How do I install Cygwin test releases?</para></question>
 <answer>
 
-<para>First, are you sure you want to do this?  Snapshots are risky.  They
-have not been tested.  Use them <emphasis role='bold'>only</emphasis> if there is a feature or
-bugfix that you need to try, and you are willing to deal with any
-problems, or at the request of a Cygwin developer.
+<para>You can install Cygwin test releases just like test releases of
+any other package using the Cygwin Setup program.  Ideally, you install
+not only the <emphasis role='bold'>cygwin</emphasis> test package, but
+also the <emphasis role='bold'>cygwin-debuginfo</emphasis> test package
+with the same version number.  The cygwin-debuginfo package allows source
+code debugging using gdb.  Install the
+<emphasis role='bold'>cygwin-devel</emphasis> test package, if you also
+want to test building against a new API.
 </para>
-<para>You cannot use the Cygwin Setup program to install a snapshot.
+<para>However, are you sure you want to do this?  Test releases are risky.
+They have only been marginally tested most of the time.  Use them
+<emphasis role='bold'>only</emphasis> if there is a feature or bugfix that
+you need to try, and you are willing to deal with any problems, or at the
+request of a Cygwin developer.
 </para>
-<para>First, you will need to download the snapshot from the snapshots
-page at <ulink url="https://cygwin.com/snapshots/"/>.  Note the directory where
-you saved the snapshot tarball.
-</para>
-<para>Before installing a snapshot, you must first Close <emphasis role='bold'>all</emphasis> Cygwin
-applications, including shells and services (e.g., <literal>inetd</literal>, <literal>sshd</literal>).
-You will not be able to replace <literal>cygwin1.dll</literal> if any Cygwin process is
-running.  You may have to restart Windows to clear the DLL from memory
-(beware of automatic service startup).
-</para>
-<para>Most of the downloaded snapshot can be installed using <literal>tar</literal>.  Cygwin
-<literal>tar</literal> won't be able to update <literal>/usr/bin/cygwin1.dll</literal> (because it's
-used by <literal>tar</literal> itself), but it should succeed with everything else.  If
-you are only installing the DLL snapshot, skip the first tar command.  Open
-a <literal>bash</literal> shell (it should be the only running Cygwin process) and issue
-the following commands:
-<screen>
-	/bin/tar -C / -xvf /posix/path/to/cygwin-inst-YYYYMMDD.tar.* --exclude=usr/bin/cygwin1.dll
-	/bin/tar -C /tmp -xvf /posix/path/to/cygwin-inst-YYYYMMDD.tar.* usr/bin/cygwin1.dll
-</screen>
-</para>
-<para>Exit the bash shell, and use Explorer or the Windows command shell to
-first rename <literal>C:\cygwin\bin\cygwin1.dll</literal> to
-<literal>C:\cygwin\bin\cygwin1-prev.dll</literal> and then move
-<literal>C:\cygwin\tmp\usr\bin\cygwin1.dll</literal>
-to <literal>C:\cygwin\bin\cygwin1.dll</literal> (assuming you installed Cygwin in
-<literal>C:\cygwin</literal>).
-</para>
-<para>The operative word in trying the snapshots is "<emphasis>trying</emphasis>".  If you
-notice a problem with the snapshot that was not present in the release
-DLL (what we call a "regression"), please report it to the Cygwin
-mailing list (see <ulink url="https://cygwin.com/problems.html"/> for problem
-reporting guidelines).  If you wish to go back to the older version of the
-DLL, again, close all Cygwin processes, delete
-<literal>C:\cygwin\bin\cygwin1.dll</literal>, and
-rename <literal>C:\cygwin\bin\cygwin1-prev.dll</literal> back to
-<literal>C:\cygwin\bin\cygwin1.dll</literal> (again assuming that your "<literal>/</literal>" is
-<literal>C:\cygwin</literal>).  To restore the rest of the snapshot
-files, reinstall the "<literal>cygwin</literal>" package using the Cygwin Setup program.
+<para>The operative word in trying the test releases is
+"<emphasis>trying</emphasis>".  If you notice a problem with the snapshot
+that was not present in the release DLL (what we call a "regression"),
+please report it to the Cygwin mailing list
+(see <ulink url="https://cygwin.com/problems.html"/> for problem
+reporting guidelines).  If you wish to go back to the most recent non-test
+release of the Cygwin DLL, close all Cygwin processes, as usual, start the
+Cygwin Setup program and choose the most recent non-test release of the
+cygwin package, as well as the cygwin-debuginfo and cygwin-devel packages.
+That's all there is to it.
 </para>
 
 </answer></qandaentry>
@@ -691,7 +668,7 @@ files, reinstall the "<literal>cygwin</literal>" package using the Cygwin Setup 
 this purpose.  See <ulink url="http://rsync.samba.org/"/>,
 <ulink url="http://www.gnu.org/software/wget/"/> for utilities that can do this for you.
 For more information on setting up a custom Cygwin package server, see
-the <ulink url="https://sourceware.org/cygwin-apps/setup.html">Cygwin Setup program page</ulink>.
+the <ulink url="https://cygwin.com/package-server.html.html">Cygwin Package Server page</ulink>.
 
 </para>
 </answer></qandaentry>

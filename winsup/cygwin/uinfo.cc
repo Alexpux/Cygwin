@@ -163,11 +163,20 @@ internal_getlogin (cygheap_user &user)
 
       user.set_name (pwd->pw_name);
       myself->uid = pwd->pw_uid;
-      myself->gid = pwd->pw_gid;
+      myself->gid = pgrp ? pgrp->gr_gid : pwd->pw_gid;
+
       /* If the primary group in the passwd DB is different from the primary
-	 group in the user token, we have to find the SID of that group and
-	 try to override the token primary group. */
-      if (!pgrp || myself->gid != pgrp->gr_gid)
+	 group in the user token, and if the primary group is the default
+	 group of a local user ("None", localized), we have to find the SID
+	 of that group and try to override the token primary group.  Also
+	 makes sure we're not on a domain controller, where account_sid ()
+	 == primary_sid (). */
+      gsid = cygheap->dom.account_sid ();
+      gsid.append (DOMAIN_GROUP_RID_USERS);
+      if (!pgrp
+	  || (myself->gid != pgrp->gr_gid
+	      && cygheap->dom.account_sid () != cygheap->dom.primary_sid ()
+	      && RtlEqualSid (gsid, user.groups.pgsid)))
 	{
 	  if (gsid.getfromgr (grp = internal_getgrgid (pwd->pw_gid, &cldap)))
 	    {
@@ -279,68 +288,28 @@ getlogin (void)
 }
 
 extern "C" uid_t
-getuid32 (void)
-{
-  return cygheap->user.real_uid;
-}
-
-#ifdef __i386__
-extern "C" __uid16_t
 getuid (void)
 {
   return cygheap->user.real_uid;
 }
-#else
-EXPORT_ALIAS (getuid32, getuid)
-#endif
 
 extern "C" gid_t
-getgid32 (void)
-{
-  return cygheap->user.real_gid;
-}
-
-#ifdef __i386__
-extern "C" __gid16_t
 getgid (void)
 {
   return cygheap->user.real_gid;
 }
-#else
-EXPORT_ALIAS (getgid32, getgid)
-#endif
 
-extern "C" uid_t
-geteuid32 (void)
-{
-  return myself->uid;
-}
-
-#ifdef __i386__
 extern "C" uid_t
 geteuid (void)
 {
   return myself->uid;
 }
-#else
-EXPORT_ALIAS (geteuid32, geteuid)
-#endif
 
 extern "C" gid_t
-getegid32 (void)
-{
-  return myself->gid;
-}
-
-#ifdef __i386__
-extern "C" __gid16_t
 getegid (void)
 {
   return myself->gid;
 }
-#else
-EXPORT_ALIAS (getegid32, getegid)
-#endif
 
 /* Not quite right - cuserid can change, getlogin can't */
 extern "C" char *
@@ -619,14 +588,10 @@ cygheap_pwdgrp::init ()
 
      passwd: files db
      group:  files db
-     db_prefix: auto		DISABLED
-     db_separator: +		DISABLED
      db_enum: cache builtin
   */
   pwd_src = (NSS_SRC_FILES | NSS_SRC_DB);
   grp_src = (NSS_SRC_FILES | NSS_SRC_DB);
-  prefix = NSS_PFX_AUTO;
-  separator[0] = L'+';
   enums = (ENUM_CACHE | ENUM_BUILTIN);
   enum_tdoms = NULL;
   caching = true;	/* INTERNAL ONLY */
@@ -690,32 +655,6 @@ cygheap_pwdgrp::nss_init_line (const char *line)
 	  break;
 	}
       c += 3;
-#if 0 /* Disable setting prefix and separator from nsswitch.conf for now.
-	 Remove if nobody complains too loudly. */
-      if (NSS_NCMP ("prefix:"))
-	{
-	  c = strchr (c, ':') + 1;
-	  c += strspn (c, " \t");
-	  if (NSS_CMP ("auto"))
-	    prefix = NSS_AUTO;
-	  else if (NSS_CMP ("primary"))
-	    prefix = NSS_PRIMARY;
-	  else if (NSS_CMP ("always"))
-	    prefix = NSS_ALWAYS;
-	  else
-	    debug_printf ("Invalid nsswitch.conf content: %s", line);
-	}
-      else if (NSS_NCMP ("separator:"))
-	{
-	  c = strchr (c, ':') + 1;
-	  c += strspn (c, " \t");
-	  if ((unsigned char) *c <= 0x7f && *c != ':' && strchr (" \t", c[1]))
-	    separator[0] = (unsigned char) *c;
-	  else
-	    debug_printf ("Invalid nsswitch.conf content: %s", line);
-	}
-      else
-#endif
       if (NSS_NCMP ("enum:"))
 	{
 	  tmp_pathbuf tp;
@@ -946,7 +885,7 @@ fetch_from_path (cyg_ldap *pldap, PUSER_INFO_3 ui, cygpsid &sid, PCWSTR str,
 		{
 		  w = wcpncpy (w, dom, we - w);
 		  if (w < we)
-		    *w++ = cygheap->pg.nss_separator ()[0];
+		    *w++ = NSS_SEPARATOR_CHAR;
 		}
 	      w = wcpncpy (w, name, we - w);
 	      break;
@@ -1474,7 +1413,7 @@ cygheap_domain_info::init ()
      even if no NFS name mapping is configured on the machine.  Fortunately,
      the posixAccount and posixGroup schemas are already available in the
      Active Directory default setup. */
-  reg_key reg (HKEY_LOCAL_MACHINE, KEY_READ | KEY_WOW64_64KEY,
+  reg_key reg (HKEY_LOCAL_MACHINE, KEY_READ,
 	       L"SOFTWARE", L"Microsoft", L"ServicesForNFS", NULL);
   if (!reg.error ())
     {
@@ -1967,7 +1906,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
   gid_t gid = ILLEGAL_GID;
   bool is_domain_account = true;
   PCWSTR domain = NULL;
-  bool is_current_user = false;
   char *shell = NULL;
   char *home = NULL;
   char *gecos = NULL;
@@ -2030,14 +1968,14 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
       sys_mbstowcs (name, UNLEN + 1, arg.name);
       /* If the incoming name has a backslash or at sign, and neither backslash
 	 nor at are the domain separator chars, the name is invalid. */
-      if ((p = wcspbrk (name, L"\\@")) && *p != cygheap->pg.nss_separator ()[0])
+      if ((p = wcspbrk (name, L"\\@")) && *p != NSS_SEPARATOR_CHAR)
 	{
 	  debug_printf ("Invalid account name <%s> (backslash/at)", arg.name);
 	  return NULL;
 	}
       /* Replace domain separator char with backslash and make sure p is NULL
 	 or points to the backslash. */
-      if ((p = wcschr (name, cygheap->pg.nss_separator ()[0])))
+      if ((p = wcschr (name, NSS_SEPARATOR_CHAR)))
 	{
 	  fq_name = true;
 	  *p = L'\\';
@@ -2083,13 +2021,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	  /* AzureAD user must be prepended by "domain" name. */
 	  if (sid_id_auth (sid) == 12)
 	    return NULL;
-	  /* name_only only if db_prefix is auto. */
-	  if (!cygheap->pg.nss_prefix_auto ())
-	    {
-	      debug_printf ("Invalid account name <%s> (name only/"
-			    "db_prefix not auto)", arg.name);
-	      return NULL;
-	    }
 	  /* name_only account is either builtin or primary domain, or
 	     account domain on non-domain machines. */
 	  if (sid_id_auth (sid) == 5 /* SECURITY_NT_AUTHORITY */
@@ -2114,9 +2045,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	}
       else
 	{
-	  /* All is well if db_prefix is always. */
-	  if (cygheap->pg.nss_prefix_always ())
-	    break;
 	  /* AzureAD accounts should be fully qualifed either. */
 	  if (sid_id_auth (sid) == 12)
 	    break;
@@ -2133,9 +2061,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 			    "not NON_UNIQUE or NT_SERVICE)", arg.name);
 	      return NULL;
 	    }
-	  /* All is well if db_prefix is primary. */
-	  if (cygheap->pg.nss_prefix_primary ())
-	    break;
 	  /* Domain member and domain == primary domain? */
 	  if (cygheap->dom.member_machine ())
 	    {
@@ -2361,15 +2286,13 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 #else
 	      posix_offset = 0;
 #endif
-	      fully_qualified_name = cygheap->pg.nss_prefix_always ();
 	      is_domain_account = false;
 	    }
 	  /* Account domain account? */
 	  else if (!wcscasecmp (dom, cygheap->dom.account_flat_name ()))
 	    {
 	      posix_offset = 0x30000;
-	      if (cygheap->dom.member_machine ()
-		  || !cygheap->pg.nss_prefix_auto ())
+	      if (cygheap->dom.member_machine ())
 		fully_qualified_name = true;
 	      is_domain_account = false;
 	    }
@@ -2388,8 +2311,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 		     set domain here to non-NULL, unless you're sure you have
 		     also changed subsequent assumptions that domain is NULL
 		     if it's a primary domain account. */
-		  if (!cygheap->pg.nss_prefix_auto ())
-		    fully_qualified_name = true;
 		}
 	      else
 		{
@@ -2450,18 +2371,9 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	    uid = posix_offset + sid_sub_auth_rid (sid);
 	  if (!is_group () && acc_type == SidTypeUser)
 	    {
-	      /* Default primary group.  If the sid is the current user, fetch
-		 the default group from the current user token, otherwise make
-		 the educated guess that the user is in group "Domain Users"
-		 or "None". */
-	      if (sid == cygheap->user.sid ())
-		{
-		  is_current_user = true;
-		  gid = posix_offset
-			+ sid_sub_auth_rid (cygheap->user.groups.pgsid);
-		}
-	      else
-		gid = posix_offset + DOMAIN_GROUP_RID_USERS;
+	      /* Default primary group.  Make the educated guess that the user
+		 is in group "Domain Users" or "None". */
+	      gid = posix_offset + DOMAIN_GROUP_RID_USERS;
 	    }
 
 	  if (is_domain_account)
@@ -2472,11 +2384,9 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	      /* On AD machines, use LDAP to fetch domain account infos. */
 	      if (cygheap->dom.primary_dns_name ())
 		{
-		  /* For the current user we got correctly cased username and
-		     the primary group via process token.  For any other user
-		     we fetch it from AD and overwrite it. */
-		  if (!is_current_user
-		      && cldap->fetch_ad_account (sid, false, domain))
+		  /* Fetch primary group from AD and overwrite the one we
+		     just guessed above. */
+		  if (cldap->fetch_ad_account (sid, false, domain))
 		    {
 		      if ((val = cldap->get_account_name ()))
 			wcscpy (name, val);
@@ -2584,18 +2494,16 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	      if (pgrp)
 		{
 		  /* Set primary group from the "Description" field.  Prepend
-		     account domain if this is a domain member machine or the
-		     db_prefix setting requires it. */
+		     account domain if this is a domain member machine. */
 		  char gname[2 * DNLEN + strlen (pgrp) + 1], *gp = gname;
 		  struct group *gr;
 
-		  if (cygheap->dom.member_machine ()
-		      || !cygheap->pg.nss_prefix_auto ())
+		  if (cygheap->dom.member_machine ())
 		    {
 		      gp = gname
 			   + sys_wcstombs (gname, sizeof gname,
 					   cygheap->dom.account_flat_name ());
-		      *gp++ = cygheap->pg.nss_separator ()[0];
+		      *gp++ = NSS_SEPARATOR_CHAR;
 		    }
 		  stpcpy (gp, pgrp);
 		  if ((gr = internal_getgrnam (gname, cldap)))
@@ -2619,9 +2527,9 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	    }
 	  break;
 	case SidTypeWellKnownGroup:
-	  fully_qualified_name = (cygheap->pg.nss_prefix_always ()
+	  fully_qualified_name = (
 		  /* NT SERVICE Account */
-		  || (sid_id_auth (sid) == 5 /* SECURITY_NT_AUTHORITY */
+		  (sid_id_auth (sid) == 5 /* SECURITY_NT_AUTHORITY */
 		      && sid_sub_auth (sid, 0) == SECURITY_SERVICE_ID_BASE_RID)
 		  /* Microsoft Account */
 		  || sid_id_auth (sid) == 11);
@@ -2680,7 +2588,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	  break;
 	case SidTypeLabel:
 	  uid = 0x60000 + sid_sub_auth_rid (sid);
-	  fully_qualified_name = cygheap->pg.nss_prefix_always ();
 	  break;
 	default:
 	  return NULL;
@@ -2739,7 +2646,6 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
       wcpcpy (name = namebuf, sid_sub_auth_rid (sid) == 1
 	      ? (PWCHAR) L"Authentication authority asserted identity"
 	      : (PWCHAR) L"Service asserted identity");
-      fully_qualified_name = false;
       acc_type = SidTypeUnknown;
     }
   else if (sid_id_auth (sid) == 22)
@@ -2809,7 +2715,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
   if (gid == ILLEGAL_GID)
     gid = uid;
   if (fully_qualified_name)
-    p = wcpcpy (wcpcpy (p, dom), cygheap->pg.nss_separator ());
+    p = wcpcpy (wcpcpy (p, dom), NSS_SEPARATOR_STRING);
   wcpcpy (p, name);
 
   if (is_group ())

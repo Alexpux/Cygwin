@@ -4,11 +4,6 @@ This software is a copyrighted work licensed under the terms of the
 Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
-/* In the following ifdef'd i386 code, the FPU precision is set to 80 bits
-   and all FPU exceptions are masked.  The former is needed to make long
-   doubles work correctly.  The latter causes the FPU to generate NaNs and
-   Infinities instead of signals for certain operations.  */
-
 #include "winlean.h"
 #include <sys/cygwin.h>
 
@@ -20,9 +15,6 @@ void msys_crt0 (int (*main) (int, char **));
 void cygwin_crt0 (int (*main) (int, char **));
 #endif
 
-#ifdef __i386__
-__attribute__ ((force_align_arg_pointer))
-#endif
 void
 mainCRTStartup ()
 {

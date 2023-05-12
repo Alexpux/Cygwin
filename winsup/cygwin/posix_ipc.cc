@@ -117,14 +117,14 @@ public:
     fl.l_whence = SEEK_SET;
     fl.l_start = 0;
     fl.l_len = size;
-    return fcntl64 (fd, F_SETLKW, &fl);
+    return fcntl (fd, F_SETLKW, &fl);
   }
   int unlock (int fd)
   {
     if (!fl.l_len)
       return 0;
     fl.l_type = F_UNLCK;
-    return fcntl64 (fd, F_SETLKW, &fl);
+    return fcntl (fd, F_SETLKW, &fl);
   }
 };
 
@@ -424,7 +424,7 @@ sem_open (const char *name, int oflag, ...)
       /* Make certain initialization is complete */
       for (i = 0; i < MAX_TRIES; i++)
 	{
-	  if (stat64 (semname, &statbuff) == -1)
+	  if (stat (semname, &statbuff) == -1)
 	    {
 	      if (errno == ENOENT && (oflag & O_CREAT))
 		{
@@ -476,7 +476,7 @@ sem_open (const char *name, int oflag, ...)
   return SEM_FAILED;
 }
 
-extern "C" off_t lseek64 (int, off_t, int);
+extern "C" off_t lseek (int, off_t, int);
 
 int
 _sem_close (sem_t *sem, bool do_close)
@@ -488,7 +488,7 @@ _sem_close (sem_t *sem, bool do_close)
   if (semaphore::getinternal (sem, &fd, &sf.hash, &sf.luid, &sf.value) == -1)
     return -1;
   if (!file.lock (fd, sizeof sf)
-      && lseek64 (fd, 0LL, SEEK_SET) != (off_t) -1
+      && lseek (fd, 0LL, SEEK_SET) != (off_t) -1
       && write (fd, &sf, sizeof sf) == sizeof sf)
     ret = do_close ? semaphore::close (sem) : 0;
 
@@ -517,4 +517,52 @@ sem_unlink (const char *name)
   if (unlink (semname) == -1)
     return -1;
   return 0;
+}
+
+extern "C" int
+sem_init (sem_t * sem, int pshared, unsigned int value)
+{
+  return semaphore::init (sem, pshared, value);
+}
+
+extern "C" int
+sem_destroy (sem_t * sem)
+{
+  return semaphore::destroy (sem);
+}
+
+extern "C" int
+sem_wait (sem_t * sem)
+{
+  return semaphore::wait (sem);
+}
+
+extern "C" int
+sem_trywait (sem_t * sem)
+{
+  return semaphore::trywait (sem);
+}
+
+extern "C" int
+sem_clockwait (sem_t * sem, clockid_t clock_id, const struct timespec *abstime)
+{
+  return semaphore::clockwait (sem, clock_id, abstime);
+}
+
+extern "C" int
+sem_timedwait (sem_t * sem, const struct timespec *abstime)
+{
+  return semaphore::clockwait (sem, CLOCK_REALTIME, abstime);
+}
+
+extern "C" int
+sem_post (sem_t *sem)
+{
+  return semaphore::post (sem);
+}
+
+extern "C" int
+sem_getvalue (sem_t * sem, int *sval)
+{
+  return semaphore::getvalue (sem, sval);
 }

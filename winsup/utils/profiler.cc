@@ -39,6 +39,11 @@ typedef uint16_t u_int16_t; // Non-standard sized type needed by ancient gmon.h
 #undef ExitThread
 #endif
 
+/* Undo this #define from debug.h. */
+#ifdef CloseHandle
+#undef CloseHandle
+#endif
+
 #define SCALE_SHIFT 2 // == 4 bytes of address space per bucket
 #define MS_VC_EXCEPTION 0x406D1388 // thread name notification from child
 
@@ -186,11 +191,10 @@ sample (CONTEXT *context, HANDLE h)
       return 0ULL;
     }
   else
-//TODO this approach does not support 32-bit executables on 64-bit
 #ifdef __x86_64__
     return context->Rip;
 #else
-    return context->Eip;
+#error unimplemented for this target
 #endif
 }
 
@@ -490,8 +494,6 @@ find_text_section (LPVOID base, HANDLE h)
   read_child ((void *) &lfanew, sizeof (lfanew), &idh->e_lfanew, h);
   ptr += lfanew;
 
-  /* Code handles 32- or 64-bit headers depending on compilation environment. */
-  /*TODO It doesn't yet handle 32-bit headers on 64-bit Cygwin or v/v.        */
   IMAGE_NT_HEADERS *inth = (IMAGE_NT_HEADERS *) ptr;
   read_child ((void *) &ntsig, sizeof (ntsig), &inth->Signature, h);
   if (ntsig != IMAGE_NT_SIGNATURE)
@@ -502,7 +504,7 @@ find_text_section (LPVOID base, HANDLE h)
 #ifdef __x86_64__
   if (machine != IMAGE_FILE_MACHINE_AMD64)
 #else
-  if (machine != IMAGE_FILE_MACHINE_I386)
+#error unimplemented for this target
 #endif
     error (0, "target program was built for different machine architecture\n");
 
@@ -918,13 +920,11 @@ profile1 (FILE *ofile, pid_t pid)
             case STATUS_BREAKPOINT:
               break;
 
-#ifdef __x86_64__
             case STATUS_GCC_THROW:
             case STATUS_GCC_UNWIND:
             case STATUS_GCC_FORCED:
               status = DBG_EXCEPTION_NOT_HANDLED;
               break;
-#endif
 
             default:
               status = DBG_EXCEPTION_NOT_HANDLED;

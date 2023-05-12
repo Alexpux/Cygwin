@@ -9,6 +9,7 @@ Cygwin license.  Please consult the file "CYGWIN_LICENSE" for
 details. */
 
 #include "winsup.h"
+#include <stdio.h>
 #include <sys/utsname.h>
 #include <netdb.h>
 #include "cygwin_version.h"
@@ -50,46 +51,51 @@ uname_x (struct utsname *name)
   __try
     {
       char buf[NI_MAXHOST + 1] ATTRIBUTE_NONSTRING;
-      char *snp = strstr (cygwin_version.dll_build_date, "SNP");
 
       memset (name, 0, sizeof (*name));
       /* sysname */
       const char* sysname = get_sysname();
-      __small_sprintf (name->sysname, "%s_%s-%u%s",
+      __small_sprintf (name->sysname, "%s_%s-%u",
 		       sysname,
-		       wincap.osname (), wincap.build_number (),
-		       wincap.is_wow64 () ? "-WOW64" : "");
+		       wincap.osname (), wincap.build_number ());
       /* nodename */
       memset (buf, 0, sizeof buf);
       cygwin_gethostname (buf, sizeof buf - 1);
       strncat (name->nodename, buf, sizeof (name->nodename) - 1);
-      /* release */
-      __small_sprintf (name->release, "%d.%d.%d-%s-%d.",
-		       cygwin_version.dll_major / 1000,
-		       cygwin_version.dll_major % 1000,
-		       cygwin_version.dll_minor,
-		       MSYS2_RUNTIME_COMMIT_SHORT,
-		       cygwin_version.api_minor);
-      /* version */
-      stpcpy (name->version, cygwin_version.dll_build_date);
-      if (snp)
-	name->version[snp - cygwin_version.dll_build_date] = '\0';
-      strcat (name->version, " UTC");
       /* machine */
       switch (wincap.cpu_arch ())
 	{
-	  case PROCESSOR_ARCHITECTURE_INTEL:
-	    strcat (name->release, strcpy (name->machine, "i686"));
-	    break;
 	  case PROCESSOR_ARCHITECTURE_AMD64:
-	    strcat (name->release, strcpy (name->machine, "x86_64"));
+	    strcpy (name->machine, "x86_64");
 	    break;
 	  default:
 	    strcpy (name->machine, "unknown");
 	    break;
 	}
-      if (snp)
-	strcat (name->release, ".snap");
+      /* release */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation="
+#ifdef CYGPORT_RELEASE_INFO
+      snprintf (name->release, _UTSNAME_LENGTH, "%s.%s",
+		__XSTRING (CYGPORT_RELEASE_INFO), name->machine);
+#else
+      extern const char *uname_dev_version;
+      if (uname_dev_version && uname_dev_version[0])
+	snprintf (name->release, _UTSNAME_LENGTH, "%s.%s",
+		  uname_dev_version, name->machine);
+      else
+	__small_sprintf (name->release, "%d.%d.%d-%s-api-%d.%s",
+			 cygwin_version.dll_major / 1000,
+			 cygwin_version.dll_major % 1000,
+			 cygwin_version.dll_minor,
+			 MSYS2_RUNTIME_COMMIT_SHORT,
+			 cygwin_version.api_minor,
+			 name->machine);
+#endif
+#pragma GCC diagnostic pop
+      /* version */
+      stpcpy (name->version, cygwin_version.dll_build_date);
+      strcat (name->version, " UTC");
       /* domainame */
       memset (buf, 0, sizeof buf);
       getdomainname (buf, sizeof buf - 1);
@@ -116,64 +122,32 @@ uname (struct utsname *in_name)
   struct old_utsname *name = (struct old_utsname *) in_name;
   __try
     {
-      char *snp = strstr  (cygwin_version.dll_build_date, "SNP");
-
       memset (name, 0, sizeof (*name));
       const char* sysname = get_sysname();
       __small_sprintf (name->sysname, "%s_%s", sysname, wincap.osname ());
-
-      /* Add a hint to the sysname, that we're running under WOW64.  This might
-	 give an early clue if somebody encounters problems. */
-      if (wincap.is_wow64 ())
-	strncat (name->sysname, "-WOW",
-		 sizeof name->sysname - strlen (name->sysname) - 1);
 
       /* Computer name */
       cygwin_gethostname (name->nodename, sizeof (name->nodename) - 1);
 
       /* Cygwin dll release */
-      __small_sprintf (name->release, "%d.%d.%d%s(%d.%d/%d/%d)",
+      __small_sprintf (name->release, "%d.%d.%d(%d.%d/%d/%d/%s)",
 		       cygwin_version.dll_major / 1000,
 		       cygwin_version.dll_major % 1000,
 		       cygwin_version.dll_minor,
-		       snp ? "s" : "",
 		       cygwin_version.api_major,
 		       cygwin_version.api_minor,
 		       cygwin_version.shared_data,
-		       cygwin_version.mount_registry);
+		       cygwin_version.mount_registry,
+		       MSYS2_RUNTIME_COMMIT_SHORT);
 
       /* Cygwin "version" aka build date */
       strcpy (name->version, cygwin_version.dll_build_date);
-      if (snp)
-	name->version[snp - cygwin_version.dll_build_date] = '\0';
 
       /* CPU type */
       switch (wincap.cpu_arch ())
 	{
-	  case PROCESSOR_ARCHITECTURE_INTEL:
-	    unsigned int ptype;
-	    if (wincap.cpu_level () < 3) /* Shouldn't happen. */
-	      ptype = 3;
-	    else if (wincap.cpu_level () > 9) /* P4 */
-	      ptype = 6;
-	    else
-	      ptype = wincap.cpu_level ();
-	    __small_sprintf (name->machine, "i%d86", ptype);
-	    break;
-	  case PROCESSOR_ARCHITECTURE_IA64:
-	    strcpy (name->machine, "ia64");
-	    break;
 	  case PROCESSOR_ARCHITECTURE_AMD64:
 	    strcpy (name->machine, "x86_64");
-	    break;
-	  case PROCESSOR_ARCHITECTURE_IA32_ON_WIN64:
-	    strcpy (name->machine, "ia32-win64");
-	    break;
-	  case PROCESSOR_ARCHITECTURE_ALPHA:
-	    strcpy (name->machine, "alpha");
-	    break;
-	  case PROCESSOR_ARCHITECTURE_MIPS:
-	    strcpy (name->machine, "mips");
 	    break;
 	  default:
 	    strcpy (name->machine, "unknown");

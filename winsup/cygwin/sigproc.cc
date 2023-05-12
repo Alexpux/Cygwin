@@ -42,21 +42,14 @@ bool no_thread_exit_protect::flag;
    required. */
 char NO_COPY myself_nowait_dummy[1] = {'0'};
 
-#define Static static NO_COPY
-
 /* All my children info.  Avoid expensive constructor ops at DLL
    startup.
 
    This class can allocate memory.  But there's no need to free it
    because only one instance of the class is created per process. */
 class child_procs {
-#ifdef __i386__
-    static const int _NPROCS = 256;
-    static const int _NPROCS_2 = 1023;
-#else
     static const int _NPROCS = 1024;
     static const int _NPROCS_2 = 4095;
-#endif
     int _count;
     uint8_t _procs[_NPROCS * sizeof (pinfo)] __attribute__ ((__aligned__));
     pinfo *_procs_2;
@@ -84,28 +77,28 @@ class child_procs {
     }
     int max_child_procs () const { return _NPROCS + _NPROCS_2; }
 };
-Static child_procs chld_procs;
+static NO_COPY child_procs chld_procs;
 
 /* Start of queue for waiting threads. */
-Static waitq waitq_head;
+static NO_COPY waitq waitq_head;
 
 /* Controls access to subproc stuff. */
-Static muto sync_proc_subproc;
+static NO_COPY muto sync_proc_subproc;
 
 _cygtls NO_COPY *_sig_tls;
 
-Static HANDLE my_sendsig;
-Static HANDLE my_readsig;
+static NO_COPY HANDLE my_sendsig;
+static NO_COPY HANDLE my_readsig;
 
 /* Used in select if a signalfd is part of the read descriptor set */
 HANDLE NO_COPY my_pendingsigs_evt;
 
 /* Function declarations */
-static int __reg1 checkstate (waitq *);
+static int checkstate (waitq *);
 static __inline__ bool get_proc_lock (DWORD, DWORD);
 static int remove_proc (int);
 static bool stopped_or_terminated (waitq *, _pinfo *);
-static void WINAPI wait_sig (VOID *arg);
+static void wait_sig (VOID *arg);
 
 /* wait_sig bookkeeping */
 
@@ -120,11 +113,11 @@ public:
   bool pending () {retry = true; return !!start.next;}
   void clear (int sig) {sigs[sig].si.si_signo = 0;}
   void clear (_cygtls *tls);
-  friend void __reg1 sig_dispatch_pending (bool);
-  friend void WINAPI wait_sig (VOID *arg);
+  friend void sig_dispatch_pending (bool);
+  friend void wait_sig (VOID *arg);
 };
 
-Static pending_signals sigq;
+static NO_COPY pending_signals sigq;
 
 /* Functions */
 void
@@ -161,7 +154,7 @@ get_proc_lock (DWORD what, DWORD val)
 {
   if (!cygwin_finished_initializing)
     return true;
-  Static int lastwhat = -1;
+  static NO_COPY int lastwhat = -1;
   if (!sync_proc_subproc)
     {
       sigproc_printf ("sync_proc_subproc is NULL");
@@ -192,7 +185,7 @@ proc_can_be_signalled (_pinfo *p)
   return false;
 }
 
-bool __reg1
+bool
 pid_exists (pid_t pid)
 {
   pinfo p (pid);
@@ -211,7 +204,7 @@ mychild (int pid)
 
 /* Handle all subprocess requests
  */
-int __reg2
+int
 proc_subproc (DWORD what, uintptr_t val)
 {
   int slot;
@@ -433,7 +426,7 @@ proc_terminate ()
 }
 
 /* Clear pending signal */
-void __reg1
+void
 sig_clear (int sig)
 {
   sigq.clear (sig);
@@ -474,7 +467,7 @@ sigpending (sigset_t *mask)
 }
 
 /* Force the wait_sig thread to wake up and scan for pending signals */
-void __reg1
+void
 sig_dispatch_pending (bool fast)
 {
   /* Non-atomically test for any signals pending and wake up wait_sig if any are
@@ -551,7 +544,7 @@ exit_thread (DWORD res)
   ExitThread (res);
 }
 
-sigset_t __reg3
+sigset_t
 sig_send (_pinfo *p, int sig, _cygtls *tls)
 {
   siginfo_t si = {};
@@ -564,7 +557,7 @@ sig_send (_pinfo *p, int sig, _cygtls *tls)
    If pinfo *p == NULL, send to the current process.
    If sending to this process, wait for notification that a signal has
    completed before returning.  */
-sigset_t __reg3
+sigset_t
 sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
 {
   int rc = 1;
@@ -683,7 +676,7 @@ sig_send (_pinfo *p, siginfo_t& si, _cygtls *tls)
   sigset_t pending;
   if (!its_me)
     pack.mask = NULL;
-  else if (si.si_signo == __SIGPENDING)
+  else if (si.si_signo == __SIGPENDING || si.si_signo == __SIGPENDINGALL)
     pack.mask = &pending;
   else if (si.si_signo == __SIGFLUSH || si.si_signo > 0)
     {
@@ -801,7 +794,7 @@ out:
     }
   if (pack.wakeup)
     ForceCloseHandle (pack.wakeup);
-  if (si.si_signo != __SIGPENDING)
+  if (si.si_signo != __SIGPENDING && si.si_signo != __SIGPENDINGALL)
     /* nothing */;
   else if (!rc)
     rc = pending;
@@ -817,31 +810,11 @@ int child_info::retry_count = 0;
    by fork/spawn/exec. */
 child_info::child_info (unsigned in_cb, child_info_types chtype,
 			bool need_subproc_ready):
-  cb (in_cb), intro (PROC_MAGIC_GENERIC), magic (CHILD_INFO_MAGIC ^ MSYS2_RUNTIME_COMMIT_HEX),
-  type (chtype), cygheap (::cygheap), cygheap_max (::cygheap_max),
-  flag (0), retry (child_info::retry_count), rd_proc_pipe (NULL),
-  wr_proc_pipe (NULL), sigmask (_my_tls.sigmask)
+  msv_count (0), cb (in_cb), intro (PROC_MAGIC_GENERIC),
+  magic (CHILD_INFO_MAGIC ^ MSYS2_RUNTIME_COMMIT_HEX), type (chtype), cygheap (::cygheap),
+  cygheap_max (::cygheap_max), flag (0), retry (child_info::retry_count),
+  rd_proc_pipe (NULL), wr_proc_pipe (NULL), sigmask (_my_tls.sigmask)
 {
-  /* It appears that when running under WOW64 on Vista 64, the first DWORD
-     value in the datastructure lpReserved2 is pointing to (msv_count in
-     Cygwin), has to reflect the size of that datastructure as used in the
-     Microsoft C runtime (a count value, counting the number of elements in
-     two subsequent arrays, BYTE[count and HANDLE[count]), even though the C
-     runtime isn't used.  Otherwise, if msv_count is 0 or too small, the
-     datastructure gets overwritten.
-
-     This seems to be a bug in Vista's WOW64, which apparently copies the
-     lpReserved2 datastructure not using the cbReserved2 size information,
-     but using the information given in the first DWORD within lpReserved2
-     instead.  However, it's not clear if a non-0 count doesn't result in
-     trying to evaluate the content, so we do this really only for Vista 64.
-
-     The value is sizeof (child_info_*) / 5 which results in a count which
-     covers the full datastructure, plus not more than 4 extra bytes.  This
-     is ok as long as the child_info structure is cosily stored within a bigger
-     datastructure. */
-  msv_count = wincap.needs_count_in_si_lpres2 () ? in_cb / 5 : 0;
-
   fhandler_union_cb = sizeof (fhandler_union);
   user_h = cygwin_user_h;
   if (strace.active ())
@@ -1175,7 +1148,7 @@ child_info_fork::abort (const char *fmt, ...)
 /* Check the state of all of our children to see if any are stopped or
  * terminated.
  */
-static int __reg1
+static int
 checkstate (waitq *parent_w)
 {
   int potential_match = 0;
@@ -1338,7 +1311,7 @@ pending_signals::add (sigpacket& pack)
 
 /* Process signals by waiting for signal data to arrive in a pipe.
    Set a completion event if one was specified. */
-static void WINAPI
+static void
 wait_sig (VOID *)
 {
   _sig_tls = &_my_tls;
@@ -1400,6 +1373,27 @@ wait_sig (VOID *)
 	  break;
 	case __SIGSTRACE:
 	  strace.activate (false);
+	  break;
+	case __SIGPENDINGALL:
+	  {
+	    unsigned bit;
+	    bool issig_wait;
+
+	    *pack.mask = 0;
+	    while ((q = q->next))
+	      {
+		_cygtls *sigtls = q->sigtls ?: _main_tls;
+		if (sigtls->sigmask & (bit = SIGTOMASK (q->si.si_signo)))
+		  {
+		    tl_entry = cygheap->find_tls (q->si.si_signo, issig_wait);
+		    if (tl_entry)
+		      {
+			*pack.mask |= bit;
+			cygheap->unlock_tls (tl_entry);
+		      }
+		  }
+	      }
+	  }
 	  break;
 	case __SIGPENDING:
 	  {

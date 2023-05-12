@@ -101,9 +101,6 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/glob.c,v 1.28 2010/05/12 17:44:00 gordon Ex
 #include "cygheap.h"
 #include "cygwin/version.h"
 
-#define getpwuid(uid)	getpwuid32 (uid)
-#define getuid()	getuid32 ()
-
 #define CCHAR(c)	(ignore_case_with_glob ? towlower (CHAR (c)) : CHAR (c))
 #define Cchar(c)	(ignore_case_with_glob ? towlower (c) : (c))
 #endif
@@ -855,38 +852,7 @@ g_opendir(Char *str, glob_t *pglob)
 	return(opendir(buf));
 }
 
-#ifdef __x86_64__
 #define CYGWIN_gl_stat(sfptr) ((*pglob->sfptr) (buf, sb))
-#else
-static void
-stat32_to_stat64 (struct __stat32 *src, struct stat *dst)
-{
-  dst->st_dev = src->st_dev;
-  dst->st_ino = src->st_ino;
-  dst->st_mode = src->st_mode;
-  dst->st_nlink = src->st_nlink;
-  dst->st_uid = src->st_uid;
-  dst->st_gid = src->st_gid;
-  dst->st_rdev = src->st_rdev;
-  dst->st_size = src->st_size;
-  dst->st_atim = src->st_atim;
-  dst->st_mtim = src->st_mtim;
-  dst->st_ctim = src->st_ctim;
-  dst->st_birthtim = src->st_mtim;
-  dst->st_blksize = src->st_blksize;
-  dst->st_blocks = src->st_blocks;
-}
-
-#define CYGWIN_gl_stat(sfptr) \
-  ({ int ret;								 \
-     struct __stat32 lsb;						 \
-     if (CYGWIN_VERSION_CHECK_FOR_USING_BIG_TYPES)			 \
-       ret = (*pglob->sfptr) (buf, sb);					 \
-     else  if (!(ret = (*pglob->sfptr) (buf, (struct stat *) &lsb))) \
-       stat32_to_stat64 (&lsb, sb);					 \
-     ret;								 \
-  })
-#endif
 
 static int
 g_lstat(Char *fn, struct stat *sb, glob_t *pglob)
@@ -899,7 +865,7 @@ g_lstat(Char *fn, struct stat *sb, glob_t *pglob)
 	}
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		return CYGWIN_gl_stat (gl_lstat);
-	return(lstat64(buf, sb));
+	return(lstat(buf, sb));
 }
 
 static int
@@ -913,7 +879,7 @@ g_stat(Char *fn, struct stat *sb, glob_t *pglob)
 	}
 	if (pglob->gl_flags & GLOB_ALTDIRFUNC)
 		return CYGWIN_gl_stat (gl_stat);
-	return(stat64(buf, sb));
+	return(stat(buf, sb));
 }
 
 static const Char *

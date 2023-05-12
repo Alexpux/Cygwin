@@ -24,7 +24,7 @@ details. */
 #include "sys/strace.h"
 #include "sys/cygwin.h"
 #include "cygwin/version.h"
-#include "cygtls_padsize.h"
+#include "cygwin/config.h"
 #include "gcc_seh.h"
 #include "path.h"
 #undef cygwin_internal
@@ -457,7 +457,7 @@ syst (long long t)
   return &st;
 }
 
-static void __stdcall
+static void
 handle_output_debug_string (DWORD id, LPVOID p, unsigned mask, FILE *ofile)
 {
   int len;
@@ -514,11 +514,7 @@ handle_output_debug_string (DWORD id, LPVOID p, unsigned mask, FILE *ofile)
   buf[len] = '\0';
   char *s = strtok (buf, " ");
 
-#ifdef __x86_64__
   unsigned long long n = strtoull (s, NULL, 16);
-#else
-  unsigned long n = strtoul (s, NULL, 16);
-#endif
 
   s = strchr (s, '\0') + 1;
 
@@ -655,11 +651,7 @@ handle_output_debug_string (DWORD id, LPVOID p, unsigned mask, FILE *ofile)
   if (include_hex)
     {
       s -= 8;
-#ifdef __x86_64__
       sprintf (s, "%012llx", n);
-#else
-      sprintf (s, "%08lx", n);
-#endif
       strchr (s, '\0')[0] = ' ';
     }
   child->last_usecs = usecs;
@@ -811,13 +803,11 @@ proc_child (unsigned mask, FILE *ofile, pid_t pid)
 	    case STATUS_BREAKPOINT:
 	    case 0x406d1388:		/* SetThreadName exception. */
 	      break;
-#ifdef __x86_64__
 	    case STATUS_GCC_THROW:
 	    case STATUS_GCC_UNWIND:
 	    case STATUS_GCC_FORCED:
 	      status = DBG_EXCEPTION_NOT_HANDLED;
 	      break;
-#endif
 	    default:
 	      status = DBG_EXCEPTION_NOT_HANDLED;
 	      if (ev.u.Exception.dwFirstChance)
@@ -1238,7 +1228,7 @@ main (int argc, char **argv)
      This is required to make sure cygwin_internal calls into Cygwin work
      reliably.  This problem has been noticed under AllocationPreference
      registry setting to 0x100000 (TOP_DOWN). */
-  char buf[CYGTLS_PADSIZE];
+  char buf[__CYGTLS_PADSIZE__];
 
   RtlSecureZeroMemory (buf, sizeof (buf));
   exit (main2 (argc, argv));

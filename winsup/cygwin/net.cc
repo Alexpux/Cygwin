@@ -12,13 +12,11 @@ details. */
 #define USE_SYS_TYPES_FD_SET
 #define __WSA_ERR_MACROS_DEFINED
 #include "winsup.h"
-#ifdef __x86_64__
 /* 2014-04-24: Current Mingw headers define sockaddr_in6 using u_long (8 byte)
    because a redefinition for LP64 systems is missing.  This leads to a wrong
    definition and size of sockaddr_in6 when building with winsock headers. */
 #undef u_long
 #define u_long __ms_u_long
-#endif
 #include <w32api/ws2tcpip.h>
 #include <w32api/mswsock.h>
 #include <w32api/iphlpapi.h>
@@ -136,63 +134,93 @@ inet_makeaddr (int net, int lna)
   return in;
 }
 
-static const errmap_t wsock_errmap[] = {
-  {WSA_INVALID_HANDLE, "WSA_INVALID_HANDLE", EBADF},
-  {WSA_NOT_ENOUGH_MEMORY, "WSA_NOT_ENOUGH_MEMORY", ENOMEM},
-  {WSA_INVALID_PARAMETER, "WSA_INVALID_PARAMETER", EINVAL},
-  {WSAEINTR, "WSAEINTR", EINTR},
-  {WSAEWOULDBLOCK, "WSAEWOULDBLOCK", EWOULDBLOCK},
-  {WSAEINPROGRESS, "WSAEINPROGRESS", EINPROGRESS},
-  {WSAEALREADY, "WSAEALREADY", EALREADY},
-  {WSAENOTSOCK, "WSAENOTSOCK", ENOTSOCK},
-  {WSAEDESTADDRREQ, "WSAEDESTADDRREQ", EDESTADDRREQ},
-  {WSAEMSGSIZE, "WSAEMSGSIZE", EMSGSIZE},
-  {WSAEPROTOTYPE, "WSAEPROTOTYPE", EPROTOTYPE},
-  {WSAENOPROTOOPT, "WSAENOPROTOOPT", ENOPROTOOPT},
-  {WSAEPROTONOSUPPORT, "WSAEPROTONOSUPPORT", EPROTONOSUPPORT},
-  {WSAESOCKTNOSUPPORT, "WSAESOCKTNOSUPPORT", ESOCKTNOSUPPORT},
-  {WSAEOPNOTSUPP, "WSAEOPNOTSUPP", EOPNOTSUPP},
-  {WSAEPFNOSUPPORT, "WSAEPFNOSUPPORT", EPFNOSUPPORT},
-  {WSAEAFNOSUPPORT, "WSAEAFNOSUPPORT", EAFNOSUPPORT},
-  {WSAEADDRINUSE, "WSAEADDRINUSE", EADDRINUSE},
-  {WSAEADDRNOTAVAIL, "WSAEADDRNOTAVAIL", EADDRNOTAVAIL},
-  {WSAENETDOWN, "WSAENETDOWN", ENETDOWN},
-  {WSAENETUNREACH, "WSAENETUNREACH", ENETUNREACH},
-  {WSAENETRESET, "WSAENETRESET", ENETRESET},
-  {WSAECONNABORTED, "WSAECONNABORTED", ECONNABORTED},
-  {WSAECONNRESET, "WSAECONNRESET", ECONNRESET},
-  {WSAENOBUFS, "WSAENOBUFS", ENOBUFS},
-  {WSAEISCONN, "WSAEISCONN", EISCONN},
-  {WSAENOTCONN, "WSAENOTCONN", ENOTCONN},
-  {WSAESHUTDOWN, "WSAESHUTDOWN", ESHUTDOWN},
-  {WSAETOOMANYREFS, "WSAETOOMANYREFS", ETOOMANYREFS},
-  {WSAETIMEDOUT, "WSAETIMEDOUT", ETIMEDOUT},
-  {WSAECONNREFUSED, "WSAECONNREFUSED", ECONNREFUSED},
-  {WSAELOOP, "WSAELOOP", ELOOP},
-  {WSAENAMETOOLONG, "WSAENAMETOOLONG", ENAMETOOLONG},
-  {WSAEHOSTDOWN, "WSAEHOSTDOWN", EHOSTDOWN},
-  {WSAEHOSTUNREACH, "WSAEHOSTUNREACH", EHOSTUNREACH},
-  {WSAENOTEMPTY, "WSAENOTEMPTY", ENOTEMPTY},
-  {WSAEPROCLIM, "WSAEPROCLIM", EPROCLIM},
-  {WSAEUSERS, "WSAEUSERS", EUSERS},
-  {WSAEDQUOT, "WSAEDQUOT", EDQUOT},
-  {WSAESTALE, "WSAESTALE", ESTALE},
-  {WSAEREMOTE, "WSAEREMOTE", EREMOTE},
-  {WSAEINVAL, "WSAEINVAL", EINVAL},
-  {WSAEFAULT, "WSAEFAULT", EFAULT},
-  {WSAEBADF, "WSAEBADF", EBADF},
-  {WSAEACCES, "WSAEACCES", EACCES},
-  {WSAEMFILE, "WSAEMFILE", EMFILE},
-  {0, "NOERROR", 0},
-  {0, NULL, 0}
+static const int wsock_errmap[] =
+{
+  0,			/* WSABASEERR (10000) */
+  0,			/* 10001 */
+  0,			/* 10002 */
+  0,			/* 10003 */
+  EINTR,		/* WSAEINTR */
+  0,			/* 10005 */
+  0,			/* 10006 */
+  0,			/* 10007 */
+  0,			/* 10008 */
+  EBADF,		/* WSAEBADF */
+  0,			/* 10010 */
+  0,			/* 10011 */
+  0,			/* 10012 */
+  EACCES,		/* WSAEACCES */
+  EFAULT,		/* WSAEFAULT */
+  0,			/* 10015 */
+  0,			/* 10016 */
+  0,			/* 10017 */
+  0,			/* 10018 */
+  0,			/* 10019 */
+  0,			/* 10020 */
+  0,			/* 10021 */
+  EINVAL,		/* WSAEINVAL */
+  0,			/* 10023 */
+  EMFILE,		/* WSAEMFILE */
+  0,			/* 10025 */
+  0,			/* 10026 */
+  0,			/* 10027 */
+  0,			/* 10028 */
+  0,			/* 10029 */
+  0,			/* 10030 */
+  0,			/* 10031 */
+  0,			/* 10032 */
+  0,			/* 10033 */
+  0,			/* 10034 */
+  EWOULDBLOCK,		/* WSAEWOULDBLOCK */
+  EINPROGRESS,		/* WSAEINPROGRESS */
+  EALREADY,		/* WSAEALREADY */
+  ENOTSOCK,		/* WSAENOTSOCK */
+  EDESTADDRREQ,		/* WSAEDESTADDRREQ */
+  EMSGSIZE,		/* WSAEMSGSIZE */
+  EPROTOTYPE,		/* WSAEPROTOTYPE */
+  ENOPROTOOPT,		/* WSAENOPROTOOPT */
+  EPROTONOSUPPORT,	/* WSAEPROTONOSUPPORT */
+  ESOCKTNOSUPPORT,	/* WSAESOCKTNOSUPPORT */
+  EOPNOTSUPP,		/* WSAEOPNOTSUPP */
+  EPFNOSUPPORT,		/* WSAEPFNOSUPPORT */
+  EAFNOSUPPORT,		/* WSAEAFNOSUPPORT */
+  EADDRINUSE,		/* WSAEADDRINUSE */
+  EADDRNOTAVAIL,	/* WSAEADDRNOTAVAIL */
+  ENETDOWN,		/* WSAENETDOWN */
+  ENETUNREACH,		/* WSAENETUNREACH */
+  ENETRESET,		/* WSAENETRESET */
+  ECONNABORTED,		/* WSAECONNABORTED */
+  ECONNRESET,		/* WSAECONNRESET */
+  ENOBUFS,		/* WSAENOBUFS */
+  EISCONN,		/* WSAEISCONN */
+  ENOTCONN,		/* WSAENOTCONN */
+  ESHUTDOWN,		/* WSAESHUTDOWN */
+  ETOOMANYREFS,		/* WSAETOOMANYREFS */
+  ETIMEDOUT,		/* WSAETIMEDOUT */
+  ECONNREFUSED,		/* WSAECONNREFUSED */
+  ELOOP,		/* WSAELOOP */
+  ENAMETOOLONG,		/* WSAENAMETOOLONG */
+  EHOSTDOWN,		/* WSAEHOSTDOWN */
+  EHOSTUNREACH,		/* WSAEHOSTUNREACH */
+  ENOTEMPTY,		/* WSAENOTEMPTY */
+  EPROCLIM,		/* WSAEPROCLIM */
+  EUSERS,		/* WSAEUSERS */
+  EDQUOT,		/* WSAEDQUOT */
+  ESTALE,		/* WSAESTALE */
+  EREMOTE,		/* WSAEREMOTE */
 };
 
 int
 find_winsock_errno (DWORD why)
 {
-  for (int i = 0; wsock_errmap[i].s != NULL; ++i)
-    if (why == wsock_errmap[i].w)
-      return wsock_errmap[i].e;
+  if (!why)
+    return 0;
+  if (why < WSABASEERR)
+    geterrno_from_win_error (why, EACCES);
+
+  why -= WSABASEERR;
+  if (why < sizeof wsock_errmap / sizeof wsock_errmap[0])
+    return wsock_errmap[why];
 
   return EACCES;
 }
@@ -207,11 +235,12 @@ __set_winsock_errno (const char *fn, int ln)
   syscall_printf ("%s:%d - winsock error %u -> errno %d", fn, ln, werr, err);
 }
 
-/*
- * Since the member `s' isn't used for debug output we can use it
- * for the error text returned by herror and hstrerror.
- */
-static const errmap_t host_errmap[] = {
+static const struct host_errmap_t
+{
+  DWORD w;		 /* windows version of error */
+  const char *s;	 /* error text returned by herror and hstrerror */
+  int e;		 /* errno version of error */
+} host_errmap[] = {
   {WSAHOST_NOT_FOUND, "Unknown host", HOST_NOT_FOUND},
   {WSATRY_AGAIN, "Host name lookup failure", TRY_AGAIN},
   {WSANO_RECOVERY, "Unknown server error", NO_RECOVERY},
@@ -290,7 +319,6 @@ realloc_ent (int sz, hostent *)
    The 'unionent' struct is a union of all of the currently used
    *ent structure.  */
 
-#ifdef __x86_64__
 /* For some baffling reason, somebody at Microsoft decided that it would be
    a good idea to exchange the s_port and s_proto members in the servent
    structure. */
@@ -302,9 +330,6 @@ struct win64_servent
   short  s_port;
 };
 #define WIN_SERVENT(x)	((win64_servent *)(x))
-#else
-#define WIN_SERVENT(x)	((servent *)(x))
-#endif
 
 #ifdef DEBUGGING
 static void *
@@ -1440,26 +1465,20 @@ cygwin_send (int fd, const void *buf, size_t len, int flags)
 
 /* Fill out an ifconf struct. */
 
-struct gaa_wa {
-  ULONG family;
-  PIP_ADAPTER_ADDRESSES *pa_ret;
-};
-
-DWORD WINAPI
-call_gaa (LPVOID param)
+bool
+get_adapters_addresses (PIP_ADAPTER_ADDRESSES *pa_ret, ULONG family)
 {
   DWORD ret, size = 0;
-  gaa_wa *p = (gaa_wa *) param;
   PIP_ADAPTER_ADDRESSES pa0 = NULL;
 
-  if (!p->pa_ret)
-    return GetAdaptersAddresses (p->family, GAA_FLAG_INCLUDE_PREFIX
-					    | GAA_FLAG_INCLUDE_ALL_INTERFACES,
+  if (!pa_ret)
+    return GetAdaptersAddresses (family, GAA_FLAG_INCLUDE_PREFIX
+					 | GAA_FLAG_INCLUDE_ALL_INTERFACES,
 				 NULL, NULL, &size);
   do
     {
-      ret = GetAdaptersAddresses (p->family, GAA_FLAG_INCLUDE_PREFIX
-					     | GAA_FLAG_INCLUDE_ALL_INTERFACES,
+      ret = GetAdaptersAddresses (family, GAA_FLAG_INCLUDE_PREFIX
+					  | GAA_FLAG_INCLUDE_ALL_INTERFACES,
 				  NULL, pa0, &size);
       if (ret == ERROR_BUFFER_OVERFLOW
 	  && !(pa0 = (PIP_ADAPTER_ADDRESSES) realloc (pa0, size)))
@@ -1471,42 +1490,11 @@ call_gaa (LPVOID param)
       if (ret != ERROR_SUCCESS)
 	{
 	  free (pa0);
-	  *p->pa_ret = NULL;
+	  *pa_ret = NULL;
 	}
       else
-	*p->pa_ret = pa0;
+	*pa_ret = pa0;
     }
-  return ret;
-}
-
-bool
-get_adapters_addresses (PIP_ADAPTER_ADDRESSES *pa_ret, ULONG family)
-{
-  DWORD ret;
-  gaa_wa param = { family, pa_ret };
-
-  if (wincap.has_gaa_largeaddress_bug ()
-      && (uintptr_t) &param >= (uintptr_t) 0x80000000L)
-    {
-      /* In Windows Vista and Windows 7 under WOW64, GetAdaptersAddresses fails
-	 if it's running in a thread with a stack located in the large address
-	 area.  So, if we're running in a pthread with such a stack, we call
-	 GetAdaptersAddresses in a child thread with an OS-allocated stack.
-	 The OS allocates stacks bottom up, so chances are good that the new
-	 stack will be located in the lower address area. */
-      HANDLE thr = CreateThread (NULL, 0, call_gaa, &param, 0, NULL);
-      SetThreadName (GetThreadId (thr), "__call_gaa");
-      if (!thr)
-	{
-	  debug_printf ("CreateThread: %E");
-	  return false;
-	}
-      WaitForSingleObject (thr, INFINITE);
-      GetExitCodeThread (thr, &ret);
-      CloseHandle (thr);
-    }
-  else
-    ret = call_gaa (&param);
   return ret == ERROR_SUCCESS || (!pa_ret && ret == ERROR_BUFFER_OVERFLOW);
 }
 
@@ -1717,51 +1705,6 @@ get_hwaddr (struct ifall *ifp, PIP_ADAPTER_ADDRESSES pap)
 }
 
 /*
- * Generate short, unique interface name for usage with aged
- * applications still using the old pre-1.7 ifreq structure.
- */
-static void
-gen_old_if_name (char *name, PIP_ADAPTER_ADDRESSES pap, DWORD idx)
-{
-  /* Note: The returned name must be < 16 chars. */
-  const char *prefix;
-
-  switch (pap->IfType)
-    {
-      case IF_TYPE_ISO88025_TOKENRING:
-	prefix = "tok";
-	break;
-      case IF_TYPE_PPP:
-	prefix = "ppp";
-	break;
-      case IF_TYPE_SOFTWARE_LOOPBACK:
-	prefix = "lo";
-	break;
-      case IF_TYPE_ATM:
-	prefix = "atm";
-	break;
-      case IF_TYPE_IEEE80211:
-	prefix = "wlan";
-	break;
-      case IF_TYPE_SLIP:
-      case IF_TYPE_RS232:
-      case IF_TYPE_MODEM:
-	prefix = "slp";
-	break;
-      case IF_TYPE_TUNNEL:
-	prefix = "tun";
-	break;
-      default:
-	prefix = "eth";
-	break;
-    }
-  if (idx)
-    __small_sprintf (name, "%s%u:%u", prefix, pap->IfIndex, idx);
-  else
-    __small_sprintf (name, "%s%u", prefix, pap->IfIndex, idx);
-}
-
-/*
  * Get network interfaces.  Use IP Helper function GetAdaptersAddresses.
  */
 static struct ifall *
@@ -1803,9 +1746,7 @@ get_ifs (ULONG family)
 	    ifp->ifa_ifa.ifa_next = (struct ifaddrs *) &ifp[1].ifa_ifa;
 	    /* Interface name */
 
-	    if (CYGWIN_VERSION_CHECK_FOR_OLD_IFREQ)
-	      gen_old_if_name (ifp->ifa_name, pap, idx);
-	    else if (idx)
+	    if (idx)
 	      __small_sprintf (ifp->ifa_name, "%s:%u", pap->AdapterName, idx);
 	    else
 	      strcpy (ifp->ifa_name, pap->AdapterName);
@@ -1851,9 +1792,7 @@ get_ifs (ULONG family)
 	    /* Next in chain */
 	    ifp->ifa_ifa.ifa_next = (struct ifaddrs *) &ifp[1].ifa_ifa;
 	    /* Interface name */
-	    if (CYGWIN_VERSION_CHECK_FOR_OLD_IFREQ)
-	      gen_old_if_name (ifp->ifa_name, pap, idx);
-	    else if (sa->sa_family == AF_INET && idx)
+	    if (sa->sa_family == AF_INET && idx)
 	      __small_sprintf (ifp->ifa_name, "%s:%u", pap->AdapterName, idx);
 	    else
 	      strcpy (ifp->ifa_name, pap->AdapterName);
@@ -2975,7 +2914,7 @@ bad:
 }
 
 /* Cygwin specific wrappers around the gai functions. */
-static struct gai_errmap_t
+static const struct gai_errmap_t
 {
   int w32_errval;
   const char *errtxt;
@@ -3115,11 +3054,9 @@ cygwin_getaddrinfo (const char *hostname, const char *servname,
 	  /* sizeof addrinfo == sizeof addrinfoW */
 	  memcpy (&whints, hints, sizeof whints);
 	  whints.ai_flags &= ~AI_IDN_MASK;
-#ifdef __x86_64__
 	  /* ai_addrlen is socklen_t (4 bytes) in POSIX but size_t (8 bytes) in
 	     Winsock.  Sert upper 4 bytes explicitely to 0 to avoid EAI_FAIL. */
 	  whints.ai_addrlen &= UINT32_MAX;
-#endif
 	  /* On Windows, the default behaviour is as if AI_ADDRCONFIG is set,
 	     apparently for performance reasons.  To get the POSIX default
 	     behaviour, the AI_ALL flag has to be set. */

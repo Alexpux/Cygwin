@@ -12,6 +12,7 @@ details. */
 #include "path.h"
 #include "fhandler.h"
 #include "dtable.h"
+#include "create_posix_thread.h"
 #include "cygheap.h"
 #include "sigproc.h"
 #include "exception.h"
@@ -20,7 +21,7 @@ details. */
 void
 _cygtls::call (DWORD (*func) (void *, void *), void *arg)
 {
-  char buf[CYGTLS_PADSIZE];
+  char buf[__CYGTLS_PADSIZE__];
   /* Initialize this thread's ability to respond to things like
      SIGSEGV or SIGFPE. */
   exception protect;
@@ -55,22 +56,15 @@ _cygtls::init_thread (void *x, DWORD (*func) (void *, void *))
       _REENT_INIT_PTR (&local_clib);
       stackptr = stack;
       altstack.ss_flags = SS_DISABLE;
-      if (_GLOBAL_REENT)
-	{
-	  local_clib._stdin = _GLOBAL_REENT->_stdin;
-	  local_clib._stdout = _GLOBAL_REENT->_stdout;
-	  local_clib._stderr = _GLOBAL_REENT->_stderr;
-	  local_clib.__sdidinit = _GLOBAL_REENT->__sdidinit ? -1 : 0;
-	  local_clib.__cleanup = _GLOBAL_REENT->__cleanup;
-	  local_clib.__sglue._niobs = 3;
-	  local_clib.__sglue._iobs = &_GLOBAL_REENT->__sf[0];
-	}
+      if (_REENT_CLEANUP(_GLOBAL_REENT))
+	local_clib.__cleanup = _cygtls::cleanup_early;
     }
 
   thread_id = GetCurrentThreadId ();
   initialized = CYGTLS_INITIALIZED;
   errno_addr = &(local_clib._errno);
   locals.cw_timer = NULL;
+  locals.pathbufs.clear ();
 
   if ((void *) func == (void *) cygthread::stub
       || (void *) func == (void *) cygthread::simplestub)
@@ -91,6 +85,7 @@ _cygtls::fixup_after_fork ()
   signal_arrived = NULL;
   locals.select.sockevt = NULL;
   locals.cw_timer = NULL;
+  locals.pathbufs.clear ();
   wq.thread_ev = NULL;
 }
 
@@ -149,11 +144,15 @@ _cygtls::remove (DWORD wait)
     }
 }
 
-#ifdef __x86_64__
+void
+_cygtls::cleanup_early (struct _reent *)
+{
+  /* Do nothing */
+}
+
 void san::leave ()
 {
   /* Restore tls_pathbuf counters in case of error. */
   _my_tls.locals.pathbufs._counters = _cnt;
   _my_tls.andreas = _clemente;
 }
-#endif

@@ -41,12 +41,34 @@ details. */
 bool NO_COPY mount_info::got_usr_bin;
 int NO_COPY mount_info::root_idx = -1;
 
-/* is_unc_share: Return non-zero if PATH begins with //server/share
+/* is_native_path: Return non-zero if PATH starts with \??\[a-zA-Z] or
+		   with \\?\[a-zA-Z] or with \\.\[a-zA-Z].
+
+   is_unc_share: Return non-zero if PATH begins with //server/share
 		 or with one of the native prefixes //./ or //?/
+
    This function is only used to test for valid input strings.
    The later normalization drops the native prefixes. */
 
-static inline bool __stdcall
+/* list of invalid chars in server names.  Note that underscore is ok,
+   but it cripples interoperability. */
+const char _invalid_server_char[] = ",~:!@#$%^&'.(){} ";
+#define valid_server_char(_c)	({				\
+		const char __c = (_c);				\
+		!iscntrl(__c)					\
+		&& strchr (_invalid_server_char, (_c)) == NULL;	\
+	})
+
+/* list of invalid chars in UNC filenames.  These are a few more than
+   for "normal" filenames. */
+const char _invalid_share_char[] = "\"/\\[]:|<>+=;,?*";
+#define valid_share_char(_c)	({				\
+		const char __c = (_c);				\
+		!iscntrl(__c)					\
+		&& strchr (_invalid_share_char, __c) == NULL;	\
+	})
+
+static inline bool
 is_native_path (const char *path)
 {
   return isdirsep (path[0])
@@ -56,15 +78,15 @@ is_native_path (const char *path)
 	 && isalpha (path[4]);
 }
 
-static inline bool __stdcall
+static inline bool
 is_unc_share (const char *path)
 {
   const char *p;
   return (isdirsep (path[0])
 	 && isdirsep (path[1])
-	 && isalnum (path[2])
+	 && valid_server_char (path[2])
 	 && ((p = strpbrk (path + 3, "\\/")) != NULL)
-	 && isalnum (p[1]));
+	 && valid_share_char (p[1]));
 }
 
 /* Return true if src_path is a valid, internally supported device name.
@@ -722,12 +744,12 @@ mount_info::conv_to_win32_path (const char *src_path, char *dst, device& dev,
   return rc;
 }
 
-int
-mount_info::get_mounts_here (const char *parent_dir, int parent_dir_len,
+size_t
+mount_info::get_mounts_here (const char *parent_dir, size_t parent_dir_len,
 			     PUNICODE_STRING mount_points,
 			     PUNICODE_STRING cygd)
 {
-  int n_mounts = 0;
+  size_t n_mounts = 0;
 
   for (int i = 0; i < nmounts; i++)
     {
@@ -738,18 +760,27 @@ mount_info::get_mounts_here (const char *parent_dir, int parent_dir_len,
       if (last_slash == mi->posix_path)
 	{
 	  if (parent_dir_len == 1 && mi->posix_pathlen > 1)
-	    RtlCreateUnicodeStringFromAsciiz (&mount_points[n_mounts++],
-					      last_slash + 1);
+	    sys_mbstouni_alloc (&mount_points[n_mounts++], HEAP_BUF,
+			        last_slash + 1);
 	}
-      else if (parent_dir_len == last_slash - mi->posix_path
+      else if (parent_dir_len == (size_t) (last_slash - mi->posix_path)
 	       && strncasematch (parent_dir, mi->posix_path, parent_dir_len))
-	RtlCreateUnicodeStringFromAsciiz (&mount_points[n_mounts++],
-					  last_slash + 1);
+	sys_mbstouni_alloc (&mount_points[n_mounts++], HEAP_BUF,
+			    last_slash + 1);
     }
-  RtlCreateUnicodeStringFromAsciiz (cygd, cygdrive + 1);
+  sys_mbstouni_alloc (cygd, HEAP_BUF, cygdrive + 1);
   if (cygd->Length)
     cygd->Length -= 2;	// Strip trailing slash
   return n_mounts;
+}
+
+void
+mount_info::free_mounts_here (PUNICODE_STRING mount_points, int n_mounts,
+			      PUNICODE_STRING cygd)
+{
+  for (int i = 0; i < n_mounts; ++i)
+    cfree (mount_points[i].Buffer);
+  cfree (cygd->Buffer);
 }
 
 /* cygdrive_posix_path: Build POSIX path used as the
@@ -923,6 +954,9 @@ mount_info::conv_to_posix_path (const char *src_path, char *posix_path,
 	nextchar = 1;
 
       int addslash = nextchar > 0 ? 1 : 0;
+      /* avoid appending a slash if the result already has a trailing slash */
+      if (append_slash && mi.posix_pathlen && mi.posix_path[mi.posix_pathlen-1] == '/')
+	append_slash = addslash = 0;
       if ((mi.posix_pathlen + (pathbuflen - mi.native_pathlen) + addslash) >= NT_MAX_PATH)
 	return ENAMETOOLONG;
       strcpy (posix_path, mi.posix_path);
@@ -1285,8 +1319,8 @@ static mount_item *mounts_for_sort;
 
 /* sort_by_posix_name: qsort callback to sort the mount entries.  Sort
    user mounts ahead of system mounts to the same POSIX path. */
-/* FIXME: should the user should be able to choose whether to
-   prefer user or system mounts??? */
+/* FIXME: should the user be able to choose whether to prefer user or
+   system mounts??? */
 static int
 sort_by_posix_name (const void *a, const void *b)
 {
@@ -1321,8 +1355,8 @@ sort_by_posix_name (const void *a, const void *b)
 
 /* sort_by_native_name: qsort callback to sort the mount entries.  Sort
    user mounts ahead of system mounts to the same POSIX path. */
-/* FIXME: should the user should be able to choose whether to
-   prefer user or system mounts??? */
+/* FIXME: should the user be able to choose whether to prefer user or
+   system mounts??? */
 static int
 sort_by_native_name (const void *a, const void *b)
 {

@@ -1,6 +1,6 @@
 #! /usr/bin/perl -w
 
-#   Copyright (C) 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
+#   Copyright (C) 1999-2021 Free Software Foundation, Inc.
 
 # This file is part of GCC.
 
@@ -59,6 +59,8 @@ while ($_ = shift) {
 	    $flag = shift;
 	}
         push (@ipath, $flag);
+    } elsif (/^--no-split$/) {
+	# ignore option for makeinfo compatibility
     } elsif (/^-/) {
 	usage();
     } else {
@@ -311,7 +313,7 @@ while(<$inf>) {
 	@columns = ();
 	for $column (split (/\s*\@tab\s*/, $1)) {
 	    # @strong{...} is used a @headitem work-alike
-	    $column =~ s/^\@strong{(.*)}$/$1/;
+	    $column =~ s/^\@strong\{(.*)\}$/$1/;
 	    push @columns, $column;
 	}
 	$_ = "\n=item ".join (" : ", @columns)."\n";
@@ -381,6 +383,7 @@ sub postprocess
     s/\@file\{([^\}]*)\}/F<$1>/g;
     s/\@w\{([^\}]*)\}/S<$1>/g;
     s/\@(?:dmn|math)\{([^\}]*)\}/$1/g;
+    s/\@t\{([^\}]*)\}/$1/g;
 
     # keep references of the form @ref{...}, print them bold
     s/\@(?:ref)\{([^\}]*)\}/B<$1>/g;

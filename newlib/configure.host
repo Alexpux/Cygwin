@@ -43,9 +43,6 @@
 #   stdio64_dir		"stdio64" to build libc/stdio64, "" otherwise
 #   syscall_dir		"syscalls" to build libc/syscalls, "" otherwise
 #   unix_dir		"unix" to build libc/unix, "" otherwise
-#   use_libtool         flag: use libtool to build newlib?
-#   aext                library extension - needed for libtool support
-#   oext                object file extension - needed for libtool support
 #   lpfx		library object prefix - generated when no libtool
 #   crt1                name of crt1 object if one is provided
 #   crt1_dir            directory where crt1 object is found
@@ -54,7 +51,7 @@
 #   have_init_fini	have init/fini ("yes" or "no", set to "yes" by default)
 #   noinclude		list of include files to not install
 
-newlib_cflags=
+newlib_cflags="-D_LIBC"
 libm_machine_dir=
 machine_dir=
 shared_machine_dir=
@@ -72,8 +69,6 @@ crt1=
 crt1_dir=
 have_crt0=
 have_init_fini=yes
-use_libtool=no
-have_sys_mach_dir=no
 default_newlib_io_c99_formats=no
 default_newlib_io_long_long=no
 default_newlib_io_long_double=no
@@ -81,8 +76,6 @@ default_newlib_io_pos_args=no
 default_newlib_atexit_dynamic_alloc=yes
 default_newlib_nano_malloc=no
 default_newlib_reent_check_verify=yes
-aext=a
-oext=o
 lpfx="lib_a-"
 newlib_msg_warn=
 
@@ -126,7 +119,7 @@ case "${host_cpu}" in
   amdgcn*)
 	newlib_cflags="${newlib_cflags} -D__DYNAMIC_REENT__"
 	machine_dir=amdgcn
-	libc_cv_initfinit_array=yes
+	newlib_cv_initfinit_array=yes
 	;;
   arc*)
 	machine_dir=arc
@@ -406,7 +399,7 @@ fi
 
 if [ "x${newlib_mb}" = "x" ]; then
 	case "${host}" in
-  	  i[34567]86-pc-linux-*|*-*-cygwin*|*-*-msys*)
+	  *-*-cygwin*|*-*-msys*)
 		newlib_mb=yes
 	  	;;
 	esac
@@ -418,21 +411,6 @@ if [ "${newlib_io_float}" = "no" ] ; then
 	newlib_cflags="${newlib_cflags} -DNO_FLOATING_POINT"
 fi
 
-# Verify if shared newlib support is allowed and set appropriate variables
-# We don't want to use libtool for platforms that we are not going to
-# support shared libraries.  This is because it adds executable tests which
-# we don't want for most embedded platforms.
-case "${host}" in
-  i[34567]86-pc-linux-*)
-    use_libtool=yes
-    have_sys_mach_dir=yes
-    stdio64_dir=stdio64
-    oext=lo
-    lpfx=
-    aext=la ;;
-  *) ;; #shared library not supported for ${host}
-esac
-
 # Get the source directories to use for the host.  unix_dir is set
 # to unix to get some standard Unix routines.  posix_dir is set to get some
 # standard Posix routines.  sys_dir should supply system dependent routines
@@ -442,17 +420,11 @@ esac
 case "${host}" in
   *-*-cygwin* | *-*-msys*)
 	posix_dir=posix
-	stdio64_dir=stdio64
 	xdr_dir=xdr
 	;;
   *-*-netware*)
 	signal_dir=
 	sys_dir=netware
-	;;
-  *-*-phoenix*)
-	sys_dir=phoenix
-	posix_dir=posix
-	unix_dir=unix
 	;;
   *-*-rtems*)			# generic RTEMS support
 	sys_dir=rtems
@@ -467,15 +439,11 @@ case "${host}" in
 	sys_dir=a29khif
 	signal_dir=
 	;;
-  aarch64*-*-*)
-	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
-	;;
   amdgcn*)
 	sys_dir=amdgcn
 	have_crt0="no"
 	;;
   arm*-*-*)
-	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
 	sys_dir=arm
 	if [ "x${newlib_may_supply_syscalls}" = "xno" ] ; then
 	  have_crt0="no"
@@ -534,29 +502,6 @@ case "${host}" in
 	sys_dir=sysvi386
 	unix_dir=unix
 	;;
-  i[34567]86-pc-linux-*)
-	sys_dir=linux
-	unix_dir=unix
-	posix_dir=posix
-	crt1=crt1.o
-	crt1_dir=libc/sys/${sys_dir}	
-	gcc_dir=`gcc -print-search-dirs | awk '/^install:/{print $2}'`
-	default_newlib_io_c99_formats="yes"
-	default_newlib_io_long_double="yes"
-	default_newlib_io_long_long="yes"
-	default_newlib_io_pos_args="yes"
-	#newlib_cflags="${newlib_cflags} -Werror" # DEBUGGING ONLY;BREAKS BUILD
-	newlib_cflags="${newlib_cflags} -Wall"
-	newlib_cflags="${newlib_cflags} -DHAVE_FCNTL"
-	newlib_cflags="${newlib_cflags} -DHAVE_GETOPT"
-	newlib_cflags="${newlib_cflags} -D_NO_POSIX_SPAWN"
-	# --- Required when building a shared library ------------------------
-	newlib_cflags="${newlib_cflags} -fPIC -D_I386MACH_NEED_SOTYPE_FUNCTION"
-	# --- The three lines below are optional ------------------------------
-	##newlib_cflags="${newlib_cflags} -nostdinc"
-	##newlib_cflags="${newlib_cflags} -I`newlib-flags --kernel-dir`/include"
-	##newlib_cflags="${newlib_cflags} -idirafter ${gcc_dir}include"
-	;;
 
   m68hc11-*-*|m6811-*-*|m6812-*-*|m68hc12-*-*)
 	;;
@@ -573,9 +518,6 @@ case "${host}" in
 	;;
   microblaze*-*-*)
 	machine_dir=microblaze
-	;;
-  mips*-dec-*)
-	sys_dir=decstation
 	;;
   mmix-knuth-mmixware)
 	sys_dir=mmixware
@@ -596,14 +538,6 @@ case "${host}" in
 	;;
   sh*-*)
 	sys_dir=sh
-	;;
-  sparc-sun-sunos*)
-	sys_dir=sun4
-	unix_dir=unix
-	;;
-  sparc64*)
-	sys_dir=sparc64
-	unix_dir=unix
 	;;
   spu-*-*)
 	default_newlib_io_long_long="yes"
@@ -645,20 +579,15 @@ esac
 
 case "${host}" in
   *-*-cygwin* | *-*-msys*)
-	test -z "$cygwin_srcdir" && cygwin_srcdir=`cd ${srcdir}/../winsup/cygwin; pwd`
+	test -z "$cygwin_srcdir" && cygwin_srcdir="${abs_newlib_basedir}/../winsup/cygwin"
 	export cygwin_srcdir
 	default_newlib_io_c99_formats="yes"
 	default_newlib_io_long_long="yes"
 	default_newlib_io_long_double="yes"
 	default_newlib_io_pos_args="yes"
 	CC="${CC} -I${cygwin_srcdir}/include"
-	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DGETREENT_PROVIDED -DSIGNAL_PROVIDED -D_COMPILING_NEWLIB -DHAVE_BLKSIZE -DHAVE_FCNTL -DMALLOC_PROVIDED"
+	newlib_cflags="${newlib_cflags} -DHAVE_OPENDIR -DHAVE_RENAME -DGETREENT_PROVIDED -DSIGNAL_PROVIDED -DHAVE_BLKSIZE -DHAVE_FCNTL -DMALLOC_PROVIDED"
 	syscall_dir=syscalls
-	;;
-  *-*-phoenix*)
-	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES -D_COMPILING_NEWLIB -DHAVE_BLKSIZE -DHAVE_NANOSLEEP"
-	default_newlib_io_long_long="yes"
-	syscall_dir=
 	;;
 # RTEMS supplies its own versions of some routines:
 #       malloc()            (reentrant version)
@@ -671,7 +600,6 @@ case "${host}" in
 	default_newlib_io_long_long="yes"
 	default_newlib_io_c99_formats="yes"
 	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
-	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
 newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
         # turn off unsupported items in posix directory 
 	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
@@ -700,6 +628,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
 	;;
   arm*-*-pe)
 	syscall_dir=syscalls
+	newlib_cflags="${newlib_cflags} -DHAVE_SYSCONF_PAGESIZE"
 	;;
   arm*-*-*)
 	syscall_dir=syscalls
@@ -714,6 +643,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
 #         newlib_cflags="${newlib_cflags} -DARM_RDP_MONITOR"
 	  newlib_cflags="${newlib_cflags} -DARM_RDI_MONITOR"
 	fi
+	newlib_cflags="${newlib_cflags} -DHAVE_SYSCONF_PAGESIZE"
 	;;
   avr*)
 	newlib_cflags="${newlib_cflags} -DNO_EXEC -DSMALL_MEMORY -DMISSING_SYSCALL_NAMES"
@@ -997,7 +927,7 @@ fi
 
 # Have init/finit if not explicitly specified otherwise
 if [ "x${have_init_fini}" != "xno" ]; then
-	newlib_cflags="${newlib_cflags} -DHAVE_INIT_FINI"
+	newlib_cflags="${newlib_cflags} -D_HAVE_INIT_FINI"
 fi
 
 if test -z "${have_crt0}" && test -n "${sys_dir}"; then

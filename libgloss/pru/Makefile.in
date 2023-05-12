@@ -29,7 +29,6 @@ srcdir = @srcdir@
 objdir = .
 srcroot = $(srcdir)/../..
 objroot = $(objdir)/../..
-top_srcdir = @top_srcdir@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -49,7 +48,7 @@ MULTISUBDIR =
 
 SHELL =	/bin/sh
 
-mkinstalldirs = $(SHELL) $(top_srcdir)/../../mkinstalldirs
+mkinstalldirs = $(SHELL) $(srcroot)/mkinstalldirs
 
 CC = @CC@
 
@@ -121,7 +120,7 @@ clean mostlyclean:
 	rm -f $(OUTPUTS) *.i *~ *.o *-test *.srec *.dis *.map *.x
 
 distclean maintainer-clean realclean: clean
-	rm -f Makefile config.status $(OUTPUTS)
+	rm -f Makefile $(OUTPUTS)
 
 .PHONY: install info install-info clean-info
 install: $(OUTPUTS)
@@ -142,8 +141,5 @@ info:
 install-info:
 clean-info:
 
-Makefile: $(srcdir)/Makefile.in config.status @host_makefile_frag_path@
-	$(SHELL) config.status
-
-config.status: $(srcdir)/configure
-	$(SHELL) config.status --recheck
+Makefile: $(srcdir)/Makefile.in ../config.status
+	cd .. && $(SHELL) config.status

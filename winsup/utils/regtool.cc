@@ -16,7 +16,6 @@ details. */
 #include <windows.h>
 #include <sys/cygwin.h>
 #include <cygwin/version.h>
-#include "loadlib.h"
 
 #define DEFAULT_KEY_SEPARATOR '\\'
 
@@ -152,8 +151,8 @@ usage (FILE *where = stderr)
       " -h, --help     output usage information and exit\n"
       " -q, --quiet    no error output, just nonzero return if KEY/VALUE missing\n"
       " -v, --verbose  verbose output, including VALUE contents when applicable\n"
-      " -w, --wow64    access 64 bit registry view (ignored on 32 bit Windows)\n"
-      " -W, --wow32    access 32 bit registry view (ignored on 32 bit Windows)\n"
+      " -w, --wow64    access 64 bit registry view\n"
+      " -W, --wow32    access 32 bit registry view\n"
       " -V, --version  output version information and exit\n"
       "\n");
       fprintf (where, ""
@@ -589,10 +588,6 @@ cmd_add ()
   return 0;
 }
 
-extern "C" {
-  LONG WINAPI (*regDeleteKeyEx)(HKEY, LPCWSTR, REGSAM, DWORD);
-}
-
 int
 cmd_remove ()
 {
@@ -600,13 +595,7 @@ cmd_remove ()
 
   find_key (2, KEY_ALL_ACCESS);
   if (wow64)
-    {
-      HMODULE mod = LoadLibrary ("advapi32.dll");
-      if (mod)
-	regDeleteKeyEx = (LONG WINAPI (*)(HKEY, LPCWSTR, REGSAM, DWORD)) GetProcAddress (mod, "RegDeleteKeyExW");
-    }
-  if (regDeleteKeyEx)
-    rv = (*regDeleteKeyEx) (key, value, wow64, 0);
+    rv = RegDeleteKeyExW (key, value, wow64, 0);
   else
     rv = RegDeleteKeyW (key, value);
   if (rv != ERROR_SUCCESS)

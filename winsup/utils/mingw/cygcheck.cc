@@ -624,12 +624,7 @@ dll_info (const char *path, HANDLE fh, int lvl, int recurse)
     }
   int base_off = 108;
 #else
-  if (arch != IMAGE_FILE_MACHINE_I386)
-    {
-      puts (verbose ? " (not x86 dll)" : "\n");
-      return;
-    }
-  int base_off = 92;
+#error unimplemented for this target
 #endif
   int opthdr_ofs = pe_header_offset + 4 + 20;
   unsigned short v[6];
@@ -1604,26 +1599,6 @@ dump_sysinfo ()
       || osversion.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
     exit (EXIT_FAILURE);
 
-  BOOL is_wow64 = FALSE;
-  if (IsWow64Process (GetCurrentProcess (), &is_wow64) && is_wow64)
-    {
-      SYSTEM_INFO natinfo;
-      GetNativeSystemInfo (&natinfo);
-      fputs ("\nRunning under WOW64 on ", stdout);
-      switch (natinfo.wProcessorArchitecture)
-	{
-	  case PROCESSOR_ARCHITECTURE_IA64:
-	    puts ("IA64");
-	    break;
-	  case PROCESSOR_ARCHITECTURE_AMD64:
-	    puts ("AMD64");
-	    break;
-	  default:
-	    puts("??");
-	    break;
-	}
-    }
-
   if (GetSystemMetrics (SM_REMOTESESSION))
     printf ("\nRunning in Terminal Service session\n");
 
@@ -2038,7 +2013,7 @@ static const char base_url[] =
 #ifdef __x86_64__
 #define ARCH_STR  "&arch=x86_64"
 #else
-#define ARCH_STR  "&arch=x86"
+#error unimplemented for this target
 #endif
 static const char *ARCH_str = ARCH_STR;
 

@@ -34,7 +34,6 @@ static const suffix_info exe_suffixes[] =
 {
   suffix_info ("", 1),
   suffix_info (".exe", 1),
-  suffix_info (".com"),
   suffix_info (NULL)
 };
 
@@ -84,7 +83,7 @@ perhaps_suffix (const char *prog, path_conv& buf, int& err, unsigned opt)
    If the file is not found and !FE_NNF then the POSIX version of name is
    placed in buf and returned.  Otherwise the contents of buf is undefined
    and NULL is returned.  */
-const char * __reg3
+const char *
 find_exec (const char *name, path_conv& buf, const char *search,
 	   unsigned opt, const char **known_suffix)
 {
@@ -95,6 +94,7 @@ find_exec (const char *name, path_conv& buf, const char *search,
   char *tmp = tp.c_get ();
   bool has_slash = !!strpbrk (name, "/\\");
   int err = 0;
+  bool eopath = false;
 
   debug_printf ("find_exec (%s)", name);
 
@@ -118,8 +118,14 @@ find_exec (const char *name, path_conv& buf, const char *search,
      the name of an environment variable. */
   if (strchr (search, '/'))
     *stpncpy (tmp, search, NT_MAX_PATH - 1) = '\0';
-  else if (has_slash || isdrive (name) || !(path = getenv (search)) || !*path)
+  else if (has_slash || isdrive (name))
     goto errout;
+  /* Search the current directory when PATH is absent. This feature is
+     added for Linux compatibility, but it is deprecated. POSIX notes
+     that a conforming application shall use an explicit path name to
+     specify the current working directory. */
+  else if (!(path = getenv (search)) || !*path)
+    strcpy (tmp, ".");
   else
     *stpncpy (tmp, path, NT_MAX_PATH - 1) = '\0';
 
@@ -130,11 +136,21 @@ find_exec (const char *name, path_conv& buf, const char *search,
   do
     {
       char *eotmp = strccpy (tmp_path, &path, ':');
+      if (*path)
+	path++;
+      else
+	eopath = true;
       /* An empty path or '.' means the current directory, but we've
 	 already tried that.  */
       if ((opt & FE_CWD) && (tmp_path[0] == '\0'
 			     || (tmp_path[0] == '.' && tmp_path[1] == '\0')))
 	continue;
+      /* An empty path means the current directory. This feature is
+	 added for Linux compatibility, but it is deprecated. POSIX
+	 notes that a conforming application shall use an explicit
+	 pathname to specify the current working directory. */
+      else if (tmp_path[0] == '\0')
+	eotmp = stpcpy (tmp_path, ".");
 
       *eotmp++ = '/';
       stpcpy (eotmp, name);
@@ -155,7 +171,7 @@ find_exec (const char *name, path_conv& buf, const char *search,
 	}
 
     }
-  while (*path && *++path);
+  while (!eopath);
 
  errout:
   /* Couldn't find anything in the given path.
@@ -193,29 +209,6 @@ handle (int fd, bool writing)
     h = cfd->get_output_handle_nat ();
 
   return h;
-}
-
-static bool
-is_console_app (WCHAR *filename)
-{
-  HANDLE h;
-  const int id_offset = 92;
-  h = CreateFileW (filename, GENERIC_READ, FILE_SHARE_READ,
-		  NULL, OPEN_EXISTING, 0, NULL);
-  char buf[1024];
-  DWORD n;
-  ReadFile (h, buf, sizeof (buf), &n, 0);
-  CloseHandle (h);
-  char *p = (char *) memmem (buf, n, "PE\0\0", 4);
-  if (p && p + id_offset < buf + n)
-    return p[id_offset] == '\003'; /* 02: GUI, 03: console */
-  else
-    {
-      wchar_t *e = wcsrchr (filename, L'.');
-      if (e && (wcscasecmp (e, L".bat") == 0 || wcscasecmp (e, L".cmd") == 0))
-	return true;
-    }
-  return false;
 }
 
 int
@@ -339,14 +332,10 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
   PWCHAR runpath = tp.w_get ();
   int c_flags;
 
-  bool null_app_name = false;
   STARTUPINFOW si = {};
   int looped = 0;
 
-  struct fhandler_pty_slave::handle_set_t ptys_handle_set = { 0, };
-  bool ptys_need_cleanup = false;
-  struct fhandler_console::handle_set_t cons_handle_set = { 0, };
-  bool cons_need_cleanup = false;
+  fhandler_termios::spawn_worker term_spawn_worker;
 
   system_call_handle system_call (mode == _P_SYSTEM);
 
@@ -391,61 +380,41 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	  __leave;
 	}
 
-      if (ac == 3 && argv[1][0] == '/' && tolower (argv[1][1]) == 'c' &&
-	  (iscmd (argv[0], "command.com") || iscmd (argv[0], "cmd.exe")))
+      if (real_path.iscygexec ())
 	{
-	  real_path.check (prog_arg);
-	  cmd.add ("\"");
-	  if (!real_path.error)
-	    cmd.add (real_path.get_win32 ());
-	  else
-	    cmd.add (argv[0]);
-	  cmd.add ("\"");
-	  cmd.add (" ");
-	  cmd.add (argv[1]);
-	  cmd.add (" ");
-	  cmd.add (argv[2]);
-	  real_path.set_path (argv[0]);
-	  null_app_name = true;
+	  moreinfo->argc = newargv.argc;
+	  moreinfo->argv = newargv;
 	}
       else
 	{
-	  if (real_path.iscygexec ())
+	  for (int i = 0; i < newargv.argc; i++)
 	    {
-	      moreinfo->argc = newargv.argc;
-	      moreinfo->argv = newargv;
+	      //convert argv to win32
+	      int newargvlen = strlen (newargv[i]);
+	      char *tmpbuf = (char *)malloc (newargvlen + 1);
+	      memcpy (tmpbuf, newargv[i], newargvlen + 1);
+	      tmpbuf = arg_heuristic_with_exclusions(tmpbuf, msys2_arg_conv_excl, msys2_arg_conv_excl_count);
+	      debug_printf("newargv[%d] = %s", i, newargv[i]);
+	      newargv.replace (i, tmpbuf);
+	      free (tmpbuf);
 	    }
-	  else
-	    {
-	      for (int i = 0; i < newargv.argc; i++)
-	        {
-	          //convert argv to win32
-	          int newargvlen = strlen (newargv[i]);
-	          char *tmpbuf = (char *)malloc (newargvlen + 1);
-	          memcpy (tmpbuf, newargv[i], newargvlen + 1);
-	          tmpbuf = arg_heuristic_with_exclusions(tmpbuf, msys2_arg_conv_excl, msys2_arg_conv_excl_count);
-	          debug_printf("newargv[%d] = %s", i, newargv[i]);
-	          newargv.replace (i, tmpbuf);
-	          free (tmpbuf);
-	        }
-	    }
-	  if ((wincmdln || !real_path.iscygexec ())
-	        && !cmd.fromargv (newargv, real_path.get_win32 (),
-		    real_path.iscygexec ()))
-	    {
-	      res = -1;
-	      __leave;
-	    }
-
-
-	  if (mode != _P_OVERLAY || !real_path.iscygexec ()
-	      || !DuplicateHandle (GetCurrentProcess (), myself.shared_handle (),
-				   GetCurrentProcess (), &moreinfo->myself_pinfo,
-				   0, TRUE, DUPLICATE_SAME_ACCESS))
-	    moreinfo->myself_pinfo = NULL;
-	  else
-	    VerifyHandle (moreinfo->myself_pinfo);
 	}
+      if ((wincmdln || !real_path.iscygexec ())
+	   && !cmd.fromargv (newargv, real_path.get_win32 (),
+			     real_path.iscygexec ()))
+	{
+	  res = -1;
+	  __leave;
+	}
+
+
+      if (mode != _P_OVERLAY || !real_path.iscygexec ()
+	  || !DuplicateHandle (GetCurrentProcess (), myself.shared_handle (),
+			       GetCurrentProcess (), &moreinfo->myself_pinfo,
+			       0, TRUE, DUPLICATE_SAME_ACCESS))
+	moreinfo->myself_pinfo = NULL;
+      else
+	VerifyHandle (moreinfo->myself_pinfo);
 
       PROCESS_INFORMATION pi;
       pi.hProcess = pi.hThread = NULL;
@@ -515,42 +484,37 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	    }
 	}
 
-      if (null_app_name)
-	runpath = NULL;
+      USHORT len = real_path.get_nt_native_path ()->Length / sizeof (WCHAR);
+      if (RtlEqualUnicodePathPrefix (real_path.get_nt_native_path (),
+				     &ro_u_natp, FALSE))
+	{
+	  runpath = real_path.get_wide_win32_path (runpath);
+	  /* If the executable path length is < MAX_PATH, make sure the long
+	     path win32 prefix is removed from the path to make subsequent
+	     not long path aware native Win32 child processes happy. */
+	  if (len < MAX_PATH + 4)
+	    {
+	      if (runpath[5] == ':')
+		runpath += 4;
+	      else if (len < MAX_PATH + 6)
+		*(runpath += 6) = L'\\';
+	    }
+	}
+      else if (len < NT_MAX_PATH - ro_u_globalroot.Length / sizeof (WCHAR))
+	{
+	  UNICODE_STRING rpath;
+
+	  RtlInitEmptyUnicodeString (&rpath, runpath,
+				     (NT_MAX_PATH - 1) * sizeof (WCHAR));
+	  RtlCopyUnicodeString (&rpath, &ro_u_globalroot);
+	  RtlAppendUnicodeStringToString (&rpath,
+					  real_path.get_nt_native_path ());
+	}
       else
 	{
-	  USHORT len = real_path.get_nt_native_path ()->Length / sizeof (WCHAR);
-	  if (RtlEqualUnicodePathPrefix (real_path.get_nt_native_path (),
-					 &ro_u_natp, FALSE))
-	    {
-	      runpath = real_path.get_wide_win32_path (runpath);
-	      /* If the executable path length is < MAX_PATH, make sure the long
-		 path win32 prefix is removed from the path to make subsequent
-		 not long path aware native Win32 child processes happy. */
-	      if (len < MAX_PATH + 4)
-		{
-		  if (runpath[5] == ':')
-		    runpath += 4;
-		  else if (len < MAX_PATH + 6)
-		    *(runpath += 6) = L'\\';
-		}
-	    }
-	  else if (len < NT_MAX_PATH - ro_u_globalroot.Length / sizeof (WCHAR))
-	    {
-	      UNICODE_STRING rpath;
-
-	      RtlInitEmptyUnicodeString (&rpath, runpath,
-					 (NT_MAX_PATH - 1) * sizeof (WCHAR));
-	      RtlCopyUnicodeString (&rpath, &ro_u_globalroot);
-	      RtlAppendUnicodeStringToString (&rpath,
-					      real_path.get_nt_native_path ());
-	    }
-	  else
-	    {
-	      set_errno (ENAMETOOLONG);
-	      res = -1;
-	      __leave;
-	    }
+	  set_errno (ENAMETOOLONG);
+	  res = -1;
+	  __leave;
 	}
 
       cygbench ("spawn-worker");
@@ -632,34 +596,11 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	SetHandleInformation (my_wr_proc_pipe, HANDLE_FLAG_INHERIT, 0);
       parent_winpid = GetCurrentProcessId ();
 
-      PSECURITY_ATTRIBUTES sa = (PSECURITY_ATTRIBUTES) tp.w_get ();
+      PSECURITY_ATTRIBUTES sa = (PSECURITY_ATTRIBUTES) alloca (1024);
       if (!sec_user_nih (sa, cygheap->user.sid (),
 			 well_known_authenticated_users_sid,
 			 PROCESS_QUERY_LIMITED_INFORMATION))
 	sa = &sec_none_nih;
-
-      fhandler_pty_slave *ptys_primary = NULL;
-      fhandler_console *cons_native = NULL;
-      for (int i = 0; i < 3; i ++)
-	{
-	  const int chk_order[] = {1, 0, 2};
-	  int fd = chk_order[i];
-	  fhandler_base *fh = ::cygheap->fdtab[fd];
-	  if (fh && fh->get_major () == DEV_PTYS_MAJOR && ptys_primary == NULL)
-	    ptys_primary = (fhandler_pty_slave *) fh;
-	  else if (fh && fh->get_major () == DEV_CONS_MAJOR
-		   && !iscygwin () && cons_native == NULL)
-	    cons_native = (fhandler_console *) fh;
-	}
-
-      if (cons_native)
-	{
-	  cons_native->setup_for_non_cygwin_app ();
-	  /* Console handles will be already closed by close_all_files()
-	     when cleaning up, therefore, duplicate them here. */
-	  cons_native->get_duplicated_handle_set (&cons_handle_set);
-	  cons_need_cleanup = true;
-	}
 
       int fileno_stdin = in__stdin < 0 ? 0 : in__stdin;
       int fileno_stdout = in__stdout < 0 ? 1 : in__stdout;
@@ -671,14 +612,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	  int fd;
 	  cygheap_fdenum cfd (false);
 	  while ((fd = cfd.next ()) >= 0)
-	    if (cfd->get_major () == DEV_PTYS_MAJOR)
-	      {
-		fhandler_pty_slave *ptys =
-		  (fhandler_pty_slave *)(fhandler_base *) cfd;
-		ptys->create_invisible_console ();
-		ptys->setup_locale ();
-	      }
-	    else if (cfd->get_dev () == FH_PIPEW
+	    if (cfd->get_dev () == FH_PIPEW
 		     && (fd == fileno_stdout || fd == fileno_stderr))
 	      {
 		fhandler_pipe *pipe = (fhandler_pipe *)(fhandler_base *) cfd;
@@ -706,24 +640,9 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	    }
 	}
 
-      bool stdin_is_ptys = false;
-      tty *ptys_ttyp = NULL;
-      if (!iscygwin () && ptys_primary && is_console_app (runpath))
-	{
-	  bool nopcon = mode != _P_OVERLAY && mode != _P_WAIT;
-	  HANDLE h_stdin = handle (fileno_stdin, false);
-	  if (h_stdin == ptys_primary->get_handle_nat ())
-	    stdin_is_ptys = true;
-	  if (reset_sendsig)
-	    myself->sendsig = myself->exec_sendsig;
-	  ptys_primary->setup_for_non_cygwin_app (nopcon, envblock,
-						  stdin_is_ptys);
-	  if (reset_sendsig)
-	    myself->sendsig = NULL;
-	  ptys_primary->get_duplicated_handle_set (&ptys_handle_set);
-	  ptys_ttyp = (tty *) ptys_primary->tc ();
-	  ptys_need_cleanup = true;
-	}
+      bool no_pcon = mode != _P_OVERLAY && mode != _P_WAIT;
+      term_spawn_worker.setup (iscygwin (), handle (fileno_stdin, false),
+			       runpath, no_pcon, reset_sendsig, envblock);
 
       /* Set up needed handles for stdio */
       si.dwFlags = STARTF_USESTDHANDLES;
@@ -787,11 +706,9 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	      sa = sec_user ((PSECURITY_ATTRIBUTES) alloca (1024),
 			     ::cygheap->user.sid ());
 	      /* We're creating a window station per user, not per logon
-		 session First of all we might not have a valid logon session
-		 for the user (logon by create_token), and second, it doesn't
-		 make sense in terms of security to create a new window
-		 station for every logon of the same user.  It just fills up
-		 the system with window stations for no good reason. */
+		 session.  It doesn't make sense in terms of security to
+		 create a new window station for every logon of the same user.
+		 It just fills up the system with window stations. */
 	      hwst = CreateWindowStationW (::cygheap->user.get_windows_id (sid),
 					   0, GENERIC_READ | GENERIC_WRITE, sa);
 	      if (!hwst)
@@ -885,11 +802,6 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 
       /* Name the handle similarly to proc_subproc. */
       ProtectHandle1 (pi.hProcess, childhProc);
-
-      /* Do not touch these terminal instances after here.
-	 They may be destroyed by close_all_files(). */
-      ptys_primary = NULL;
-      cons_native = NULL;
 
       if (mode == _P_OVERLAY)
 	{
@@ -1008,7 +920,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	    }
 	  if (sem)
 	    __posix_spawn_sem_release (sem, 0);
-	  if (ptys_need_cleanup || cons_need_cleanup)
+	  if (term_spawn_worker.need_cleanup ())
 	    {
 	      LONG prev_sigExeced = sigExeced;
 	      while (WaitForSingleObject (pi.hProcess, 100) == WAIT_TIMEOUT)
@@ -1017,18 +929,8 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 		   the signal sigExeced. Therefore, clear sigExeced here. */
 		prev_sigExeced =
 		  InterlockedCompareExchange (&sigExeced, 0, prev_sigExeced);
-	    }
-	  if (ptys_need_cleanup)
-	    {
-	      fhandler_pty_slave::cleanup_for_non_cygwin_app (&ptys_handle_set,
-							      ptys_ttyp,
-							      stdin_is_ptys);
-	      fhandler_pty_slave::close_handle_set (&ptys_handle_set);
-	    }
-	  if (cons_need_cleanup)
-	    {
-	      fhandler_console::cleanup_for_non_cygwin_app (&cons_handle_set);
-	      fhandler_console::close_handle_set (&cons_handle_set);
+	      term_spawn_worker.cleanup ();
+	      term_spawn_worker.close_handle_set ();
 	    }
 	  /* Make sure that ctrl_c_handler() is not on going. Calling
 	     init_console_handler(false) locks until returning from
@@ -1042,12 +944,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 	  system_call.arm ();
 	  if (waitpid (cygpid, &res, 0) != cygpid)
 	    res = -1;
-	  if (ptys_need_cleanup)
-	    fhandler_pty_slave::cleanup_for_non_cygwin_app (&ptys_handle_set,
-							    ptys_ttyp,
-							    stdin_is_ptys);
-	  if (cons_need_cleanup)
-	    fhandler_console::cleanup_for_non_cygwin_app (&cons_handle_set);
+	  term_spawn_worker.cleanup ();
 	  break;
 	case _P_DETACH:
 	  res = 0;	/* Lost all memory of this child. */
@@ -1070,10 +967,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
       res = -1;
     }
   __endtry
-  if (ptys_need_cleanup)
-    fhandler_pty_slave::close_handle_set (&ptys_handle_set);
-  if (cons_need_cleanup)
-    fhandler_console::close_handle_set (&cons_handle_set);
+  term_spawn_worker.close_handle_set ();
   this->cleanup ();
   if (envblock)
     free (envblock);
@@ -1150,7 +1044,7 @@ spawnl (int mode, const char *path, const char *arg0, ...)
 
   va_end (args);
 
-  return spawnve (mode, path, (char * const  *) argv, cur_environ ());
+  return spawnve (mode, path, (char * const  *) argv, environ);
 }
 
 extern "C" int
@@ -1194,7 +1088,7 @@ spawnlp (int mode, const char *file, const char *arg0, ...)
   va_end (args);
 
   return spawnve (mode | _P_PATH_TYPE_EXEC, find_exec (file, buf),
-		  (char * const *) argv, cur_environ ());
+		  (char * const *) argv, environ);
 }
 
 extern "C" int
@@ -1224,7 +1118,7 @@ spawnlpe (int mode, const char *file, const char *arg0, ...)
 extern "C" int
 spawnv (int mode, const char *path, const char * const *argv)
 {
-  return spawnve (mode, path, argv, cur_environ ());
+  return spawnve (mode, path, argv, environ);
 }
 
 extern "C" int
@@ -1233,7 +1127,7 @@ spawnvp (int mode, const char *file, const char * const *argv)
   path_conv buf;
   return spawnve (mode | _P_PATH_TYPE_EXEC,
 		  find_exec (file, buf, "PATH", FE_NNF) ?: "",
-		  argv, cur_environ ());
+		  argv, environ);
 }
 
 extern "C" int
@@ -1407,8 +1301,6 @@ av::setup (const char *prog_arg, path_conv& real_path, const char *ext,
 		set_errno (ENOEXEC);
 		return -1;
 	      }
-	    if (ascii_strcasematch (ext, ".com"))
-	      break;
 	    pgm = (char *) "/bin/sh";
 	    arg1 = NULL;
 	  }

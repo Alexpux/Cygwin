@@ -218,25 +218,15 @@ getpw_cp (struct passwd *temppw)
 }
 
 extern "C" struct passwd *
-getpwuid32 (uid_t uid)
+getpwuid (uid_t uid)
 {
   struct passwd *temppw = internal_getpwuid (uid);
   pthread_testcancel ();
   return getpw_cp (temppw);
 }
 
-#ifdef __i386__
-extern "C" struct passwd *
-getpwuid (__uid16_t uid)
-{
-  return getpwuid32 (uid16touid32 (uid));
-}
-#else
-EXPORT_ALIAS (getpwuid32, getpwuid)
-#endif
-
 extern "C" int
-getpwuid_r32 (uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize, struct passwd **result)
+getpwuid_r (uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize, struct passwd **result)
 {
   *result = NULL;
 
@@ -267,16 +257,6 @@ getpwuid_r32 (uid_t uid, struct passwd *pwd, char *buffer, size_t bufsize, struc
   pwd->pw_comment = NULL;
   return 0;
 }
-
-#ifdef __x86_64__
-EXPORT_ALIAS (getpwuid_r32, getpwuid_r)
-#else
-extern "C" int
-getpwuid_r (__uid16_t uid, struct passwd *pwd, char *buffer, size_t bufsize, struct passwd **result)
-{
-  return getpwuid_r32 (uid16touid32 (uid), pwd, buffer, bufsize, result);
-}
-#endif
 
 extern "C" struct passwd *
 getpwnam (const char *name)
@@ -753,14 +733,6 @@ endpwent_filtered (void *pw)
 {
   ((pw_ent *) pw)->endpwent ();
 }
-
-#ifdef __i386__
-extern "C" struct passwd *
-getpwduid (__uid16_t)
-{
-  return NULL;
-}
-#endif
 
 extern "C" int
 setpassent (int)

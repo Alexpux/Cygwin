@@ -18,10 +18,6 @@ environment:
     CYGWIN_ROOT: C:\cygwin64
     PKGARCH: mingw64-x86_64
     SETUP: setup-x86_64.exe
-  - BUILD: i686-pc-cygwin
-    CYGWIN_ROOT: C:\cygwin
-    PKGARCH: mingw64-i686
-    SETUP: setup-x86.exe
 
 cache: C:\cache
 
@@ -66,8 +62,7 @@ build_script: >-
     make &&
     make install &&
     (cd */newlib; make info man) &&
-    (cd */newlib; make install-info install-man) &&
-    (cd */winsup; test "${BUILD}" != 'x86_64-pc-cygwin' || make check || true)"
+    (cd */newlib; make install-info install-man)"
 
 test: off
 deploy: off
