@@ -4580,7 +4580,7 @@ fchownat (int dirfd, const char *pathname, uid_t uid, gid_t gid, int flags)
       int res = gen_full_path_at (path, dirfd, pathname);
       if (res)
 	{
-	  if (!(errno == ENOENT && (flags & AT_EMPTY_PATH)))
+	  if (!((errno == ENOENT || errno == ENOTDIR) && (flags & AT_EMPTY_PATH)))
 	    __leave;
 	  /* pathname is an empty string.  Operate on dirfd. */
 	  if (dirfd == AT_FDCWD)
@@ -4625,7 +4625,7 @@ fstatat (int dirfd, const char *__restrict pathname, struct stat *__restrict st,
       int res = gen_full_path_at (path, dirfd, pathname);
       if (res)
 	{
-	  if (!(errno == ENOENT && (flags & AT_EMPTY_PATH)))
+	  if (!((errno == ENOENT || errno == ENOTDIR) && (flags & AT_EMPTY_PATH)))
 	    __leave;
 	  /* pathname is an empty string.  Operate on dirfd. */
 	  if (dirfd == AT_FDCWD)
