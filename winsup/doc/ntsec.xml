@@ -932,7 +932,7 @@ from the corresponding file in the /etc directory.  <literal>db</literal>
 means, fetch the information from the Windows account databases, the SAM
 for local accounts, Active Directory for domain account.  For the current
 user, the default group is obtained from the current user token to avoid
-additional lookups to the group database. <literal>db-accuarte</literal> 
+additional lookups to the group database. <literal>db-accurate</literal>
 is only valid on <literal>group:</literal> line, and performs the same 
 lookups as the <literal>db</literal> option, but disables using the
 current user token to retrieve the default group as this optimization
