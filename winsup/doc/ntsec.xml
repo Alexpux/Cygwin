@@ -930,7 +930,16 @@ The two lines starting with the keywords <literal>passwd:</literal> and
 information from.  <literal>files</literal> means, fetch the information
 from the corresponding file in the /etc directory.  <literal>db</literal>
 means, fetch the information from the Windows account databases, the SAM
-for local accounts, Active Directory for domain account.  Examples:
+for local accounts, Active Directory for domain account.  For the current
+user, the default group is obtained from the current user token to avoid
+additional lookups to the group database. <literal>db-accurate</literal>
+is only valid on <literal>group:</literal> line, and performs the same 
+lookups as the <literal>db</literal> option, but disables using the
+current user token to retrieve the default group as this optimization
+is not accurate in all cases.  For example, if you run a native process
+with the primary group set to the Administrators builtin group, the 
+<literal>db</literal> option will return a non-existent group as primary
+group. Examples:
 </para>
 
 <screen>
@@ -947,6 +956,15 @@ Read passwd entries only from /etc/passwd.
 
 <para>
 Read group entries only from SAM/AD.
+</para>
+
+<screen>
+  group: db-accurate
+</screen>
+
+<para>
+Read group entries only from SAM/AD. Force the use of the group database
+for the current user.
 </para>
 
 <screen>

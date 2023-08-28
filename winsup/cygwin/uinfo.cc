@@ -637,6 +637,11 @@ cygheap_pwdgrp::nss_init_line (const char *line)
 		    *src |= NSS_SRC_DB;
 		    c += 2;
 		  }
+		else if (NSS_CMP ("db-accurate"))
+		  {
+		    *src |= NSS_SRC_DB | NSS_SRC_DB_ACCURATE;
+		    c += 11;
+		  }
 		else
 		  {
 		    c += strcspn (c, " \t");
@@ -1906,6 +1911,7 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
   gid_t gid = ILLEGAL_GID;
   bool is_domain_account = true;
   PCWSTR domain = NULL;
+  bool get_default_group_from_current_user_token = false;
   char *shell = NULL;
   char *home = NULL;
   char *gecos = NULL;
@@ -2371,9 +2377,19 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	    uid = posix_offset + sid_sub_auth_rid (sid);
 	  if (!is_group () && acc_type == SidTypeUser)
 	    {
-	      /* Default primary group.  Make the educated guess that the user
-		 is in group "Domain Users" or "None". */
-	      gid = posix_offset + DOMAIN_GROUP_RID_USERS;
+	      /* Default primary group.  If the sid is the current user, and
+		 we are not configured for accurate mode, fetch
+		 the default group from the current user token, otherwise make
+		 the educated guess that the user is in group "Domain Users"
+		 or "None". */
+	      if (!cygheap->pg.nss_grp_db_accurate() && sid == cygheap->user.sid ())
+		{
+		  get_default_group_from_current_user_token = true;
+		  gid = posix_offset
+			+ sid_sub_auth_rid (cygheap->user.groups.pgsid);
+		}
+	      else
+		gid = posix_offset + DOMAIN_GROUP_RID_USERS;
 	    }
 
 	  if (is_domain_account)
@@ -2384,9 +2400,11 @@ pwdgrp::fetch_account_from_windows (fetch_user_arg_t &arg, cyg_ldap *pldap)
 	      /* On AD machines, use LDAP to fetch domain account infos. */
 	      if (cygheap->dom.primary_dns_name ())
 		{
-		  /* Fetch primary group from AD and overwrite the one we
-		     just guessed above. */
-		  if (cldap->fetch_ad_account (sid, false, domain))
+		  /* For the current user we got correctly cased username and
+		     the primary group via process token.  For any other user
+		     we fetch it from AD and overwrite it. */
+		  if (!get_default_group_from_current_user_token
+		      && cldap->fetch_ad_account (sid, false, domain))
 		    {
 		      if ((val = cldap->get_account_name ()))
 			wcscpy (name, val);
