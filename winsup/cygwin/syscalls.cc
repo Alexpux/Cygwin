@@ -4414,11 +4414,10 @@ pclose (FILE *fp)
 
 static int
 gen_full_path_at (char *path_ret, int dirfd, const char *pathname,
-		  bool null_pathname_allowed = false)
+		  int flags = 0)
 {
-  /* Set null_pathname_allowed to true to allow GLIBC compatible behaviour
-     for NULL pathname.  Only used by futimesat. */
-  if (!pathname && !null_pathname_allowed)
+  /* futimesat allows a NULL pathname. */
+  if (!pathname && !(flags & _AT_NULL_PATHNAME_ALLOWED))
     {
       set_errno (EFAULT);
       return -1;
@@ -4440,22 +4439,19 @@ gen_full_path_at (char *path_ret, int dirfd, const char *pathname,
 	  cygheap_fdget cfd (dirfd);
 	  if (cfd < 0)
 	    return -1;
-	  if (!cfd->pc.isdir ())
+	  if (!cfd->pc.isdir () && !(flags & AT_EMPTY_PATH))
 	    {
 	      set_errno (ENOTDIR);
 	      return -1;
 	    }
 	  p = stpcpy (path_ret, cfd->get_name ());
 	}
-      if (!p)
-	{
-	  set_errno (ENOTDIR);
-	  return -1;
-	}
       if (pathname)
 	{
 	  if (!*pathname)
 	    {
+	      if (flags & AT_EMPTY_PATH)
+		return 0;
 	      set_errno (ENOENT);
 	      return -1;
 	    }
@@ -4577,29 +4573,14 @@ fchownat (int dirfd, const char *pathname, uid_t uid, gid_t gid, int flags)
 	  __leave;
 	}
       char *path = tp.c_get ();
-      int res = gen_full_path_at (path, dirfd, pathname);
+      int res = gen_full_path_at (path, dirfd, pathname, flags);
       if (res)
+	__leave;
+      if (!*pathname) /* Implies AT_EMPTY_PATH */
 	{
-	  if (!((errno == ENOENT || errno == ENOTDIR) && (flags & AT_EMPTY_PATH)))
-	    __leave;
-	  /* pathname is an empty string.  Operate on dirfd. */
-	  if (dirfd == AT_FDCWD)
-	    {
-	      cwdstuff::acquire_read ();
-	      strcpy (path, cygheap->cwd.get_posix ());
-	      cwdstuff::release_read ();
-	    }
-	  else
-	    {
-	      cygheap_fdget cfd (dirfd);
-	      if (cfd < 0)
-		__leave;
-	      strcpy (path, cfd->get_name ());
-	      /* If dirfd refers to a symlink (which was necessarily
-		 opened with O_PATH | O_NOFOLLOW), we must operate
-		 directly on that symlink.. */
-	      flags = AT_SYMLINK_NOFOLLOW;
-	    }
+	  /* If dirfd refers to a symlink (which was necessarily opened with
+	     O_PATH | O_NOFOLLOW), we must operate directly on that symlink. */
+	  flags = AT_SYMLINK_NOFOLLOW;
 	}
       return chown_worker (path, (flags & AT_SYMLINK_NOFOLLOW)
 				 ? PC_SYM_NOFOLLOW : PC_SYM_FOLLOW, uid, gid);
@@ -4622,21 +4603,9 @@ fstatat (int dirfd, const char *__restrict pathname, struct stat *__restrict st,
 	  __leave;
 	}
       char *path = tp.c_get ();
-      int res = gen_full_path_at (path, dirfd, pathname);
+      int res = gen_full_path_at (path, dirfd, pathname, flags);
       if (res)
-	{
-	  if (!((errno == ENOENT || errno == ENOTDIR) && (flags & AT_EMPTY_PATH)))
-	    __leave;
-	  /* pathname is an empty string.  Operate on dirfd. */
-	  if (dirfd == AT_FDCWD)
-	    {
-	      cwdstuff::acquire_read ();
-	      strcpy (path, cygheap->cwd.get_posix ());
-	      cwdstuff::release_read ();
-	    }
-	  else
-	    return fstat (dirfd, st);
-	}
+	  __leave;
       path_conv pc (path, ((flags & AT_SYMLINK_NOFOLLOW)
 			   ? PC_SYM_NOFOLLOW : PC_SYM_FOLLOW)
 			  | PC_POSIX | PC_KEEP_HANDLE, stat_suffixes);
@@ -4681,7 +4650,7 @@ futimesat (int dirfd, const char *pathname, const struct timeval times[2])
   __try
     {
       char *path = tp.c_get ();
-      if (gen_full_path_at (path, dirfd, pathname, true))
+      if (gen_full_path_at (path, dirfd, pathname, _AT_NULL_PATHNAME_ALLOWED))
 	__leave;
       return utimes (path, times);
     }
