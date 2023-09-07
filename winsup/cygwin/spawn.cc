@@ -354,7 +354,7 @@ child_info_spawn::worker (const char *prog_arg, const char *const *argv,
 
       int ac;
       for (ac = 0; argv[ac]; ac++)
-	/* nothing */;
+	;
 
       int err;
       const char *ext;
@@ -1142,11 +1142,16 @@ spawnvpe (int mode, const char *file, const char * const *argv,
 
 int
 av::setup (const char *prog_arg, path_conv& real_path, const char *ext,
-	   int argc, const char *const *argv, bool p_type_exec)
+	   int ac_in, const char *const *av_in, bool p_type_exec)
 {
   const char *p;
   bool exeext = ascii_strcasematch (ext, ".exe");
-  new (this) av (argc, argv);
+  new (this) av (ac_in, av_in);
+  if (!argc)
+    {
+      set_errno (E2BIG);
+      return -1;
+    }
   if ((exeext && real_path.iscygexec ()) || ascii_strcasematch (ext, ".bat")
       || (!*ext && ((p = ext - 4) > real_path.get_win32 ())
 	  && (ascii_strcasematch (p, ".bat") || ascii_strcasematch (p, ".cmd")

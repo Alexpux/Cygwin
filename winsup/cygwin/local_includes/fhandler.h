@@ -2377,7 +2377,8 @@ class fhandler_pty_common: public fhandler_termios
   void resize_pseudo_console (struct winsize *);
   static DWORD get_console_process_id (DWORD pid, bool match,
 				       bool cygwin = false,
-				       bool stub_only = false);
+				       bool stub_only = false,
+				       bool nat = false);
   bool to_be_read_from_nat_pipe (void);
   static DWORD attach_console_temporarily (DWORD target_pid, DWORD helper_pid);
   static void resume_from_temporarily_attach (DWORD resume_pid);
@@ -2550,6 +2551,14 @@ public:
   int tcgetpgrp ();
   void flush_to_slave ();
   void discard_input ();
+  void acquire_input_mutex_if_necessary (DWORD ms)
+  {
+    WaitForSingleObject (input_mutex, ms);
+  }
+  void release_input_mutex_if_necessary (void)
+  {
+    ReleaseMutex (input_mutex);
+  }
 
   fhandler_pty_master (void *) {}
 
@@ -2782,6 +2791,8 @@ class fhandler_dev_dsp: public fhandler_base
 
   void close_audio_in ();
   void close_audio_out (bool = false);
+
+ public:
   bool use_archetype () const {return true;}
 
   fhandler_dev_dsp (void *) {}

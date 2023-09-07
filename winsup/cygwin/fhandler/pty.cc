@@ -85,7 +85,8 @@ inline static bool process_alive (DWORD pid);
      stub_only: return only stub process's pid of non-cygwin process. */
 DWORD
 fhandler_pty_common::get_console_process_id (DWORD pid, bool match,
-					     bool cygwin, bool stub_only)
+					     bool cygwin, bool stub_only,
+					     bool nat)
 {
   tmp_pathbuf tp;
   DWORD *list = (DWORD *) tp.c_get ();
@@ -109,6 +110,8 @@ fhandler_pty_common::get_console_process_id (DWORD pid, bool match,
 	else
 	  {
 	    pinfo p (cygwin_pid (list[i]));
+	    if (nat && !!p && !ISSTATE(p, PID_NOTCYGWIN))
+	      continue;
 	    if (!!p && p->exec_dwProcessId)
 	      {
 		res_pri = stub_only ? p->exec_dwProcessId : list[i];
@@ -436,8 +439,10 @@ static int osi;
 void
 fhandler_pty_master::flush_to_slave ()
 {
+  WaitForSingleObject (input_mutex, mutex_timeout);
   if (get_readahead_valid () && !(get_ttyp ()->ti.c_lflag & ICANON))
     accept_input ();
+  ReleaseMutex (input_mutex);
 }
 
 void
@@ -522,8 +527,6 @@ fhandler_pty_master::accept_input ()
 {
   DWORD bytes_left;
   int ret = 1;
-
-  WaitForSingleObject (input_mutex, mutex_timeout);
 
   char *p = rabuf () + raixget ();
   bytes_left = eat_readahead (-1);
@@ -626,7 +629,6 @@ fhandler_pty_master::accept_input ()
   if (write_to == get_output_handle ())
     SetEvent (input_available_event); /* Set input_available_event only when
 					 the data is written to cyg pipe. */
-  ReleaseMutex (input_mutex);
   return ret;
 }
 
@@ -2247,9 +2249,9 @@ fhandler_pty_master::write (const void *ptr, size_t len)
 	    {
 	      /* This accept_input() call is needed in order to transfer input
 		 which is not accepted yet to non-cygwin pipe. */
+	      WaitForSingleObject (input_mutex, mutex_timeout);
 	      if (get_readahead_valid ())
 		accept_input ();
-	      WaitForSingleObject (input_mutex, mutex_timeout);
 	      acquire_attach_mutex (mutex_timeout);
 	      fhandler_pty_slave::transfer_input (tty::to_nat, from_master,
 						  get_ttyp (),
@@ -2317,9 +2319,10 @@ fhandler_pty_master::write (const void *ptr, size_t len)
 					  get_ttyp (), input_available_event);
       release_attach_mutex ();
     }
-  ReleaseMutex (input_mutex);
 
   line_edit_status status = line_edit (p, len, ti, &ret);
+  ReleaseMutex (input_mutex);
+
   if (status > line_edit_signalled && status != line_edit_pipe_full)
     ret = -1;
   return ret;
@@ -3577,9 +3580,11 @@ fhandler_pty_slave::get_winpid_to_hand_over (tty *ttyp,
     {
       /* Search another native process which attaches to the same console */
       DWORD current_pid = myself->exec_dwProcessId ?: myself->dwProcessId;
-      switch_to = get_console_process_id (current_pid, false, true, true);
+      switch_to = get_console_process_id (current_pid,
+					  false, true, true, true);
       if (!switch_to)
-	switch_to = get_console_process_id (current_pid, false, true, false);
+	switch_to = get_console_process_id (current_pid,
+					    false, true, false, true);
     }
   return switch_to;
 }
@@ -3902,7 +3907,9 @@ fhandler_pty_slave::transfer_input (tty::xfer_dir dir, HANDLE from, tty *ttyp,
     to = ttyp->to_slave ();
 
   pinfo p (ttyp->master_pid);
-  HANDLE pty_owner = OpenProcess (PROCESS_DUP_HANDLE, FALSE, p->dwProcessId);
+  HANDLE pty_owner = NULL;
+  if (p)
+    pty_owner = OpenProcess (PROCESS_DUP_HANDLE, FALSE, p->dwProcessId);
   if (pty_owner)
     {
       DuplicateHandle (pty_owner, to, GetCurrentProcess (), &to,

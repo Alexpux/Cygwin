@@ -149,10 +149,12 @@ AM_CONDITIONAL(CROSS_BOOTSTRAP, [test "x$with_cross_bootstrap" != "xyes"])
 
 AC_EXEEXT
 
-AC_CHECK_LIB([bfd], [bfd_init], [true],
-	     AC_MSG_WARN([Not building dumper.exe since some required libraries or headers are missing]))
+AC_ARG_ENABLE([dumper],
+	      [AS_HELP_STRING([--disable-dumper], [do not build the 'dumper' utility])],
+	      [build_dumper=$enableval],
+	      [build_dumper=yes])
 
-AM_CONDITIONAL(BUILD_DUMPER, [test "x$ac_cv_lib_bfd_bfd_init" = "xyes"])
+AM_CONDITIONAL(BUILD_DUMPER, [test "x$build_dumper" = "xyes"])
 
 # libbfd.a doesn't have a pkgconfig file, so we guess what it's dependencies
 # are, based on what's present in the build environment
@@ -160,6 +162,11 @@ BFD_LIBS="-lintl -liconv -liberty -lz"
 AC_CHECK_LIB([sframe], [sframe_decode], [BFD_LIBS="${BFD_LIBS} -lsframe"])
 AC_CHECK_LIB([zstd], [ZSTD_isError], [BFD_LIBS="${BFD_LIBS} -lzstd"])
 AC_SUBST([BFD_LIBS])
+
+AC_CHECK_LIB([sframe], [sframe_decode],
+	     AC_MSG_NOTICE([Detected libsframe; Assuming that libbfd depends on it]), [true])
+
+AM_CONDITIONAL(HAVE_LIBSFRAME, [test "x$ac_cv_lib_sframe_sframe_decode" = "xyes"])
 
 AC_CONFIG_FILES([
     Makefile
