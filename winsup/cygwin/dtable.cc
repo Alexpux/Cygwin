@@ -410,9 +410,6 @@ dtable::init_std_file_from_handle (int fd, HANDLE handle)
 	{
 	  fhandler_pipe *fhp = (fhandler_pipe *) fh;
 	  fhp->set_pipe_buf_size ();
-	  /* Set read pipe always to nonblocking */
-	  fhp->set_pipe_non_blocking (fhp->get_device () == FH_PIPER ?
-				      true : fhp->is_nonblocking ());
 	}
 
       if (!fh->open_setup (openflags))
@@ -992,9 +989,15 @@ handle_to_fn (HANDLE h, char *posix_fn)
       if (wcsncasecmp (w32, DEV_NAMED_PIPE, DEV_NAMED_PIPE_LEN) == 0)
 	{
 	  w32 += DEV_NAMED_PIPE_LEN;
+#ifdef __MSYS__
+	  if (wcsncmp (w32, L"msys-", WCLEN (L"msys-")) != 0)
+	    return false;
+	  w32 += WCLEN (L"msys-");
+#else
 	  if (wcsncmp (w32, L"cygwin-", WCLEN (L"cygwin-")) != 0)
 	    return false;
 	  w32 += WCLEN (L"cygwin-");
+#endif
 	  /* Check for installation key and trailing dash. */
 	  w32len = cygheap->installation_key.Length / sizeof (WCHAR);
 	  if (w32len
@@ -1016,7 +1019,7 @@ handle_to_fn (HANDLE h, char *posix_fn)
       if (wcsncasecmp (w32, DEVICE_PREFIX, DEVICE_PREFIX_LEN) != 0
 	  || !QueryDosDeviceW (NULL, fnbuf, sizeof (fnbuf) / sizeof (WCHAR)))
 	{
-	  sys_wcstombs (posix_fn, NT_MAX_PATH, w32, w32len);
+	  sys_wcstombs_path (posix_fn, NT_MAX_PATH, w32, w32len);
 	  return false;
 	}
 

@@ -406,7 +406,8 @@ public:
     NSS_SCHEME_UNIX,
     NSS_SCHEME_DESC,
     NSS_SCHEME_PATH,
-    NSS_SCHEME_FREEATTR
+    NSS_SCHEME_FREEATTR,
+    NSS_SCHEME_ENV
   };
   struct nss_scheme_t {
     nss_scheme_method	method;
@@ -453,6 +454,7 @@ public:
   inline int  nss_pwd_src () const { return pwd_src; } /* CW_GETNSS_PWD_SRC */
   inline bool nss_grp_files () const { return !!(grp_src & NSS_SRC_FILES); }
   inline bool nss_grp_db () const { return !!(grp_src & NSS_SRC_DB); }
+  inline bool nss_grp_db_accurate () const { return !!(grp_src & NSS_SRC_DB_ACCURATE); }
   inline int  nss_grp_src () const { return grp_src; } /* CW_GETNSS_GRP_SRC */
   inline bool nss_cygserver_caching () const { return caching; }
   inline void nss_disable_cygserver_caching () { caching = false; }
