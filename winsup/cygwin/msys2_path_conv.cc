@@ -406,6 +406,13 @@ skip_p2w:
 
     path_type result = NONE;
 
+    if (it + 1 == end) {
+        switch (*it) {
+        case '/':   return ROOTED_PATH ;
+        default:    return SIMPLE_WINDOWS_PATH;
+        }
+    }
+
     if (isalpha(*it) && *(it + 1) == ':') {
         if (*(it + 2) == '\\') {
             return SIMPLE_WINDOWS_PATH;
@@ -483,7 +490,7 @@ skip_p2w:
             if (isalpha(ch) && (*(it2+1) == ':') && (*(it2+2) == '/')) {
                 return SIMPLE_WINDOWS_PATH;
             }
-            if (ch == '/'&& memchr(it2, ',', end - it) == NULL) {
+            if (ch == '/'&& memchr(it2, ',', end - it2) == NULL) {
                 *src = it2;
                 return find_path_start_and_type(src, true, end);
             }
@@ -512,7 +519,7 @@ skip_p2w:
                         goto skip_p2w;
                     return POSIX_PATH_LIST;
                 }
-            } else if (memchr(it2, '=', end - it) == NULL) {
+            } else if (memchr(it2, '=', end - it2) == NULL) {
                 return SIMPLE_WINDOWS_PATH;
             }
         } else if (ch != '.') {
