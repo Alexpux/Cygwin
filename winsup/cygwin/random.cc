@@ -29,6 +29,14 @@
 
 #define __INSIDE_CYGWIN__
 
+#include "winsup.h"
+
+SRWLOCK NO_COPY rndlock = SRWLOCK_INIT;
+# define __random_lock()	{ if (__isthreaded) \
+					AcquireSRWLockExclusive (&rndlock); }
+# define __random_unlock()	{ if (__isthreaded) \
+					ReleaseSRWLockExclusive (&rndlock); }
+
 extern "C" {
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
@@ -36,11 +44,7 @@ static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/stdlib/random.c,v 1.25 2007/01/09 00:28:10 imp Exp $");
 
-#include <sys/time.h>          /* for srandomdev() */
-#include <fcntl.h>             /* for srandomdev() */
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>            /* for srandomdev() */
 
 /*
  * random.c:
@@ -248,6 +252,8 @@ static inline uint32_t good_rand (int32_t x)
 #endif  /* !USE_WEAK_SEEDING */
 }
 
+static long __random_unlocked();
+
 /*
  * srandom:
  *
@@ -260,8 +266,8 @@ static inline uint32_t good_rand (int32_t x)
  * introduced by the L.C.R.N.G.  Note that the initialization of randtbl[]
  * for default usage relies on values produced by this routine.
  */
-void
-srandom(unsigned x)
+static void
+__srandom_unlocked(unsigned x)
 {
 	int i, lim;
 
@@ -276,48 +282,18 @@ srandom(unsigned x)
 		lim = 10 * rand_deg;
 	}
 	for (i = 0; i < lim; i++)
-		(void)random();
+		(void)__random_unlocked();
 }
 
-/*
- * srandomdev:
- *
- * Many programs choose the seed value in a totally predictable manner.
- * This often causes problems.  We seed the generator using the much more
- * secure random(4) interface.  Note that this particular seeding
- * procedure can generate states which are impossible to reproduce by
- * calling srandom() with any value, since the succeeding terms in the
- * state buffer are no longer derived from the LC algorithm applied to
- * a fixed seed.
- */
 void
-srandomdev()
+srandom(unsigned x)
 {
-	size_t len;
-
-	if (rand_type == TYPE_0)
-		len = sizeof state[0];
-	else
-		len = rand_deg * sizeof state[0];
-
-	if (getentropy ((void *) state, len)) {
-		struct timeval tv;
-		unsigned long junk;
-
-		gettimeofday(&tv, NULL);
-		/* Avoid a compiler warning when we really want to get at the
-		   junk in an uninitialized variable. */
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-		srandom((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec ^ junk);
-#pragma GCC diagnostic pop
-		return;
-	}
-
-	if (rand_type != TYPE_0) {
-		fptr = &state[rand_sep];
-		rptr = &state[0];
-	}
+	__random_lock();
+	__srandom_unlocked(x);
+	__random_unlock();
 }
+
+EXPORT_ALIAS (srandom, srand)
 
 /*
  * initstate:
@@ -350,6 +326,7 @@ initstate(unsigned seed,		/* seed for R.N.G. */
 	char *ostate = (char *)(&state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;
 
+	__random_lock();
 	if (rand_type == TYPE_0)
 		state[-1] = rand_type;
 	else
@@ -358,6 +335,7 @@ initstate(unsigned seed,		/* seed for R.N.G. */
 		(void)fprintf(stderr,
 		    "random: not enough state (%lu bytes); ignored.\n",
 		    (unsigned long) n);
+		__random_unlock();
 		return(0);
 	}
 	if (n < BREAK_1) {
@@ -383,11 +361,12 @@ initstate(unsigned seed,		/* seed for R.N.G. */
 	}
 	state = int_arg_state + 1; /* first location */
 	end_ptr = &state[rand_deg];	/* must set end_ptr before srandom */
-	srandom(seed);
+	__srandom_unlocked(seed);
 	if (rand_type == TYPE_0)
 		int_arg_state[0] = rand_type;
 	else
 		int_arg_state[0] = MAX_TYPES * (rptr - state) + rand_type;
+	__random_unlock();
 	return(ostate);
 }
 
@@ -418,6 +397,7 @@ setstate(char *arg_state /* pointer to state array */)
 	uint32_t rear = new_state[0] / MAX_TYPES;
 	char *ostate = (char *)(&state[-1]);
 
+	__random_lock();
 	if (rand_type == TYPE_0)
 		state[-1] = rand_type;
 	else
@@ -442,6 +422,7 @@ setstate(char *arg_state /* pointer to state array */)
 		fptr = &state[(rear + rand_sep) % rand_deg];
 	}
 	end_ptr = &state[rand_deg];		/* set end_ptr too */
+	__random_unlock();
 	return(ostate);
 }
 
@@ -462,8 +443,8 @@ setstate(char *arg_state /* pointer to state array */)
  *
  * Returns a 31-bit random number.
  */
-long
-random()
+static long
+__random_unlocked()
 {
 	uint32_t i;
 	uint32_t *f, *r;
@@ -490,4 +471,22 @@ random()
 	}
 	return((long)i);
 }
+
+long
+random()
+{
+	long r;
+
+	__random_lock();
+	r = __random_unlocked();
+	__random_unlock();
+	return (r);
+}
+
+int
+rand()
+{
+	return ((int) random());
+}
+
 }
