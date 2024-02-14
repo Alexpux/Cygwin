@@ -15,7 +15,7 @@ jobs:
     name: Fedora cross ${{ matrix.target }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     # install build tools
     - run: dnf install -y autoconf automake make patch perl
@@ -60,7 +60,7 @@ jobs:
     # endings, but this could still be dangerous e.g if we need symlinks in the
     # repo)
     - run: git config --global core.autocrlf input
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     # install cygwin and build tools
     - name: Install Cygwin
