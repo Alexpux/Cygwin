@@ -35,7 +35,7 @@ jobs:
           make DESTDIR="$(pwd)"/_dest install
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: install
           path: _dest/
